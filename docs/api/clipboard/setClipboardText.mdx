@@ -1,0 +1,81 @@
+---
+id: setClipboardText
+title: setClipboardText
+sidebar_label: setClipboardText
+description: 클립보드에 텍스트를 복사합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `setClipboardText`
+
+사용자의 클립보드에 임의의 문자열을 복사합니다. 링크, 인증 코드, 영수증 번호 등 "한 번 복사하면 편한" UX를 만들 때 사용합니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+```ts
+import { setClipboardText } from '@apps-in-toss/web-framework';
+
+declare function setClipboardText(text: string): Promise<void>;
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `text` | `string` | ✓ | 클립보드에 복사할 문자열. 빈 문자열도 허용되지만 UX상 권장되지 않습니다. |
+
+## 반환값
+
+- `Promise<void>` — 복사가 완료되면 resolve.
+- 호출 시점에 앱이 포그라운드가 아니거나, 유저가 시스템 다이얼로그로 차단한 경우 reject 될 수 있습니다. `try/catch`로 감싸세요.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { setClipboardText } from '@apps-in-toss/web-framework';
+
+async function copyInviteCode() {
+  await setClipboardText('AIT-2026-HELLO');
+}
+```
+
+### 실전 예제 — 복사 후 토스트로 피드백
+
+```tsx
+import { setClipboardText, showToast } from '@apps-in-toss/web-framework';
+
+async function copyAndToast(value: string) {
+  try {
+    await setClipboardText(value);
+    await showToast({ message: '복사되었습니다' });
+  } catch (error) {
+    await showToast({ message: '복사에 실패했어요. 다시 시도해 주세요.' });
+    console.error(error);
+  }
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example에서 이 API를 실제로 호출하고 결과를 확인할 수 있습니다.
+
+<TryItLink group="clipboard" method="setClipboardText" />
+
+## 관련 API
+
+- `getClipboardText` — 클립보드에서 텍스트를 읽습니다. (문서 페이지 작성 예정)
+
+## 관련 가이드
+
+- _(작성 예정)_ Recipes — "복사/붙여넣기 UX 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지
