@@ -5,7 +5,7 @@ import styles from './TryItLink.module.css';
 /**
  * Deep-link from a docs API page to the corresponding sdk-example page.
  *
- * Contract (see PLAN.md §3):
+ * Contract (see CLAUDE.md → "sdk-example deep-link 컨벤션"):
  * - `group`  matches the sdk-example route segment, e.g. "clipboard"
  * - `method` matches the SDK export name, e.g. "setClipboardText"
  * - Resulting URL: https://apps-in-toss-community.github.io/sdk-example/<group>#<method>

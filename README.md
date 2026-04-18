@@ -51,4 +51,4 @@ GitHub Pages (`https://apps-in-toss-community.github.io/docs/`)로 자동 배포
 
 ## Pair repos
 
-- [`sdk-example`](https://github.com/apps-in-toss-community/sdk-example) — downstream consumer. 각 API 페이지에서 sdk-example로 deep-link (`/docs/api/<group>/<method>` ↔ `/<group>#<method>`). 양방향 URL 계약은 `CLAUDE.md` 참고.
+- [`sdk-example`](https://github.com/apps-in-toss-community/sdk-example) — downstream consumer. 각 API 페이지에서 sdk-example로 deep-link (`/docs/api/<group>/<method>` ↔ `/sdk-example/<group>#<method>`). 양방향 URL 계약은 `CLAUDE.md` 참고.

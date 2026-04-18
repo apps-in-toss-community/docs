@@ -2,7 +2,7 @@ import type { SidebarsConfig } from '@docusaurus/plugin-content-docs';
 
 /**
  * Sidebar is the source of truth for `<group>` naming used in the
- * docs ↔ sdk-example deep-link contract. See PLAN.md §3.
+ * docs ↔ sdk-example deep-link contract. See CLAUDE.md → "sdk-example deep-link 컨벤션".
  *
  * Only the pages that actually exist right now are listed here.
  * New API pages are added in follow-up PRs.

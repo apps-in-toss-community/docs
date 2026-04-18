@@ -14,11 +14,12 @@
 
 ### 후보
 
-| 항목 | Docusaurus 3 | Nextra | VitePress | Starlight (Astro) |
+| 항목 | Docusaurus 3 | Nextra 3/4 | VitePress 1.x | Starlight (Astro 5) |
 |---|---|---|---|---|
 | 기반 | React + MDX + webpack | Next.js + MDX | Vue + Vite | Astro + MDX (islands) |
-| i18n (ko/en) | **1급** (locale별 콘텐츠 트리) | Next 라우팅 기반, MDX 수동 분기 | 1급 | 1급 |
+| i18n (ko/en) | **1급** (locale별 콘텐츠 트리, crowdin 표준 흐름) | Next 라우팅 기반, MDX 수동 분기 | 1급 | 1급 |
 | 검색 | Algolia / 로컬 플러그인 | 로컬 / Algolia | 로컬 내장 | **Pagefind 내장** |
+| 결과물 크기 (static) | 중간 (React 런타임) | 중간~큼 (Next 런타임) | 작음 | **가장 작음 (zero-JS default)** |
 | 조직 스택 정합성 | **React 주류 — 높음** | React (Next SSR 추가) | Vue — 낮음 | Astro — island 경계 의식 |
 | sdk-example 컴포넌트 재사용 | React 공유 쉬움 | React 공유 쉬움 | Vue — 어려움 | island 번들링 주의 |
 | GitHub Pages 배포 | `baseUrl` 한 줄 | `next export` + basePath | `base` + `outDir` | `base` + static out |
@@ -60,9 +61,19 @@
 
 ### API 페이지 템플릿 (`/docs/api/<group>/<method>`)
 
-동일 순서:
+각 페이지는 아래 섹션을 동일한 순서로 제공한다:
 
-1. 제목(`<method>`) / 2. 한 줄 요약 / 3. 비공식 배지 / 4. 설명·제약·플랫폼 / 5. 시그니처 / 6. 파라미터 표 / 7. 반환값·이벤트 / 8. 예제 / 9. **Try it** (sdk-example deep-link) / 10. 관련 가이드 / 11. 외부 참조(npm, 공식 문서 앵커).
+1. 제목 (`<method>`)
+2. 한 줄 요약
+3. 비공식 안내 배지 (사이트 레벨 상시)
+4. 설명 — 어디서 언제 쓰는지, 제약, 플랫폼 가용성
+5. 시그니처 (`tsx` 코드 블록)
+6. 파라미터 표 (name / type / required / description)
+7. 반환값 / 이벤트 (eventful API의 경우 콜백 시퀀스)
+8. 예제 — 최소 예제 + 실전 예제
+9. **Try it** — sdk-example의 해당 ApiCard로 deep-link
+10. 관련 가이드 — `/docs/guides/*`로 역링크
+11. 외부 참조 — `@apps-in-toss/web-framework` npm, 앱인토스 공식 문서 앵커
 
 ## sdk-example deep-link 컨벤션 (URL 안정성)
 
@@ -71,10 +82,10 @@
 - 경로 규칙: `/docs/api/<group>/<method>`
   - `<group>`: sdk-example 페이지 이름과 동일한 **소문자 단수형** (`clipboard`, `navigation`, `iap`, `ads`)
   - `<method>`: SDK export 이름과 동일한 **카멜케이스 원형** (`setClipboardText`, `appLogin`)
-- Try it 버튼 타겟:
-  - prod: `https://apps-in-toss-community.github.io/sdk-example/<group>`
-  - dev: `http://localhost:5173/<group>`
-- 장기: `/<group>#<method>` 앵커로 특정 카드 스크롤/하이라이트 (sdk-example `ApiCard`가 `anchor` prop 받도록 확장 필요).
+- Try it 버튼 타겟 (현재 `TryItLink`가 emit하는 URL):
+  - prod: `https://apps-in-toss-community.github.io/sdk-example/<group>#<method>`
+  - dev: `http://localhost:5173/<group>#<method>`
+- 앵커(`#<method>`)는 **현재 sdk-example에서 무시되지만 URL 계약에 이미 포함**. sdk-example `ApiCard`가 `anchor` prop을 받도록 확장되면(후속 PR) 자동으로 스크롤/하이라이트가 동작하므로, docs 링크는 바꿀 필요 없음.
 - 링크 생성은 `src/components/TryItLink.tsx` 사용.
 
 ### sdk-example → docs
