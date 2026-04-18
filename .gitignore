@@ -2,6 +2,10 @@ node_modules
 dist
 coverage
 
+# Docusaurus
+.docusaurus
+build
+
 .claude/settings.local.json
 .claude/*.lock
 .claude.lock

@@ -1,0 +1,35 @@
+/**
+ * Site-wide overrides for the Docusaurus classic theme.
+ *
+ * Infima variables are documented at https://infima.dev/.
+ * We pick a Toss-neutral blue-grey palette; the "community / unofficial" badge
+ * in announcementBar keeps the affiliation framing clear.
+ */
+
+:root {
+  --ifm-color-primary: #2c5fbf;
+  --ifm-color-primary-dark: #2856ac;
+  --ifm-color-primary-darker: #2551a2;
+  --ifm-color-primary-darkest: #1e4285;
+  --ifm-color-primary-light: #3d6ec8;
+  --ifm-color-primary-lighter: #4976cc;
+  --ifm-color-primary-lightest: #6c8dd6;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] {
+  --ifm-color-primary: #8aabe8;
+  --ifm-color-primary-dark: #6c94e1;
+  --ifm-color-primary-darker: #5d88de;
+  --ifm-color-primary-darkest: #3365d2;
+  --ifm-color-primary-light: #a8c2ef;
+  --ifm-color-primary-lighter: #b8cef2;
+  --ifm-color-primary-lightest: #e7edf9;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+/* Keep the "unofficial" banner visually prominent and non-dismissable. */
+div[class*="announcementBar"] {
+  font-weight: 500;
+}

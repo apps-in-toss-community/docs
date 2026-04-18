@@ -18,4 +18,24 @@ Will be published to `https://apps-in-toss-community.github.io/docs/` once ready
 
 ## Status
 
+Initial scaffold landed. The framework is **Docusaurus 3** (rationale in [`PLAN.md`](./PLAN.md)). Only the landing page and one sample API page (`setClipboardText`) are written so far — the rest of the reference is a follow-up.
+
 See the [organization landing page](https://apps-in-toss-community.github.io/) for the full roadmap.
+
+## Local development
+
+```bash
+pnpm install
+pnpm dev          # http://localhost:3000 by default
+pnpm build        # static output in build/
+pnpm serve        # preview the built site
+pnpm typecheck    # tsc --noEmit
+pnpm lint         # biome check .
+```
+
+## Architecture
+
+- Framework: Docusaurus 3 (`@docusaurus/preset-classic`)
+- Korean is the default locale; English lives under `i18n/en/`
+- Deploys to `https://apps-in-toss-community.github.io/docs/` via GitHub Pages Action
+- Deep-link contract with [`sdk-example`](https://github.com/apps-in-toss-community/sdk-example) is documented in `PLAN.md` §3. The helper component is `src/components/TryItLink.tsx`.

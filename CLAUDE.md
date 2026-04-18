@@ -17,17 +17,35 @@
 
 기술 스택은 결정 전 (Docusaurus / Nextra / VitePress 후보).
 
-## 기술 스택 (현재 — 최소 세팅)
+## 기술 스택
 
+- **Docusaurus 3** (classic preset, TypeScript, MDX)
 - **pnpm** — 패키지 매니저 (10.33.0)
-- **Biome** — lint + formatter (조직 표준, 현재 config 파일만 관리)
+- **Biome** — lint + formatter (조직 표준). `*.md`/`*.mdx`는 Biome에서 제외 — MDX 파서/Docusaurus 컨벤션을 따른다.
 - **Changesets 사용 안 함** — Type C (사이트). `main` = 배포.
 
-문서 사이트 프레임워크(Docusaurus/Nextra/VitePress)는 미결정. 선정 후 tsconfig, 빌드, 배포 workflow를 추가할 예정.
+프레임워크 선정 근거와 정보 아키텍처 전체는 [`PLAN.md`](./PLAN.md) 참고.
+
+## i18n
+
+- 기본 로케일: `ko` (한국어) — 콘텐츠는 `docs/` 루트
+- 추가 로케일: `en` — 콘텐츠는 `i18n/en/docusaurus-plugin-content-docs/current/`
+- 새 페이지를 추가할 때는 **ko 먼저**, 필요 시 en mirror를 같은 경로에 추가.
+
+## sdk-example 딥링크
+
+- URL 규칙: `/docs/api/<group>/<method>`
+- `<group>`은 sdk-example의 route segment(소문자), `<method>`는 SDK export 이름(카멜케이스).
+- 링크 생성은 `src/components/TryItLink.tsx`를 사용.
+- 경로/네이밍 변경 시 반드시 sdk-example과 동시 변경 (양쪽 CLAUDE.md 규칙).
 
 ## 명령어
 
 ```bash
+pnpm dev         # Docusaurus dev (http://localhost:3000)
+pnpm build       # build/ 에 정적 생성
+pnpm serve       # 빌드 결과 로컬 미리보기
+pnpm typecheck   # tsc --noEmit
 pnpm lint        # biome check .
 pnpm lint:fix    # biome check --write .
 pnpm format      # biome format --write .
@@ -35,6 +53,6 @@ pnpm format      # biome format --write .
 
 ## Status
 
-scaffold 최소 세팅 완료. 프레임워크 선정 후 본격 작업.
+초기 스캐폴드 완료. 실제 문서 콘텐츠 채우기는 후속 PR.
 
 전체 로드맵은 [landing page](https://apps-in-toss-community.github.io/) 참고.

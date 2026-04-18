@@ -1,0 +1,81 @@
+---
+id: setClipboardText
+title: setClipboardText
+sidebar_label: setClipboardText
+description: Copy text to the system clipboard.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `setClipboardText`
+
+Copies an arbitrary string to the user's clipboard. Useful for one-tap copy UX — invite codes, shareable links, receipt numbers.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the upstream [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { setClipboardText } from '@apps-in-toss/web-framework';
+
+declare function setClipboardText(text: string): Promise<void>;
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `text` | `string` | ✓ | The string to copy. Empty strings are allowed but not recommended from a UX perspective. |
+
+## Returns
+
+- `Promise<void>` — resolves after the copy completes.
+- May reject when the app is backgrounded or the system denies the operation. Wrap in `try/catch`.
+
+## Examples
+
+### Minimal
+
+```tsx
+import { setClipboardText } from '@apps-in-toss/web-framework';
+
+async function copyInviteCode() {
+  await setClipboardText('AIT-2026-HELLO');
+}
+```
+
+### With a toast
+
+```tsx
+import { setClipboardText, showToast } from '@apps-in-toss/web-framework';
+
+async function copyAndToast(value: string) {
+  try {
+    await setClipboardText(value);
+    await showToast({ message: 'Copied to clipboard' });
+  } catch (error) {
+    await showToast({ message: 'Copy failed — please try again.' });
+    console.error(error);
+  }
+}
+```
+
+## Try it live
+
+Run the API in sdk-example and inspect the result and history.
+
+<TryItLink group="clipboard" method="setClipboardText" />
+
+## Related APIs
+
+- `getClipboardText` — read text from the clipboard. (Page coming soon.)
+
+## Related guides
+
+- _(coming soon)_ Recipes — copy/paste UX patterns
+
+## Upstream
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package
