@@ -17,8 +17,24 @@
 
 기술 스택은 결정 전 (Docusaurus / Nextra / VitePress 후보).
 
+## 기술 스택 (현재 — 최소 세팅)
+
+- **pnpm** — 패키지 매니저 (10.33.0)
+- **Biome** — lint + formatter (조직 표준, 현재 config 파일만 관리)
+- **Changesets 사용 안 함** — Type C (사이트). `main` = 배포.
+
+문서 사이트 프레임워크(Docusaurus/Nextra/VitePress)는 미결정. 선정 후 tsconfig, 빌드, 배포 workflow를 추가할 예정.
+
+## 명령어
+
+```bash
+pnpm lint        # biome check .
+pnpm lint:fix    # biome check --write .
+pnpm format      # biome format --write .
+```
+
 ## Status
 
-placeholder 상태. 기술 스택 선정 전.
+scaffold 최소 세팅 완료. 프레임워크 선정 후 본격 작업.
 
 전체 로드맵은 [landing page](https://apps-in-toss-community.github.io/) 참고.

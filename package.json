@@ -1,0 +1,33 @@
+{
+  "name": "@ait-co/docs",
+  "version": "0.0.0",
+  "description": "Community-maintained, cleaner and friendlier guides and references for Apps in Toss mini-app development",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.12"
+  },
+  "keywords": [
+    "apps-in-toss",
+    "toss",
+    "mini-app",
+    "docs"
+  ],
+  "packageManager": "pnpm@10.33.0",
+  "license": "BSD-3-Clause",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/apps-in-toss-community/docs"
+  },
+  "bugs": {
+    "url": "https://github.com/apps-in-toss-community/docs/issues"
+  }
+}
