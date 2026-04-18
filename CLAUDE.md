@@ -8,7 +8,7 @@
 
 ## 짝 repo
 
-- **`sdk-example`** — 문서의 각 섹션은 sdk-example의 대응 페이지로 **deep-link**하고, sdk-example의 각 ApiCard는 이 문서로 링크. **한쪽 경로 구조가 바뀌면 반대쪽 링크가 깨진다** — path naming 변경은 양쪽 동시에.
+- **`sdk-example`** (downstream consumer) — 문서의 각 섹션은 sdk-example의 대응 페이지로 **deep-link**하고, sdk-example의 각 ApiCard는 이 문서로 링크. **한쪽 경로 구조가 바뀌면 반대쪽 링크가 깨진다** — path naming 변경은 양쪽 동시에. docs가 완성되면 sdk-example에서 각 API의 문서를 바로 읽어볼 수 있게 개선하는 것이 주요 통합 목표.
 - **`agent-plugin`** — `/ait docs <topic>`이 이 문서의 마크다운 소스를 세션에 로드.
 
 ## 프로젝트 개요
