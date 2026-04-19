@@ -75,7 +75,7 @@
 10. **Try it** — sdk-example의 해당 ApiCard로 deep-link (`<TryItLink group method />`)
 11. 관련 API — 같은 네임스페이스 내 다른 메서드로 상대경로 링크 (`./otherMethod`)
 12. 관련 가이드 — `/docs/guides/*`로 역링크
-13. 외부 참조 — `@apps-in-toss/web-framework` npm, 앱인토스 공식 문서 앵커. 영어 locale의 표준 헤딩은 **"External references"** (초기에는 "Upstream"이었지만 템플릿 일관성을 위해 맞춤).
+13. 외부 참조 — `@apps-in-toss/web-framework` npm, 앱인토스 공식 문서 앵커. 영어 locale의 표준 헤딩은 **"External references"**. "Upstream"은 사용 금지 (초기에는 쓰였지만 ko "외부 참조"와 의미 범위가 달라 템플릿 일관성을 위해 폐기).
 
 예시/코드 블록에서 `showToast`처럼 **SDK에 실제로 존재하지 않는 API를 import하지 않는다**. 사용자 피드백이 필요한 예시는 앱의 자체 토스트 컴포넌트(e.g. `showAppToast(...)`) 호출이나 `setState` 기반 인라인 메시지로 쓴다. 새 예제에 SDK import를 추가할 때는 `../devtools/src/mock/device/` 또는 상위 `@apps-in-toss/web-bridge` 타입에 실제로 존재하는지 먼저 확인.
 
@@ -88,6 +88,7 @@
 - **주의**: overview의 `slug`를 덮어쓰면 상대경로(`./setClipboardText`)가 `/api/setClipboardText`로 잘못 resolve 된다. overview 페이지 안에서는 메서드 링크를 **절대경로**(`/api/<group>/<method>`)로 쓸 것. 메서드 페이지끼리는 상대경로가 정상 동작.
 - sidebar 진입 라벨은 `Overview`.
 - Try it 링크는 `<TryItLink group="<group>" />` 형태로 `method`를 생략 — 네임스페이스 대표 페이지로 이동. 메서드 페이지에서는 `method` 지정.
+- **메서드 순서**: sidebar와 overview 메서드 표는 **SDK export 이름 기준 알파벳순**으로 동일하게 정렬 (예: `getClipboardText` → `setClipboardText`). 서사 순서("쓰기 먼저, 읽기 나중")를 쓰고 싶더라도 sidebar가 source of truth이므로 표도 맞춘다.
 
 ## sdk-example deep-link 컨벤션 (URL 안정성)
 

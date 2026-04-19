@@ -20,14 +20,14 @@ This page is community-written. The SDK behavior itself is defined by the upstre
 
 | Method | Purpose |
 | --- | --- |
-| [`setClipboardText`](/api/clipboard/setClipboardText) | Copy text to the clipboard. |
 | [`getClipboardText`](/api/clipboard/getClipboardText) | Read text from the clipboard. |
+| [`setClipboardText`](/api/clipboard/setClipboardText) | Copy text to the clipboard. |
 
 ## Permission
 
-The whole namespace shares a single `clipboard` permission — once it's granted, both methods work.
+The whole namespace shares a **single `clipboard` permission**. Both methods are bound to the same `PermissionName`, so granting access through one immediately enables the other. `setClipboardText.getPermission()` and `getClipboardText.getPermission()` always return the same value — check whichever is more convenient.
 
-- Calling either method while the status is `denied` throws. Check with `setClipboardText.getPermission()` or `getClipboardText.getPermission()` before calling.
+- Calling either method while the status is `denied` throws. Check with `getPermission()` first.
 - If the user hasn't decided yet, trigger the system dialog with `openPermissionDialog()`.
 
 Both methods expose `getPermission()` / `openPermissionDialog()` helpers on the function object — see each page's "Permission" section.

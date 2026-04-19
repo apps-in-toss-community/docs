@@ -37,7 +37,7 @@ export default function TryItLink({ group, method, children }: TryItLinkProps): 
       target="_blank"
       rel="noreferrer noopener"
       data-group={group}
-      data-method={method}
+      data-method={method ?? ''}
     >
       <span aria-hidden="true" className={styles.arrow}>
         →
