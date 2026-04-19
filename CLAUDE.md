@@ -65,15 +65,26 @@
 
 1. 제목 (`<method>`)
 2. 한 줄 요약
-3. 비공식 안내 배지 (사이트 레벨 상시)
+3. 비공식 안내 배지 (`:::info 비공식 문서`)
 4. 설명 — 어디서 언제 쓰는지, 제약, 플랫폼 가용성
-5. 시그니처 (`tsx` 코드 블록)
-6. 파라미터 표 (name / type / required / description)
-7. 반환값 / 이벤트 (eventful API의 경우 콜백 시퀀스)
-8. 예제 — 최소 예제 + 실전 예제
-9. **Try it** — sdk-example의 해당 ApiCard로 deep-link
-10. 관련 가이드 — `/docs/guides/*`로 역링크
-11. 외부 참조 — `@apps-in-toss/web-framework` npm, 앱인토스 공식 문서 앵커
+5. 시그니처 (`ts` 코드 블록, `declare function ...`)
+6. 파라미터 표 (name / type / required / description). 파라미터가 없으면 "없음."
+7. 반환값 / 이벤트 (eventful API의 경우 콜백 시퀀스). 특이 사항(빈 문자열 의미 등)은 `:::caution`으로 강조.
+8. **권한** — 해당 API가 요구하는 `PermissionName`을 명시. SDK의 함수 객체에 부착된 `.getPermission()` / `.openPermissionDialog()` 유틸을 예시 코드로 보여줌. Guides의 "권한 처리 패턴" 문서로 역참조(현재는 placeholder).
+9. 예제 — 최소 예제 + 실전 예제 (`tsx` 선호)
+10. **Try it** — sdk-example의 해당 ApiCard로 deep-link (`<TryItLink group method />`)
+11. 관련 API — 같은 네임스페이스 내 다른 메서드로 상대경로 링크 (`./otherMethod`)
+12. 관련 가이드 — `/docs/guides/*`로 역링크
+13. 외부 참조 — `@apps-in-toss/web-framework` npm, 앱인토스 공식 문서 앵커
+
+### 네임스페이스 overview 페이지 (`/docs/api/<group>/index.mdx`)
+
+네임스페이스에 **2개 이상의 메서드**가 있으면 overview 페이지를 만든다.
+
+- frontmatter에 `slug: /api/<group>`, `id: <group>-overview` 고정 (id가 `index`면 Docusaurus가 헷갈려함)
+- 구성: 네임스페이스 소개 → 메서드 표 → 공유되는 권한/제약 → UX 가이드 → Try it 링크 → 외부 참조
+- **주의**: overview의 `slug`를 덮어쓰면 상대경로(`./setClipboardText`)가 `/api/setClipboardText`로 잘못 resolve 된다. overview 페이지 안에서는 메서드 링크를 **절대경로**(`/api/<group>/<method>`)로 쓸 것. 메서드 페이지끼리는 상대경로가 정상 동작.
+- sidebar 진입 라벨은 `Overview`.
 
 ## sdk-example deep-link 컨벤션 (URL 안정성)
 
@@ -153,4 +164,4 @@ pnpm format      # biome format --write .
 
 ## Status
 
-초기 스캐폴드 완료 (Docusaurus 3, 랜딩 페이지, `clipboard/setClipboardText` 예시 페이지 ko/en, `TryItLink` 컴포넌트, CI + deploy workflow). 실제 문서 콘텐츠 채우기는 후속 PR — TODO.md 참고.
+`clipboard` 네임스페이스(overview + `setClipboardText` + `getClipboardText`, ko/en) 완성 — per-namespace 템플릿 프로토타입으로 확립됨. 나머지 15개 네임스페이스는 이 패턴을 복제. 다음 우선순위와 backlog은 TODO.md 참고.

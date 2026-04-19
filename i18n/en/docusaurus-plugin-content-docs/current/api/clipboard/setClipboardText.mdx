@@ -34,6 +34,21 @@ declare function setClipboardText(text: string): Promise<void>;
 - `Promise<void>` — resolves after the copy completes.
 - May reject when the app is backgrounded or the system denies the operation. Wrap in `try/catch`.
 
+## Permission
+
+Requires the `clipboard` permission. If the permission is `denied`, the call throws — check the status up front and prompt the system dialog if needed. See the forthcoming "Permissions pattern" guide for the full flow. _(Guide page coming soon.)_
+
+The callable exposes permission helpers:
+
+```ts
+const status = await setClipboardText.getPermission();
+// 'allowed' | 'denied' | 'notDetermined'
+
+if (status !== 'allowed') {
+  await setClipboardText.openPermissionDialog();
+}
+```
+
 ## Examples
 
 ### Minimal
@@ -70,7 +85,7 @@ Run the API in sdk-example and inspect the result and history.
 
 ## Related APIs
 
-- `getClipboardText` — read text from the clipboard. (Page coming soon.)
+- [`getClipboardText`](./getClipboardText) — read text from the clipboard.
 
 ## Related guides
 
