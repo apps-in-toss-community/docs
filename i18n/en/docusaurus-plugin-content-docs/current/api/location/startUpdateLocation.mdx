@@ -28,7 +28,7 @@ declare function startUpdateLocation(params: {
   options: {
     accuracy: Accuracy;
     timeInterval: number;     // minimum interval between callbacks (ms)
-    distanceInterval: number; // minimum distance from the previous fix (m)
+    distanceInterval: number; // minimum distance from the previous reading (m)
   };
 }): () => void;
 ```
@@ -39,11 +39,11 @@ See the [namespace overview](/api/location) and [`getCurrentLocation`](./getCurr
 
 | Name | Type | Required | Description |
 | --- | --- | :-: | --- |
-| `params.onEvent` | `(location: Location) => void` | ✓ | Called whenever a new fix is available. `options.timeInterval` sets the minimum spacing between callbacks; even when that elapses, a callback is suppressed if you've moved less than `options.distanceInterval` since the last fix. |
+| `params.onEvent` | `(location: Location) => void` | ✓ | Called whenever a new reading is available. `options.timeInterval` sets the minimum spacing between callbacks; even when that elapses, a callback is suppressed if you've moved less than `options.distanceInterval` since the last reading. |
 | `params.onError` | `(error: unknown) => void` | ✓ | Called when an update fails (permission denied, no GPS, system error). Whether the platform retries automatically depends on the environment, so it's safer to surface a "Try again" affordance in the UI. |
 | `params.options.accuracy` | `Accuracy` | ✓ | Accuracy tier. Higher tiers cost more battery. `Accuracy.Balanced` for general tracking, `Accuracy.BestForNavigation` for turn-by-turn. |
 | `params.options.timeInterval` | `number` | ✓ | **Minimum** interval between callbacks (ms). Setting it too low won't make updates faster — the OS may throttle. 1000–3000 is reasonable for most UI; ~500 for navigation. |
-| `params.options.distanceInterval` | `number` | ✓ | **Minimum** distance from the previous fix (m). Prevents callbacks while the user is stationary. `0` disables the distance gate so only the time interval matters. |
+| `params.options.distanceInterval` | `number` | ✓ | **Minimum** distance from the previous reading (m). Prevents callbacks while the user is stationary. `0` disables the distance gate so only the time interval matters. |
 
 ## Returns
 
@@ -140,11 +140,14 @@ export function LiveLocationTracker() {
           distanceInterval: 5,
         },
       });
+      // No `await` between the `cancelled` check and the `stop` assignment, so
+      // cleanup can't slip in between. If cleanup ran before this point, tear
+      // down the subscription we just created.
+      if (cancelled) stop();
     })();
 
     return () => {
       cancelled = true;
-      // Synchronously detaches the subscription, so onEvent/onError can't fire after unmount.
       stop?.();
     };
   }, []);

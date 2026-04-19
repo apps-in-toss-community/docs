@@ -27,8 +27,8 @@ This page is community-written. The SDK behavior itself is defined by the upstre
 
 The whole namespace shares a **single `geolocation` permission**. Both methods are bound to the same `PermissionName`, so granting access through one immediately enables the other.
 
-- Calling either method while the status is `denied` throws. Check with `getPermission()` first.
-- If the user hasn't decided yet (`notDetermined`), trigger the system dialog with `openPermissionDialog()`.
+- Calling either method while the status is `denied` throws — check the status first.
+- When the status is `notDetermined`, prompt the user via the system dialog before calling.
 - Accuracy (`accuracy`) and the granted access tier (`accessLocation`: `FINE` / `COARSE`) are independent. iOS and Android both let users grant only "approximate" access — in that case `accessLocation` comes back as `COARSE` and the coordinate error radius is much wider.
 
 Both methods expose `getPermission()` / `openPermissionDialog()` helpers on the function object — see each page's "Permission" section.

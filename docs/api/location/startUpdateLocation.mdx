@@ -140,11 +140,13 @@ export function LiveLocationTracker() {
           distanceInterval: 5,
         },
       });
+      // cancelled 체크와 stop 할당 사이에 await가 없으므로, cleanup이 그 틈에 끼어들 수 없습니다.
+      // 이후 cleanup이 stop()을 호출하면 구독이 동기적으로 해제됩니다.
+      if (cancelled) stop();
     })();
 
     return () => {
       cancelled = true;
-      // 구독을 동기적으로 해제하므로 이후 onEvent/onError가 unmount 이후에 호출될 일은 없습니다.
       stop?.();
     };
   }, []);

@@ -23,12 +23,12 @@ import { getCurrentLocation, Accuracy } from '@apps-in-toss/web-framework';
 declare function getCurrentLocation(options?: { accuracy: Accuracy }): Promise<Location>;
 
 enum Accuracy {
-  Lowest,
-  Low,
-  Balanced,
-  High,
-  Highest,
-  BestForNavigation,
+  Lowest = 1,
+  Low = 2,
+  Balanced = 3,
+  High = 4,
+  Highest = 5,
+  BestForNavigation = 6,
 }
 ```
 
@@ -112,6 +112,7 @@ export function NearbyStoresButton() {
       }
       setCoords({ latitude: nextCoords.latitude, longitude: nextCoords.longitude });
     } catch (error) {
+      // 권한이 위 체크와 호출 사이에 회수됐다면 `denied` 에러가 여기로 떨어집니다.
       setMessage('현재 위치를 가져오지 못했어요.');
       console.error(error);
     } finally {

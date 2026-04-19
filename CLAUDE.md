@@ -74,7 +74,7 @@
 9. 예제 — 최소 예제 + 실전 예제 (`tsx` 선호)
 10. **직접 실행해 보기** (en: **"Try it live"**) — sdk-example의 해당 ApiCard로 deep-link (`<TryItLink group method />`)
 11. 관련 API — 같은 네임스페이스 내 다른 메서드로 상대경로 링크 (`./otherMethod`)
-12. 관련 가이드 — `/docs/guides/*`로 역링크
+12. 관련 가이드 — `/docs/guides/*` 또는 `/docs/recipes/*`로 역링크. 아직 작성되지 않은 항목은 **`_(작성 예정)_ Guides — "<제목>"`** 형식의 placeholder로 남긴다 (en은 `_(coming soon)_ Guides — "<title>"`). 본문 링크는 비워 두고, 실제 페이지가 생기면 그때 링크화.
 13. 외부 참조 — `@apps-in-toss/web-framework` npm, 앱인토스 공식 문서 앵커. 영어 locale의 표준 헤딩은 **"External references"**. "Upstream"은 사용 금지 (초기에는 쓰였지만 ko "외부 참조"와 의미 범위가 달라 템플릿 일관성을 위해 폐기).
 
 예시/코드 블록에서 `showToast`처럼 **SDK에 실제로 존재하지 않는 API를 import하지 않는다**. 사용자 피드백이 필요한 예시는 앱의 자체 토스트 컴포넌트(e.g. `showAppToast(...)`) 호출이나 `setState` 기반 인라인 메시지로 쓴다. 새 예제에 SDK import를 추가할 때는 `../devtools/src/mock/device/` 또는 상위 `@apps-in-toss/web-bridge` 타입에 실제로 존재하는지 먼저 확인.

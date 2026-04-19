@@ -23,12 +23,12 @@ import { getCurrentLocation, Accuracy } from '@apps-in-toss/web-framework';
 declare function getCurrentLocation(options?: { accuracy: Accuracy }): Promise<Location>;
 
 enum Accuracy {
-  Lowest,
-  Low,
-  Balanced,
-  High,
-  Highest,
-  BestForNavigation,
+  Lowest = 1,
+  Low = 2,
+  Balanced = 3,
+  High = 4,
+  Highest = 5,
+  BestForNavigation = 6,
 }
 ```
 
@@ -112,6 +112,8 @@ export function NearbyStoresButton() {
       }
       setCoords({ latitude: nextCoords.latitude, longitude: nextCoords.longitude });
     } catch (error) {
+      // If the user revoked permission between the check above and this call,
+      // the `denied` error surfaces here.
       setMessage("Couldn't get your current location.");
       console.error(error);
     } finally {
