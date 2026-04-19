@@ -1,0 +1,182 @@
+---
+id: startUpdateLocation
+title: startUpdateLocation
+sidebar_label: startUpdateLocation
+description: 위치 변화를 콜백으로 구독하고, 구독 해제 함수를 반환합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `startUpdateLocation`
+
+기기의 위치 변화를 **지속적으로 구독**합니다. 이동 거리 측정, 실시간 지도 마커 추적, 라이딩/러닝 기록 같은 "움직이는 동안" 동작해야 하는 UX에 적합합니다.
+
+호출은 동기적으로 **구독 해제 함수**(`() => void`)를 돌려줍니다. 화면을 떠날 때 반드시 호출하세요 — 호출하지 않으면 백그라운드에서 위치 갱신이 계속 돌아 배터리를 빠르게 소모합니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+```ts
+import { startUpdateLocation, Accuracy } from '@apps-in-toss/web-framework';
+
+declare function startUpdateLocation(params: {
+  onEvent: (location: Location) => void;
+  onError: (error: unknown) => void;
+  options: {
+    accuracy: Accuracy;
+    timeInterval: number;     // 콜백 사이의 최소 간격 (ms)
+    distanceInterval: number; // 직전 위치 측정과의 최소 이동 거리 (m)
+  };
+}): () => void;
+```
+
+`Location` 형태와 `Accuracy` enum은 [네임스페이스 개요](/api/location)와 [`getCurrentLocation`](./getCurrentLocation)을 참고하세요.
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `params.onEvent` | `(location: Location) => void` | ✓ | 새 위치가 측정될 때마다 호출됩니다. 콜백 사이의 최소 간격은 `options.timeInterval`이고, 그 사이라도 직전 측정으로부터 `options.distanceInterval` 미만으로 움직였다면 콜백이 발생하지 않습니다. |
+| `params.onError` | `(error: unknown) => void` | ✓ | 권한 거부, GPS 미수신, 시스템 오류 등으로 갱신이 실패했을 때 호출됩니다. 일시적인 오류 후 자동 재시도되는지는 환경에 따라 달라지므로, UI에서 "다시 시도" 액션을 제공하는 것이 안전합니다. |
+| `params.options.accuracy` | `Accuracy` | ✓ | 정확도 단계. 단계가 높을수록 배터리 소모가 큽니다. 일반적인 추적엔 `Accuracy.Balanced`, 내비게이션엔 `Accuracy.BestForNavigation`. |
+| `params.options.timeInterval` | `number` | ✓ | 콜백 사이의 **최소** 간격(밀리초). 너무 짧게 잡아도 OS가 throttle 할 수 있습니다. 일반 UI는 1000~3000, 내비게이션은 500 정도가 무난합니다. |
+| `params.options.distanceInterval` | `number` | ✓ | 직전 위치 측정과의 **최소** 이동 거리(미터). 사용자가 정지 중일 때 콜백이 발생하지 않게 막아 줍니다. 0이면 거리 조건 없이 시간 조건만으로 동작합니다. |
+
+## 반환값
+
+- `() => void` — **동기적으로** 반환되는 구독 해제 함수. 호출하면 더 이상 `onEvent`/`onError`가 발생하지 않습니다. **컴포넌트 unmount 시점에 반드시 호출**하세요.
+
+## 권한
+
+`geolocation` 권한이 필요합니다. 권한이 **명시적으로 `denied`** 상태이면 첫 위치 측정에서 실패하므로, 호출 **전에** 상태를 확인하고 필요하면 다이얼로그를 먼저 띄우는 것을 권장합니다. `geolocation` 권한은 네임스페이스 단위로 공유되므로 [`getCurrentLocation`](./getCurrentLocation#권한)의 유틸을 그대로 써도 결과가 같습니다. 상세 처리 패턴은 추후 작성될 Guides의 "권한 처리 패턴" 문서를 참고하세요.
+
+iOS/Android 모두 백그라운드 위치 추적은 별도의 권한 등급(`Always` / `WhenInUse`)으로 분리되어 있고, 앱이 포그라운드를 벗어나면 콜백이 멈추거나 throttle 될 수 있습니다.
+
+호출부에 붙어 있는 유틸:
+
+```ts
+const status = await startUpdateLocation.getPermission();
+// 'allowed' | 'denied' | 'notDetermined'
+
+if (status !== 'allowed') {
+  await startUpdateLocation.openPermissionDialog();
+}
+```
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { startUpdateLocation, Accuracy } from '@apps-in-toss/web-framework';
+
+const stop = startUpdateLocation({
+  onEvent: (location) => {
+    console.log(location.coords.latitude, location.coords.longitude);
+  },
+  onError: (error) => {
+    console.error(error);
+  },
+  options: { accuracy: Accuracy.Balanced, timeInterval: 2000, distanceInterval: 5 },
+});
+
+// 데모용 — 실제 코드에선 컴포넌트 unmount 시점에 stop()을 호출하세요.
+setTimeout(stop, 5000);
+```
+
+### 실전 예제 — React 컴포넌트에서 라이브 추적
+
+```tsx
+import {
+  getCurrentLocation,
+  startUpdateLocation,
+  Accuracy,
+} from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+interface Coords {
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+}
+
+export function LiveLocationTracker() {
+  const [coords, setCoords] = useState<Coords | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let stop: (() => void) | undefined;
+    let cancelled = false;
+
+    (async () => {
+      const status = await getCurrentLocation.getPermission();
+      if (status === 'denied') {
+        setError('설정에서 위치 권한을 허용해 주세요.');
+        return;
+      }
+      if (status === 'notDetermined') {
+        await getCurrentLocation.openPermissionDialog();
+      }
+      if (cancelled) return;
+
+      stop = startUpdateLocation({
+        onEvent: ({ coords }) => {
+          setCoords({
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            accuracy: coords.accuracy,
+          });
+        },
+        onError: (err) => {
+          setError('위치 갱신에 실패했어요.');
+          console.error(err);
+        },
+        options: {
+          accuracy: Accuracy.High,
+          timeInterval: 1000,
+          distanceInterval: 5,
+        },
+      });
+      // cancelled 체크와 stop 할당 사이에 await가 없으므로, 이후 cleanup이 호출하는
+      // stop?.()이 항상 동기적으로 구독을 해제합니다.
+    })();
+
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, []);
+
+  if (error) return <p role="alert">{error}</p>;
+  if (!coords) return <p>위치 측정 중...</p>;
+  return (
+    <p>
+      위도 {coords.latitude.toFixed(5)}, 경도 {coords.longitude.toFixed(5)} (오차{' '}
+      {coords.accuracy.toFixed(0)}m)
+    </p>
+  );
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Location 페이지에서 `startUpdateLocation` 카드를 실행해 콜백 흐름을 확인할 수 있습니다.
+
+<TryItLink group="location" method="startUpdateLocation" />
+
+## 관련 API
+
+- [`getCurrentLocation`](./getCurrentLocation) — 현재 위치를 한 번만 조회합니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Guides — "위치 권한 요청과 fallback 패턴"
+- _(작성 예정)_ Recipes — "라이딩/러닝 거리 측정 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.
+- 표준 Web API 대응: [`navigator.geolocation.watchPosition`](https://developer.mozilla.org/docs/Web/API/Geolocation/watchPosition).

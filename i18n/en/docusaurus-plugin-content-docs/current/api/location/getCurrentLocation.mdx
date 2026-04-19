@@ -1,0 +1,158 @@
+---
+id: getCurrentLocation
+title: getCurrentLocation
+sidebar_label: getCurrentLocation
+description: Read the user's current location once.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `getCurrentLocation`
+
+Reads the device's current location **once** and resolves to an object with coordinates, accuracy, and a timestamp. Suited for one-shot reads — nearby-store lookup, delivery-address autofill, the initial center of a map on screen entry.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the upstream [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { getCurrentLocation, Accuracy } from '@apps-in-toss/web-framework';
+
+declare function getCurrentLocation(options?: { accuracy: Accuracy }): Promise<Location>;
+
+enum Accuracy {
+  Lowest = 1,
+  Low = 2,
+  Balanced = 3,
+  High = 4,
+  Highest = 5,
+  BestForNavigation = 6,
+}
+```
+
+See the [namespace overview's "Coordinate payload"](/api/location#coordinate-payload) for the `Location` shape.
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `options` | `{ accuracy: Accuracy }` | — | Optional. Higher tiers are more accurate but slower and more battery-hungry. `Accuracy.Balanced` is enough for most location-aware UI. |
+
+## Returns
+
+- `Promise<Location>` — coordinates, accuracy, and timestamp. Field meanings are documented in the [namespace overview's "Coordinate payload"](/api/location#coordinate-payload).
+- Permission-`denied` failures are covered in the "Permission" section. Without a GPS signal, the fix may take a while or return a stale last-known position.
+
+:::caution `accuracy` ≠ `accessLocation`
+`accuracy` is the measurement error radius in meters. `accessLocation` is the permission tier the user granted at the OS level (`FINE` / `COARSE`). Even if you request `Accuracy.Highest`, a user who only granted "approximate location" will get back `accessLocation === 'COARSE'` and an `accuracy` value that can balloon into hundreds of meters.
+:::
+
+## Permission
+
+Requires the `geolocation` permission. The call fails only when the status is **explicitly `denied`** — wrap in `try/catch`. `notDetermined` lets the call through, but prompting the dialog first is the safer flow. See the forthcoming "Permissions pattern" guide for the full flow.
+
+The callable exposes permission helpers:
+
+```ts
+const status = await getCurrentLocation.getPermission();
+// 'allowed' | 'denied' | 'notDetermined'
+
+if (status !== 'allowed') {
+  await getCurrentLocation.openPermissionDialog();
+}
+```
+
+## Examples
+
+### Minimal
+
+```tsx
+import { getCurrentLocation, Accuracy } from '@apps-in-toss/web-framework';
+
+async function fetchOnce() {
+  const location = await getCurrentLocation({ accuracy: Accuracy.Balanced });
+  console.log(location.coords.latitude, location.coords.longitude);
+}
+```
+
+### Realistic — a "Find nearby stores" button
+
+```tsx
+import { getCurrentLocation, Accuracy } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+interface Coords {
+  latitude: number;
+  longitude: number;
+}
+
+export function NearbyStoresButton() {
+  const [coords, setCoords] = useState<Coords | null>(null);
+  const [message, setMessage] = useState('');
+  const [pending, setPending] = useState(false);
+
+  async function locateMe() {
+    setPending(true);
+    setMessage('');
+    try {
+      const status = await getCurrentLocation.getPermission();
+      if (status === 'denied') {
+        setMessage('Please grant location permission in Settings.');
+        return;
+      }
+      if (status === 'notDetermined') {
+        await getCurrentLocation.openPermissionDialog();
+      }
+
+      const { coords: nextCoords } = await getCurrentLocation({ accuracy: Accuracy.Balanced });
+      if (nextCoords.accuracy > 500) {
+        setMessage('The signal is weak. Try again outdoors.');
+      }
+      setCoords({ latitude: nextCoords.latitude, longitude: nextCoords.longitude });
+    } catch (error) {
+      // If the user revoked permission between the check above and this call,
+      // the `denied` error surfaces here.
+      setMessage("Couldn't get your current location.");
+      console.error(error);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div>
+      <button type="button" onClick={locateMe} disabled={pending}>
+        {pending ? 'Locating…' : 'Find nearby stores'}
+      </button>
+      {coords && (
+        <p>
+          Lat {coords.latitude.toFixed(5)}, Lng {coords.longitude.toFixed(5)}
+        </p>
+      )}
+      {message && <p role="status">{message}</p>}
+    </div>
+  );
+}
+```
+
+## Try it live
+
+Open the Location page in sdk-example and run the `getCurrentLocation` card to inspect the result.
+
+<TryItLink group="location" method="getCurrentLocation" />
+
+## Related APIs
+
+- [`startUpdateLocation`](./startUpdateLocation) — subscribe to live location updates.
+- See the [namespace overview](/api/location) for `Accuracy` tier comparisons.
+
+## Related guides
+
+- _(coming soon)_ Guides — "Location permission and fallback patterns"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
+- Web standard counterpart: [`navigator.geolocation.getCurrentPosition`](https://developer.mozilla.org/docs/Web/API/Geolocation/getCurrentPosition).

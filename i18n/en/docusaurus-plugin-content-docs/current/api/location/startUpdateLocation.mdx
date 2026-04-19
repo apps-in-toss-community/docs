@@ -1,0 +1,183 @@
+---
+id: startUpdateLocation
+title: startUpdateLocation
+sidebar_label: startUpdateLocation
+description: Subscribe to live location updates; returns an unsubscribe function.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `startUpdateLocation`
+
+Subscribes to **continuous** location updates. Suited for UX that needs to react while the user moves — distance tracking, real-time map markers, ride/run recording.
+
+The call returns an **unsubscribe function** (`() => void`) synchronously. Always call it when leaving the screen — otherwise location updates keep running in the background and drain the battery quickly.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the upstream [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { startUpdateLocation, Accuracy } from '@apps-in-toss/web-framework';
+
+declare function startUpdateLocation(params: {
+  onEvent: (location: Location) => void;
+  onError: (error: unknown) => void;
+  options: {
+    accuracy: Accuracy;
+    timeInterval: number;     // minimum interval between callbacks (ms)
+    distanceInterval: number; // minimum distance from the previous reading (m)
+  };
+}): () => void;
+```
+
+See the [namespace overview](/api/location) and [`getCurrentLocation`](./getCurrentLocation) for the `Location` shape and the `Accuracy` enum.
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `params.onEvent` | `(location: Location) => void` | ✓ | Called whenever a new reading is available. `options.timeInterval` sets the minimum spacing between callbacks; even when that elapses, a callback is suppressed if you've moved less than `options.distanceInterval` since the last reading. |
+| `params.onError` | `(error: unknown) => void` | ✓ | Called when an update fails (permission denied, no GPS, system error). Whether the platform retries automatically depends on the environment, so it's safer to surface a "Try again" affordance in the UI. |
+| `params.options.accuracy` | `Accuracy` | ✓ | Accuracy tier. Higher tiers cost more battery. `Accuracy.Balanced` for general tracking, `Accuracy.BestForNavigation` for turn-by-turn. |
+| `params.options.timeInterval` | `number` | ✓ | **Minimum** interval between callbacks (ms). Setting it too low won't make updates faster — the OS may throttle. 1000–3000 is reasonable for most UI; ~500 for navigation. |
+| `params.options.distanceInterval` | `number` | ✓ | **Minimum** distance from the previous reading (m). Prevents callbacks while the user is stationary. `0` disables the distance gate so only the time interval matters. |
+
+## Returns
+
+- `() => void` — the unsubscribe function, returned **synchronously**. Calling it stops further `onEvent` / `onError` callbacks. **Always call it on component unmount.**
+
+## Permission
+
+Requires the `geolocation` permission. The first location fix will fail when the status is **explicitly `denied`**, so check the status and prompt the dialog **before** calling. The `geolocation` permission is shared at the namespace level, so reusing the helpers from [`getCurrentLocation`](./getCurrentLocation#permission) yields the same result. See the forthcoming "Permissions pattern" guide for the full flow.
+
+Both iOS and Android split background location into a separate permission tier (`Always` / `WhenInUse`). When the app leaves the foreground, callbacks may pause or get throttled.
+
+The callable exposes permission helpers:
+
+```ts
+const status = await startUpdateLocation.getPermission();
+// 'allowed' | 'denied' | 'notDetermined'
+
+if (status !== 'allowed') {
+  await startUpdateLocation.openPermissionDialog();
+}
+```
+
+## Examples
+
+### Minimal
+
+```tsx
+import { startUpdateLocation, Accuracy } from '@apps-in-toss/web-framework';
+
+const stop = startUpdateLocation({
+  onEvent: (location) => {
+    console.log(location.coords.latitude, location.coords.longitude);
+  },
+  onError: (error) => {
+    console.error(error);
+  },
+  options: { accuracy: Accuracy.Balanced, timeInterval: 2000, distanceInterval: 5 },
+});
+
+// Demo only — in real code, call stop() from your component's cleanup.
+setTimeout(stop, 5000);
+```
+
+### Realistic — live tracking inside a React component
+
+```tsx
+import {
+  getCurrentLocation,
+  startUpdateLocation,
+  Accuracy,
+} from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+interface Coords {
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+}
+
+export function LiveLocationTracker() {
+  const [coords, setCoords] = useState<Coords | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let stop: (() => void) | undefined;
+    let cancelled = false;
+
+    (async () => {
+      const status = await getCurrentLocation.getPermission();
+      if (status === 'denied') {
+        setError('Please grant location permission in Settings.');
+        return;
+      }
+      if (status === 'notDetermined') {
+        await getCurrentLocation.openPermissionDialog();
+      }
+      if (cancelled) return;
+
+      stop = startUpdateLocation({
+        onEvent: ({ coords }) => {
+          setCoords({
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            accuracy: coords.accuracy,
+          });
+        },
+        onError: (err) => {
+          setError('Location updates failed.');
+          console.error(err);
+        },
+        options: {
+          accuracy: Accuracy.High,
+          timeInterval: 1000,
+          distanceInterval: 5,
+        },
+      });
+      // No `await` between the `cancelled` check and the `stop` assignment, so
+      // the cleanup function's `stop?.()` always tears the subscription down
+      // synchronously.
+    })();
+
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, []);
+
+  if (error) return <p role="alert">{error}</p>;
+  if (!coords) return <p>Locating…</p>;
+  return (
+    <p>
+      Lat {coords.latitude.toFixed(5)}, Lng {coords.longitude.toFixed(5)} (±
+      {coords.accuracy.toFixed(0)}m)
+    </p>
+  );
+}
+```
+
+## Try it live
+
+Open the Location page in sdk-example and run the `startUpdateLocation` card to watch the callback stream.
+
+<TryItLink group="location" method="startUpdateLocation" />
+
+## Related APIs
+
+- [`getCurrentLocation`](./getCurrentLocation) — read the current location once.
+
+## Related guides
+
+- _(coming soon)_ Guides — "Location permission and fallback patterns"
+- _(coming soon)_ Recipes — "Distance-tracking patterns for ride/run apps"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
+- Web standard counterpart: [`navigator.geolocation.watchPosition`](https://developer.mozilla.org/docs/Web/API/Geolocation/watchPosition).
