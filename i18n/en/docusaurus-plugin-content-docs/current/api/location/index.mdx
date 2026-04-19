@@ -1,0 +1,72 @@
+---
+id: location-overview
+title: location
+sidebar_label: Overview
+slug: /api/location
+description: SDK namespace for one-shot location reads and live location subscriptions.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `location`
+
+Namespace for reading the device's location once or subscribing to live updates as the user moves. Covers location-aware UX like nearby-store search, delivery-address autofill, and walking/running distance tracking.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the upstream [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Methods
+
+| Method | Purpose |
+| --- | --- |
+| [`getCurrentLocation`](/api/location/getCurrentLocation) | Read the current location once. |
+| [`startUpdateLocation`](/api/location/startUpdateLocation) | Subscribe to location changes via callback; returns an unsubscribe function. |
+
+## Permission
+
+The whole namespace shares a **single `geolocation` permission**. Both methods are bound to the same `PermissionName`, so granting access through one immediately enables the other.
+
+- Calling either method while the status is `denied` throws. Check with `getPermission()` first.
+- If the user hasn't decided yet (`notDetermined`), trigger the system dialog with `openPermissionDialog()`.
+- Accuracy (`accuracy`) and the granted access tier (`accessLocation`: `FINE` / `COARSE`) are independent. iOS and Android both let users grant only "approximate" access — in that case `accessLocation` comes back as `COARSE` and the coordinate error radius is much wider.
+
+`getCurrentLocation` exposes `getPermission()` / `openPermissionDialog()` helpers on the function object — use those to check status for either method.
+
+## Coordinate payload
+
+Both methods resolve to the same `Location` shape.
+
+```ts
+interface Location {
+  coords: {
+    latitude: number;
+    longitude: number;
+    altitude: number;          // meters; 0 when unavailable
+    accuracy: number;          // horizontal error radius in meters; smaller is better
+    altitudeAccuracy: number;  // vertical error in meters
+    heading: number;           // direction of travel (0–360°); 0 when stationary
+  };
+  timestamp: number;           // measurement time (ms epoch)
+  accessLocation?: 'FINE' | 'COARSE';
+}
+```
+
+## UX guidance
+
+- **Show the reason before asking for permission.** A one-liner like "We need your location to find nearby stores" measurably increases acceptance rates.
+- **Use `getCurrentLocation` for one-shot reads, `startUpdateLocation` for tracking.** Subscribing when one fix would suffice wastes battery/data and risks OS-level throttling in the background.
+- **Always call the returned unsubscribe function.** In React, do this from a `useEffect` cleanup.
+- Always inspect the `accuracy` value. Indoors, in tunnels, or without GPS, it can drift to hundreds of meters.
+- Don't show raw coordinates to users — run reverse geocoding and present an address or neighborhood name.
+
+## Try it live
+
+Both methods are available on the Location page in sdk-example.
+
+<TryItLink group="location" />
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
+- Web standard counterparts: [`navigator.geolocation.getCurrentPosition`](https://developer.mozilla.org/docs/Web/API/Geolocation/getCurrentPosition), [`navigator.geolocation.watchPosition`](https://developer.mozilla.org/docs/Web/API/Geolocation/watchPosition) — the upcoming `polyfill` package will expose an SDK-compatible shim on top of these.

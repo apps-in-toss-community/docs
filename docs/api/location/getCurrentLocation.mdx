@@ -1,0 +1,166 @@
+---
+id: getCurrentLocation
+title: getCurrentLocation
+sidebar_label: getCurrentLocation
+description: 사용자의 현재 위치를 한 번만 조회합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `getCurrentLocation`
+
+기기의 현재 위치를 **한 번** 조회해서 좌표·정확도·측정 시각이 담긴 객체로 돌려줍니다. 가까운 매장 검색, 배달 주소 자동 채우기, 첫 진입 시 지도 초기화 같은 단발성 조회에 적합합니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+```ts
+import { getCurrentLocation, Accuracy } from '@apps-in-toss/web-framework';
+
+declare function getCurrentLocation(options?: { accuracy: Accuracy }): Promise<Location>;
+
+enum Accuracy {
+  Lowest = 1,
+  Low = 2,
+  Balanced = 3,
+  High = 4,
+  Highest = 5,
+  BestForNavigation = 6,
+}
+
+interface Location {
+  coords: {
+    latitude: number;
+    longitude: number;
+    altitude: number;
+    accuracy: number;
+    altitudeAccuracy: number;
+    heading: number;
+  };
+  timestamp: number;
+  accessLocation?: 'FINE' | 'COARSE';
+}
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `options` | `{ accuracy: Accuracy }` | — | 생략 가능. 단계가 높을수록 정확하지만 측정 시간이 길어지고 배터리를 더 씁니다. 일반적인 위치 기반 UI에는 `Accuracy.Balanced` 정도면 충분합니다. |
+
+## 반환값
+
+- `Promise<Location>` — 좌표·정확도·측정 시각이 담긴 객체. 필드 의미는 [네임스페이스 개요의 "좌표 페이로드"](/api/location#좌표-페이로드)를 참고하세요.
+- 권한 `denied`로 인한 실패는 "권한" 섹션 참고. GPS 신호가 없는 환경에서는 측정에 시간이 걸리거나 마지막으로 알려진 위치(stale fix)가 반환될 수 있습니다.
+
+:::caution 정확도(`accuracy`)와 권한 등급(`accessLocation`)은 다릅니다
+`accuracy`는 측정 오차의 반경(미터)이고, `accessLocation`은 사용자가 시스템에서 허용한 권한 단계(`FINE` / `COARSE`)입니다. `Accuracy.Highest`로 요청해도 사용자가 "대략적인 위치"만 허용했다면 `accessLocation === 'COARSE'`가 돌아오고 `accuracy` 값이 수백 미터로 커질 수 있습니다.
+:::
+
+## 권한
+
+`geolocation` 권한이 필요합니다. 권한이 **명시적으로 `denied`** 상태이면 호출이 실패하므로 `try/catch`로 감싸세요. `notDetermined` 상태에서는 호출이 그대로 진행될 수 있지만, 사용자 경험상 먼저 다이얼로그로 승격시키는 것이 안전합니다. 상세 처리 패턴은 추후 작성될 Guides의 "권한 처리 패턴" 문서를 참고하세요.
+
+호출부에 붙어 있는 유틸:
+
+```ts
+const status = await getCurrentLocation.getPermission();
+// 'allowed' | 'denied' | 'notDetermined'
+
+if (status !== 'allowed') {
+  await getCurrentLocation.openPermissionDialog();
+}
+```
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { getCurrentLocation, Accuracy } from '@apps-in-toss/web-framework';
+
+async function fetchOnce() {
+  const location = await getCurrentLocation({ accuracy: Accuracy.Balanced });
+  console.log(location.coords.latitude, location.coords.longitude);
+}
+```
+
+### 실전 예제 — "내 주변 매장 보기" 버튼
+
+```tsx
+import { getCurrentLocation, Accuracy } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+interface Coords {
+  latitude: number;
+  longitude: number;
+}
+
+export function NearbyStoresButton() {
+  const [coords, setCoords] = useState<Coords | null>(null);
+  const [message, setMessage] = useState('');
+  const [pending, setPending] = useState(false);
+
+  async function locateMe() {
+    setPending(true);
+    setMessage('');
+    try {
+      const status = await getCurrentLocation.getPermission();
+      if (status === 'denied') {
+        setMessage('설정에서 위치 권한을 허용해 주세요.');
+        return;
+      }
+      if (status === 'notDetermined') {
+        await getCurrentLocation.openPermissionDialog();
+      }
+
+      const { coords } = await getCurrentLocation({ accuracy: Accuracy.Balanced });
+      if (coords.accuracy > 500) {
+        setMessage('위치 신호가 약해요. 야외에서 다시 시도해 주세요.');
+      }
+      setCoords({ latitude: coords.latitude, longitude: coords.longitude });
+    } catch (error) {
+      setMessage('현재 위치를 가져오지 못했어요.');
+      console.error(error);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div>
+      <button type="button" onClick={locateMe} disabled={pending}>
+        {pending ? '확인 중...' : '내 주변 매장 보기'}
+      </button>
+      {coords && (
+        <p>
+          위도 {coords.latitude.toFixed(5)}, 경도 {coords.longitude.toFixed(5)}
+        </p>
+      )}
+      {message && <p role="status">{message}</p>}
+    </div>
+  );
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example에서 이 API를 실제로 호출하고 결과를 확인할 수 있습니다.
+
+<TryItLink group="location" method="getCurrentLocation" />
+
+## 관련 API
+
+- [`startUpdateLocation`](./startUpdateLocation) — 위치 변화를 실시간으로 구독합니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Guides — "위치 권한 요청과 fallback 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.
+- 표준 Web API 대응: [`navigator.geolocation.getCurrentPosition`](https://developer.mozilla.org/docs/Web/API/Geolocation/getCurrentPosition).

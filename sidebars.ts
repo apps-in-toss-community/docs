@@ -26,6 +26,16 @@ const sidebars: SidebarsConfig = {
             'api/clipboard/setClipboardText',
           ],
         },
+        {
+          type: 'category',
+          label: 'location',
+          collapsed: false,
+          items: [
+            'api/location/location-overview',
+            'api/location/getCurrentLocation',
+            'api/location/startUpdateLocation',
+          ],
+        },
       ],
     },
   ],
