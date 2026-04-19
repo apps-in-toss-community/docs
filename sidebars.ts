@@ -19,7 +19,6 @@ const sidebars: SidebarsConfig = {
         {
           type: 'category',
           label: 'clipboard',
-          collapsible: true,
           collapsed: false,
           items: [
             'api/clipboard/clipboard-overview',

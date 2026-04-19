@@ -29,7 +29,10 @@ export default function TryItLink({ group, method, children }: TryItLinkProps): 
   const { i18n } = useDocusaurusContext();
   const isKorean = i18n.currentLocale === 'ko';
   const defaultLabel = isKorean ? 'sdk-example에서 실행해 보기' : 'Open in sdk-example';
-  const href = method ? `${SDK_EXAMPLE_BASE}/${group}#${method}` : `${SDK_EXAMPLE_BASE}/${group}`;
+  const encodedGroup = encodeURIComponent(group);
+  const href = method
+    ? `${SDK_EXAMPLE_BASE}/${encodedGroup}#${encodeURIComponent(method)}`
+    : `${SDK_EXAMPLE_BASE}/${encodedGroup}`;
   return (
     <a
       className={styles.tryItLink}

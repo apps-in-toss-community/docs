@@ -31,7 +31,8 @@ declare function setClipboardText(text: string): Promise<void>;
 
 ## 반환값
 
-- `Promise<void>` — 복사가 완료되면 resolve. 실패는 아래 "권한" 섹션 참고.
+- `Promise<void>` — 복사가 완료되면 resolve.
+- 권한 `denied`로 인한 실패는 "권한" 섹션 참고. 웹 환경에서는 `navigator.clipboard.writeText` reject 같은 비권한 사유로도 실패할 수 있으므로 `try/catch`는 항상 권장됩니다.
 
 ## 권한
 
@@ -65,10 +66,12 @@ async function copyInviteCode() {
 ```tsx
 import { setClipboardText } from '@apps-in-toss/web-framework';
 
+// `showAppToast`는 SDK가 제공하지 않습니다 — 앱의 자체 토스트/스낵바 컴포넌트로 대체하세요.
+declare function showAppToast(message: string): void;
+
 async function copyWithFeedback(value: string) {
   try {
     await setClipboardText(value);
-    // 앱의 자체 토스트/스낵바 컴포넌트를 사용하세요.
     showAppToast('복사되었습니다');
   } catch (error) {
     showAppToast('복사에 실패했어요. 다시 시도해 주세요.');

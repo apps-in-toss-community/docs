@@ -31,7 +31,8 @@ declare function setClipboardText(text: string): Promise<void>;
 
 ## Returns
 
-- `Promise<void>` — resolves after the copy completes. See the "Permission" section below for failure modes.
+- `Promise<void>` — resolves after the copy completes.
+- Permission-`denied` failures are covered in the "Permission" section. On web, `navigator.clipboard.writeText` can also reject for non-permission reasons, so wrapping in `try/catch` is always recommended.
 
 ## Permission
 
@@ -65,10 +66,13 @@ async function copyInviteCode() {
 ```tsx
 import { setClipboardText } from '@apps-in-toss/web-framework';
 
+// `showAppToast` is NOT provided by the SDK — substitute your app's own
+// toast / snackbar component.
+declare function showAppToast(message: string): void;
+
 async function copyWithFeedback(value: string) {
   try {
     await setClipboardText(value);
-    // Use your app's own toast / snackbar component.
     showAppToast('Copied to clipboard');
   } catch (error) {
     showAppToast('Copy failed — please try again.');
