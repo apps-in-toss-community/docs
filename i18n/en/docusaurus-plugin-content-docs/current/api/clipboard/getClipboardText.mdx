@@ -29,8 +29,7 @@ None.
 
 ## Returns
 
-- `Promise<string>` — the clipboard contents. Resolves to an empty string (`''`) when the clipboard is empty or the environment blocks access.
-- Throws only when the `clipboard` permission is **explicitly `denied`**. A `notDetermined` status lets the call through, but prompting the dialog first is the safer flow. Wrap in `try/catch`.
+- `Promise<string>` — the clipboard contents. Resolves to an empty string (`''`) when the clipboard is empty or the environment blocks access. See the "Permission" section below for failure modes.
 
 :::caution Interpreting an empty string
 An empty string can mean **either** the clipboard was actually empty **or** the browser/system refused access. If you need to tell those apart, check the permission first, or only call this API in response to an explicit "Paste" gesture.
@@ -38,7 +37,9 @@ An empty string can mean **either** the clipboard was actually empty **or** the 
 
 ## Permission
 
-Requires the `clipboard` permission. Both iOS and Android treat clipboard reads as sensitive, so prefer calling this in direct response to a user gesture (e.g., a "Paste" button) rather than on screen load.
+Requires the `clipboard` permission. The call fails only when the status is **explicitly `denied`** — `notDetermined` lets the call through, but prompting the dialog first is the safer flow. Wrap in `try/catch`.
+
+Both iOS and Android treat clipboard reads as sensitive, so prefer calling this in direct response to a user gesture (e.g., a "Paste" button) rather than on screen load.
 
 The callable exposes permission helpers:
 

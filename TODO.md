@@ -1,7 +1,7 @@
 # TODO
 
 ## High Priority
-- [ ] 다음 네임스페이스 작성: **`storage`** (SDK 호출 표면이 작고 의존성 없음 → clipboard 다음 프로토타이핑 대상으로 권장). 이후 `haptic` → `navigation` 순.
+- [ ] 다음 네임스페이스 작성: **`storage`** (SDK 호출 표면이 작고 의존성 없음 → clipboard 다음 프로토타이핑 대상으로 적합). 이후 `haptic` → `navigation` 순.
 - [ ] Guides/permissions-pattern 문서 작성 — 모든 API 페이지의 "권한" 섹션이 이 가이드를 역참조하도록 설계됨. 현재는 placeholder 문구만 있음.
 
 ## Medium Priority

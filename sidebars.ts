@@ -22,11 +22,7 @@ const sidebars: SidebarsConfig = {
           collapsible: true,
           collapsed: false,
           items: [
-            {
-              type: 'doc',
-              id: 'api/clipboard/clipboard-overview',
-              label: 'Overview',
-            },
+            'api/clipboard/clipboard-overview',
             'api/clipboard/getClipboardText',
             'api/clipboard/setClipboardText',
           ],

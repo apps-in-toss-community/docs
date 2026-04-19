@@ -72,7 +72,7 @@
 7. 반환값 / 이벤트 (eventful API의 경우 콜백 시퀀스). 특이 사항(빈 문자열 의미 등)은 `:::caution`으로 강조.
 8. **권한** — 해당 API가 요구하는 `PermissionName`을 명시. SDK의 함수 객체에 부착된 `.getPermission()` / `.openPermissionDialog()` 유틸을 예시 코드로 보여줌. Guides의 "권한 처리 패턴" 문서로 역참조(현재는 placeholder).
 9. 예제 — 최소 예제 + 실전 예제 (`tsx` 선호)
-10. **Try it** — sdk-example의 해당 ApiCard로 deep-link (`<TryItLink group method />`)
+10. **직접 실행해 보기** (en: **"Try it live"**) — sdk-example의 해당 ApiCard로 deep-link (`<TryItLink group method />`)
 11. 관련 API — 같은 네임스페이스 내 다른 메서드로 상대경로 링크 (`./otherMethod`)
 12. 관련 가이드 — `/docs/guides/*`로 역링크
 13. 외부 참조 — `@apps-in-toss/web-framework` npm, 앱인토스 공식 문서 앵커. 영어 locale의 표준 헤딩은 **"External references"**. "Upstream"은 사용 금지 (초기에는 쓰였지만 ko "외부 참조"와 의미 범위가 달라 템플릿 일관성을 위해 폐기).

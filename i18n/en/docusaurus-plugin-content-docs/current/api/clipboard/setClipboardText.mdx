@@ -31,8 +31,7 @@ declare function setClipboardText(text: string): Promise<void>;
 
 ## Returns
 
-- `Promise<void>` — resolves after the copy completes.
-- May reject when the app is backgrounded or the system denies the operation. Wrap in `try/catch`.
+- `Promise<void>` — resolves after the copy completes. See the "Permission" section below for failure modes.
 
 ## Permission
 
