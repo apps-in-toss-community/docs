@@ -83,7 +83,7 @@ const stop = startUpdateLocation({
   options: { accuracy: Accuracy.Balanced, timeInterval: 2000, distanceInterval: 5 },
 });
 
-// 5초 뒤 구독 해제
+// 데모용 — 실제 코드에선 컴포넌트 unmount 시점에 stop()을 호출하세요.
 setTimeout(stop, 5000);
 ```
 
@@ -140,9 +140,8 @@ export function LiveLocationTracker() {
           distanceInterval: 5,
         },
       });
-      // cancelled 체크와 stop 할당 사이에 await가 없으므로, cleanup이 그 틈에 끼어들 수 없습니다.
-      // 이후 cleanup이 stop()을 호출하면 구독이 동기적으로 해제됩니다.
-      if (cancelled) stop();
+      // cancelled 체크와 stop 할당 사이에 await가 없으므로, 이후 cleanup이 호출하는
+      // stop?.()이 항상 동기적으로 구독을 해제합니다.
     })();
 
     return () => {
