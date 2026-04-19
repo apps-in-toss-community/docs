@@ -36,7 +36,7 @@ declare function setClipboardText(text: string): Promise<void>;
 
 ## Permission
 
-Requires the `clipboard` permission. If the permission is `denied`, the call throws — check the status up front and prompt the system dialog if needed. See the forthcoming "Permissions pattern" guide for the full flow. _(Guide page coming soon.)_
+Requires the `clipboard` permission. The call fails only when the status is **explicitly `denied`** — `notDetermined` lets the call through, but you should still prompt the dialog first for a better UX. See the forthcoming "Permissions pattern" guide for the full flow. _(Guide page coming soon.)_
 
 The callable exposes permission helpers:
 
@@ -61,17 +61,18 @@ async function copyInviteCode() {
 }
 ```
 
-### With a toast
+### Realistic — copy with user feedback
 
 ```tsx
-import { setClipboardText, showToast } from '@apps-in-toss/web-framework';
+import { setClipboardText } from '@apps-in-toss/web-framework';
 
-async function copyAndToast(value: string) {
+async function copyWithFeedback(value: string) {
   try {
     await setClipboardText(value);
-    await showToast({ message: 'Copied to clipboard' });
+    // Use your app's own toast / snackbar component.
+    showAppToast('Copied to clipboard');
   } catch (error) {
-    await showToast({ message: 'Copy failed — please try again.' });
+    showAppToast('Copy failed — please try again.');
     console.error(error);
   }
 }
@@ -91,6 +92,6 @@ Run the API in sdk-example and inspect the result and history.
 
 - _(coming soon)_ Recipes — copy/paste UX patterns
 
-## Upstream
+## External references
 
-- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

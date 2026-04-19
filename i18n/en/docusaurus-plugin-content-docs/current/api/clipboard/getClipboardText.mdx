@@ -30,7 +30,7 @@ None.
 ## Returns
 
 - `Promise<string>` — the clipboard contents. Resolves to an empty string (`''`) when the clipboard is empty or the environment blocks access.
-- Throws when the `clipboard` permission is `denied`. Wrap in `try/catch`.
+- Throws only when the `clipboard` permission is **explicitly `denied`**. A `notDetermined` status lets the call through, but prompting the dialog first is the safer flow. Wrap in `try/catch`.
 
 :::caution Interpreting an empty string
 An empty string can mean **either** the clipboard was actually empty **or** the browser/system refused access. If you need to tell those apart, check the permission first, or only call this API in response to an explicit "Paste" gesture.
@@ -67,28 +67,30 @@ async function readInviteCode() {
 ### Realistic — a "Paste from clipboard" button
 
 ```tsx
-import { getClipboardText, showToast } from '@apps-in-toss/web-framework';
+import { getClipboardText } from '@apps-in-toss/web-framework';
 import { useState } from 'react';
 
 const INVITE_CODE_PATTERN = /^AIT-\d{4}-[A-Z]+$/;
 
 export function InviteCodeInput() {
   const [code, setCode] = useState('');
+  const [message, setMessage] = useState('');
 
   async function pasteFromClipboard() {
     try {
       const value = (await getClipboardText()).trim();
       if (!value) {
-        await showToast({ message: 'The clipboard is empty.' });
+        setMessage('The clipboard is empty.');
         return;
       }
       if (!INVITE_CODE_PATTERN.test(value)) {
-        await showToast({ message: "That doesn't look like an invite code." });
+        setMessage("That doesn't look like an invite code.");
         return;
       }
       setCode(value);
+      setMessage('');
     } catch (error) {
-      await showToast({ message: 'Clipboard permission is required.' });
+      setMessage('Clipboard permission is required.');
       console.error(error);
     }
   }
@@ -99,6 +101,7 @@ export function InviteCodeInput() {
       <button type="button" onClick={pasteFromClipboard}>
         Paste from clipboard
       </button>
+      {message && <p role="status">{message}</p>}
     </div>
   );
 }
@@ -118,6 +121,6 @@ Run the API in sdk-example and inspect the result and history.
 
 - _(coming soon)_ Recipes — copy/paste UX patterns
 
-## Upstream
+## External references
 
-- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
