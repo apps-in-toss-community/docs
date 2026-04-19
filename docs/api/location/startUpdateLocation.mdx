@@ -28,7 +28,7 @@ declare function startUpdateLocation(params: {
   options: {
     accuracy: Accuracy;
     timeInterval: number;     // 콜백 사이의 최소 간격 (ms)
-    distanceInterval: number; // 직전 fix와의 최소 이동 거리 (m)
+    distanceInterval: number; // 직전 위치 측정과의 최소 이동 거리 (m)
   };
 }): () => void;
 ```
@@ -39,11 +39,11 @@ declare function startUpdateLocation(params: {
 
 | 이름 | 타입 | 필수 | 설명 |
 | --- | --- | :-: | --- |
-| `params.onEvent` | `(location: Location) => void` | ✓ | 새 위치가 측정될 때마다 호출됩니다. 호출 빈도는 `options.timeInterval`과 `options.distanceInterval` 중 더 늦게 만족되는 쪽을 따라갑니다. |
+| `params.onEvent` | `(location: Location) => void` | ✓ | 새 위치가 측정될 때마다 호출됩니다. 콜백 사이의 최소 간격은 `options.timeInterval`이고, 그 사이라도 직전 측정으로부터 `options.distanceInterval` 미만으로 움직였다면 콜백이 발생하지 않습니다. |
 | `params.onError` | `(error: unknown) => void` | ✓ | 권한 거부, GPS 미수신, 시스템 오류 등으로 갱신이 실패했을 때 호출됩니다. 일시적인 오류 후 자동 재시도되는지는 환경에 따라 달라지므로, UI에서 "다시 시도" 액션을 제공하는 것이 안전합니다. |
 | `params.options.accuracy` | `Accuracy` | ✓ | 정확도 단계. 단계가 높을수록 배터리 소모가 큽니다. 일반적인 추적엔 `Accuracy.Balanced`, 내비게이션엔 `Accuracy.BestForNavigation`. |
 | `params.options.timeInterval` | `number` | ✓ | 콜백 사이의 **최소** 간격(밀리초). 너무 짧게 잡아도 OS가 throttle 할 수 있습니다. 일반 UI는 1000~3000, 내비게이션은 500 정도가 무난합니다. |
-| `params.options.distanceInterval` | `number` | ✓ | 직전 fix와의 **최소** 이동 거리(미터). 사용자가 정지 중일 때 콜백이 발생하지 않게 막아 줍니다. 0이면 거리 조건 없이 시간 조건만으로 동작합니다. |
+| `params.options.distanceInterval` | `number` | ✓ | 직전 위치 측정과의 **최소** 이동 거리(미터). 사용자가 정지 중일 때 콜백이 발생하지 않게 막아 줍니다. 0이면 거리 조건 없이 시간 조건만으로 동작합니다. |
 
 ## 반환값
 
@@ -51,9 +51,20 @@ declare function startUpdateLocation(params: {
 
 ## 권한
 
-`geolocation` 권한이 필요합니다. 권한이 **명시적으로 `denied`** 상태이면 첫 fix를 시도할 때 실패하므로, 호출 **전에** [`getCurrentLocation.getPermission()`](./getCurrentLocation#권한)으로 상태를 확인해서 다이얼로그를 먼저 띄우는 것을 권장합니다 (`startUpdateLocation` 자체는 함수 객체에 권한 유틸이 부착되지 않습니다 — `geolocation` 권한은 네임스페이스 단위로 공유되므로 `getCurrentLocation` 쪽 유틸을 그대로 쓰면 됩니다). 상세 처리 패턴은 추후 작성될 Guides의 "권한 처리 패턴" 문서를 참고하세요.
+`geolocation` 권한이 필요합니다. 권한이 **명시적으로 `denied`** 상태이면 첫 위치 측정에서 실패하므로, 호출 **전에** 상태를 확인하고 필요하면 다이얼로그를 먼저 띄우는 것을 권장합니다. `geolocation` 권한은 네임스페이스 단위로 공유되므로 [`getCurrentLocation`](./getCurrentLocation#권한)의 유틸을 그대로 써도 결과가 같습니다. 상세 처리 패턴은 추후 작성될 Guides의 "권한 처리 패턴" 문서를 참고하세요.
 
 iOS/Android 모두 백그라운드 위치 추적은 별도의 권한 등급(`Always` / `WhenInUse`)으로 분리되어 있고, 앱이 포그라운드를 벗어나면 콜백이 멈추거나 throttle 될 수 있습니다.
+
+호출부에 붙어 있는 유틸:
+
+```ts
+const status = await startUpdateLocation.getPermission();
+// 'allowed' | 'denied' | 'notDetermined'
+
+if (status !== 'allowed') {
+  await startUpdateLocation.openPermissionDialog();
+}
+```
 
 ## 예제
 
@@ -133,6 +144,7 @@ export function LiveLocationTracker() {
 
     return () => {
       cancelled = true;
+      // 구독을 동기적으로 해제하므로 이후 onEvent/onError가 unmount 이후에 호출될 일은 없습니다.
       stop?.();
     };
   }, []);
@@ -150,7 +162,7 @@ export function LiveLocationTracker() {
 
 ## 직접 실행해 보기
 
-sdk-example에서 이 API를 실제로 호출하고 결과를 확인할 수 있습니다.
+sdk-example의 Location 페이지에서 `startUpdateLocation` 카드를 실행해 콜백 흐름을 확인할 수 있습니다.
 
 <TryItLink group="location" method="startUpdateLocation" />
 

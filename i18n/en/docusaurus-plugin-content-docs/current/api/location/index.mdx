@@ -31,9 +31,9 @@ The whole namespace shares a **single `geolocation` permission**. Both methods a
 - If the user hasn't decided yet (`notDetermined`), trigger the system dialog with `openPermissionDialog()`.
 - Accuracy (`accuracy`) and the granted access tier (`accessLocation`: `FINE` / `COARSE`) are independent. iOS and Android both let users grant only "approximate" access — in that case `accessLocation` comes back as `COARSE` and the coordinate error radius is much wider.
 
-`getCurrentLocation` exposes `getPermission()` / `openPermissionDialog()` helpers on the function object — use those to check status for either method.
+Both methods expose `getPermission()` / `openPermissionDialog()` helpers on the function object — see each page's "Permission" section.
 
-## Coordinate payload
+## Coordinate payload \{#coordinate-payload\}
 
 Both methods resolve to the same `Location` shape.
 
@@ -42,10 +42,10 @@ interface Location {
   coords: {
     latitude: number;
     longitude: number;
-    altitude: number;          // meters; 0 when unavailable
+    altitude: number;          // meters; normalized to 0 when the platform reports it as unavailable — 0 is therefore not a usable "no fix" sentinel (sea level is also 0).
     accuracy: number;          // horizontal error radius in meters; smaller is better
     altitudeAccuracy: number;  // vertical error in meters
-    heading: number;           // direction of travel (0–360°); 0 when stationary
+    heading: number;           // direction of travel (0–360°); returns 0 when stationary OR when heading is unavailable, so it can't be distinguished from "due north".
   };
   timestamp: number;           // measurement time (ms epoch)
   accessLocation?: 'FINE' | 'COARSE';

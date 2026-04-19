@@ -39,7 +39,7 @@ See the [namespace overview](/api/location) and [`getCurrentLocation`](./getCurr
 
 | Name | Type | Required | Description |
 | --- | --- | :-: | --- |
-| `params.onEvent` | `(location: Location) => void` | ✓ | Called whenever a new fix is available. Frequency follows whichever of `options.timeInterval` and `options.distanceInterval` is satisfied later. |
+| `params.onEvent` | `(location: Location) => void` | ✓ | Called whenever a new fix is available. `options.timeInterval` sets the minimum spacing between callbacks; even when that elapses, a callback is suppressed if you've moved less than `options.distanceInterval` since the last fix. |
 | `params.onError` | `(error: unknown) => void` | ✓ | Called when an update fails (permission denied, no GPS, system error). Whether the platform retries automatically depends on the environment, so it's safer to surface a "Try again" affordance in the UI. |
 | `params.options.accuracy` | `Accuracy` | ✓ | Accuracy tier. Higher tiers cost more battery. `Accuracy.Balanced` for general tracking, `Accuracy.BestForNavigation` for turn-by-turn. |
 | `params.options.timeInterval` | `number` | ✓ | **Minimum** interval between callbacks (ms). Setting it too low won't make updates faster — the OS may throttle. 1000–3000 is reasonable for most UI; ~500 for navigation. |
@@ -51,9 +51,20 @@ See the [namespace overview](/api/location) and [`getCurrentLocation`](./getCurr
 
 ## Permission
 
-Requires the `geolocation` permission. The first fix will fail when the status is **explicitly `denied`**, so it's recommended to check the status with [`getCurrentLocation.getPermission()`](./getCurrentLocation#permission) **before** calling and prompt the dialog first if needed (`startUpdateLocation` itself does not expose permission helpers on the function object — `geolocation` is shared at the namespace level, so reusing the helpers from `getCurrentLocation` is the standard pattern). See the forthcoming "Permissions pattern" guide for the full flow.
+Requires the `geolocation` permission. The first location fix will fail when the status is **explicitly `denied`**, so check the status and prompt the dialog **before** calling. The `geolocation` permission is shared at the namespace level, so reusing the helpers from [`getCurrentLocation`](./getCurrentLocation#permission) yields the same result. See the forthcoming "Permissions pattern" guide for the full flow.
 
 Both iOS and Android split background location into a separate permission tier (`Always` / `WhenInUse`). When the app leaves the foreground, callbacks may pause or get throttled.
+
+The callable exposes permission helpers:
+
+```ts
+const status = await startUpdateLocation.getPermission();
+// 'allowed' | 'denied' | 'notDetermined'
+
+if (status !== 'allowed') {
+  await startUpdateLocation.openPermissionDialog();
+}
+```
 
 ## Examples
 
@@ -133,6 +144,7 @@ export function LiveLocationTracker() {
 
     return () => {
       cancelled = true;
+      // Synchronously detaches the subscription, so onEvent/onError can't fire after unmount.
       stop?.();
     };
   }, []);
@@ -150,7 +162,7 @@ export function LiveLocationTracker() {
 
 ## Try it live
 
-Run the API in sdk-example and inspect the result.
+Open the Location page in sdk-example and run the `startUpdateLocation` card to watch the callback stream.
 
 <TryItLink group="location" method="startUpdateLocation" />
 
