@@ -37,7 +37,7 @@ An empty string can mean **either** the clipboard was actually empty **or** the 
 
 ## Permission
 
-Requires the `clipboard` permission. The call fails only when the status is **explicitly `denied`** — `notDetermined` lets the call through, but prompting the dialog first is the safer flow. Wrap in `try/catch`.
+Requires the `clipboard` permission. The call fails only when the status is **explicitly `denied`** — wrap in `try/catch`. `notDetermined` lets the call through, but prompting the dialog first is the safer flow. See the forthcoming "Permissions pattern" guide for the full flow.
 
 Both iOS and Android treat clipboard reads as sensitive, so prefer calling this in direct response to a user gesture (e.g., a "Paste" button) rather than on screen load.
 

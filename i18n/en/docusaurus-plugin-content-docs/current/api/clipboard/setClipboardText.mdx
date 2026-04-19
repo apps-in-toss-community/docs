@@ -35,7 +35,7 @@ declare function setClipboardText(text: string): Promise<void>;
 
 ## Permission
 
-Requires the `clipboard` permission. The call fails only when the status is **explicitly `denied`** — `notDetermined` lets the call through, but you should still prompt the dialog first for a better UX. See the forthcoming "Permissions pattern" guide for the full flow.
+Requires the `clipboard` permission. The call fails only when the status is **explicitly `denied`** — wrap in `try/catch`. `notDetermined` lets the call through, but prompting the dialog first is the safer flow. See the forthcoming "Permissions pattern" guide for the full flow.
 
 The callable exposes permission helpers:
 
