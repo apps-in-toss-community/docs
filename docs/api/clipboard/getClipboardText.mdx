@@ -1,0 +1,127 @@
+---
+id: getClipboardText
+title: getClipboardText
+sidebar_label: getClipboardText
+description: 클립보드에서 텍스트를 읽어 옵니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `getClipboardText`
+
+시스템 클립보드에 저장된 문자열을 읽어 옵니다. 사용자가 외부에서 복사해 온 초대 코드·쿠폰·URL을 자동으로 붙여넣는 UX에 유용합니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+```ts
+import { getClipboardText } from '@apps-in-toss/web-framework';
+
+declare function getClipboardText(): Promise<string>;
+```
+
+## 파라미터
+
+없음.
+
+## 반환값
+
+- `Promise<string>` — 클립보드에 저장된 문자열. 클립보드가 비어 있거나 접근이 차단된 환경에서는 빈 문자열(`''`)을 반환합니다. 실패 모드는 아래 "권한" 섹션 참고.
+
+:::caution 빈 문자열의 해석
+"빈 문자열"은 **클립보드가 비었거나, 브라우저·시스템이 접근을 차단했을 때** 모두 발생할 수 있습니다. 두 경우를 구분해야 한다면 권한을 먼저 확인하거나, 사용자가 명시적으로 "붙여넣기" 버튼을 눌렀을 때만 호출하는 것을 권장합니다.
+:::
+
+## 권한
+
+`clipboard` 권한이 필요합니다. 권한이 **명시적으로 `denied`** 상태이면 호출이 실패하므로 `try/catch`로 감싸세요. `notDetermined` 상태에서는 호출이 그대로 진행될 수 있지만, 사용자 경험상 먼저 다이얼로그로 승격시키는 것이 안전합니다. 상세 처리 패턴은 추후 작성될 Guides의 "권한 처리 패턴" 문서를 참고하세요.
+
+iOS/Android 모두 클립보드 읽기는 민감한 동작으로 간주되므로, 사용자가 명확하게 의도한 시점(예: "붙여넣기" 버튼 탭)에 호출하는 것이 바람직합니다.
+
+호출부에 붙어 있는 유틸:
+
+```ts
+const status = await getClipboardText.getPermission();
+// 'allowed' | 'denied' | 'notDetermined'
+
+if (status !== 'allowed') {
+  await getClipboardText.openPermissionDialog();
+}
+```
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { getClipboardText } from '@apps-in-toss/web-framework';
+
+async function readInviteCode() {
+  const value = await getClipboardText();
+  console.log(value);
+}
+```
+
+### 실전 예제 — "클립보드에서 붙여넣기" 버튼
+
+```tsx
+import { getClipboardText } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+const INVITE_CODE_PATTERN = /^AIT-\d{4}-[A-Z]+$/;
+
+export function InviteCodeInput() {
+  const [code, setCode] = useState('');
+  const [message, setMessage] = useState('');
+
+  async function pasteFromClipboard() {
+    try {
+      const value = (await getClipboardText()).trim();
+      if (!value) {
+        setMessage('클립보드가 비어 있어요.');
+        return;
+      }
+      if (!INVITE_CODE_PATTERN.test(value)) {
+        setMessage('초대 코드 형식이 아닌 것 같아요.');
+        return;
+      }
+      setCode(value);
+      setMessage('');
+    } catch (error) {
+      setMessage('클립보드 권한이 필요해요.');
+      console.error(error);
+    }
+  }
+
+  return (
+    <div>
+      <input value={code} onChange={(event) => setCode(event.target.value)} />
+      <button type="button" onClick={pasteFromClipboard}>
+        클립보드에서 붙여넣기
+      </button>
+      {message && <p role="status">{message}</p>}
+    </div>
+  );
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example에서 이 API를 실제로 호출하고 결과를 확인할 수 있습니다.
+
+<TryItLink group="clipboard" method="getClipboardText" />
+
+## 관련 API
+
+- [`setClipboardText`](./setClipboardText) — 클립보드에 텍스트를 복사합니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Recipes — "복사/붙여넣기 UX 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.

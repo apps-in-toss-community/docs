@@ -4,8 +4,9 @@ import type { SidebarsConfig } from '@docusaurus/plugin-content-docs';
  * Sidebar is the source of truth for `<group>` naming used in the
  * docs ↔ sdk-example deep-link contract. See CLAUDE.md → "sdk-example deep-link 컨벤션".
  *
- * Only the pages that actually exist right now are listed here.
- * New API pages are added in follow-up PRs.
+ * Each API namespace is a collapsible category with an Overview entry
+ * (the namespace `index.mdx`) followed by method pages in alphabetical order.
+ * New namespaces are added as sibling categories.
  */
 const sidebars: SidebarsConfig = {
   docsSidebar: [
@@ -18,7 +19,12 @@ const sidebars: SidebarsConfig = {
         {
           type: 'category',
           label: 'clipboard',
-          items: ['api/clipboard/setClipboardText'],
+          collapsed: false,
+          items: [
+            'api/clipboard/clipboard-overview',
+            'api/clipboard/getClipboardText',
+            'api/clipboard/setClipboardText',
+          ],
         },
       ],
     },

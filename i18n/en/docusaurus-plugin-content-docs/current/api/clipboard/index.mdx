@@ -1,0 +1,49 @@
+---
+id: clipboard-overview
+title: clipboard
+sidebar_label: Overview
+slug: /api/clipboard
+description: SDK namespace for reading and writing the system clipboard.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `clipboard`
+
+Namespace for reading and writing the system clipboard. Covers everyday mobile UX like sharing invite codes, pasting coupons, and "Copy link" buttons.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the upstream [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Methods
+
+| Method | Purpose |
+| --- | --- |
+| [`getClipboardText`](/api/clipboard/getClipboardText) | Read text from the clipboard. |
+| [`setClipboardText`](/api/clipboard/setClipboardText) | Copy text to the clipboard. |
+
+## Permission
+
+The whole namespace shares a **single `clipboard` permission**. Both methods are bound to the same `PermissionName`, so granting access through one immediately enables the other. `setClipboardText.getPermission()` and `getClipboardText.getPermission()` always return the same value — check whichever is more convenient.
+
+- Calling either method while the status is `denied` throws. Check with `getPermission()` first.
+- If the user hasn't decided yet, trigger the system dialog with `openPermissionDialog()`.
+
+Both methods expose `getPermission()` / `openPermissionDialog()` helpers on the function object — see each page's "Permission" section.
+
+## UX guidance
+
+- **Write** in response to an explicit user action (a "Copy" button) and confirm with a toast.
+- **Read** only in response to an explicit "Paste" gesture. Automatic clipboard reads on screen load feel intrusive and are the kind of behavior the OS is likely to restrict further.
+- **Always validate** the string you read. Don't assume it matches your format — run a regex, check URL allowlists, trim whitespace.
+
+## Try it live
+
+Both methods are available on the Clipboard page in sdk-example.
+
+<TryItLink group="clipboard" />
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

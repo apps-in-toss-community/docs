@@ -1,0 +1,127 @@
+---
+id: getClipboardText
+title: getClipboardText
+sidebar_label: getClipboardText
+description: Read text from the system clipboard.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `getClipboardText`
+
+Reads the string currently stored on the system clipboard. Useful for auto-filling invite codes, coupons, or URLs that the user copied somewhere else.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the upstream [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { getClipboardText } from '@apps-in-toss/web-framework';
+
+declare function getClipboardText(): Promise<string>;
+```
+
+## Parameters
+
+None.
+
+## Returns
+
+- `Promise<string>` — the clipboard contents. Resolves to an empty string (`''`) when the clipboard is empty or the environment blocks access. See the "Permission" section below for failure modes.
+
+:::caution Interpreting an empty string
+An empty string can mean **either** the clipboard was actually empty **or** the browser/system refused access. If you need to tell those apart, check the permission first, or only call this API in response to an explicit "Paste" gesture.
+:::
+
+## Permission
+
+Requires the `clipboard` permission. The call fails only when the status is **explicitly `denied`** — wrap in `try/catch`. `notDetermined` lets the call through, but prompting the dialog first is the safer flow. See the forthcoming "Permissions pattern" guide for the full flow.
+
+Both iOS and Android treat clipboard reads as sensitive, so prefer calling this in direct response to a user gesture (e.g., a "Paste" button) rather than on screen load.
+
+The callable exposes permission helpers:
+
+```ts
+const status = await getClipboardText.getPermission();
+// 'allowed' | 'denied' | 'notDetermined'
+
+if (status !== 'allowed') {
+  await getClipboardText.openPermissionDialog();
+}
+```
+
+## Examples
+
+### Minimal
+
+```tsx
+import { getClipboardText } from '@apps-in-toss/web-framework';
+
+async function readInviteCode() {
+  const value = await getClipboardText();
+  console.log(value);
+}
+```
+
+### Realistic — a "Paste from clipboard" button
+
+```tsx
+import { getClipboardText } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+const INVITE_CODE_PATTERN = /^AIT-\d{4}-[A-Z]+$/;
+
+export function InviteCodeInput() {
+  const [code, setCode] = useState('');
+  const [message, setMessage] = useState('');
+
+  async function pasteFromClipboard() {
+    try {
+      const value = (await getClipboardText()).trim();
+      if (!value) {
+        setMessage('The clipboard is empty.');
+        return;
+      }
+      if (!INVITE_CODE_PATTERN.test(value)) {
+        setMessage("That doesn't look like an invite code.");
+        return;
+      }
+      setCode(value);
+      setMessage('');
+    } catch (error) {
+      setMessage('Clipboard permission is required.');
+      console.error(error);
+    }
+  }
+
+  return (
+    <div>
+      <input value={code} onChange={(event) => setCode(event.target.value)} />
+      <button type="button" onClick={pasteFromClipboard}>
+        Paste from clipboard
+      </button>
+      {message && <p role="status">{message}</p>}
+    </div>
+  );
+}
+```
+
+## Try it live
+
+Run the API in sdk-example and inspect the result.
+
+<TryItLink group="clipboard" method="getClipboardText" />
+
+## Related APIs
+
+- [`setClipboardText`](./setClipboardText) — copy text to the clipboard.
+
+## Related guides
+
+- _(coming soon)_ Recipes — copy/paste UX patterns
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

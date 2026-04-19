@@ -32,7 +32,22 @@ declare function setClipboardText(text: string): Promise<void>;
 ## Returns
 
 - `Promise<void>` — resolves after the copy completes.
-- May reject when the app is backgrounded or the system denies the operation. Wrap in `try/catch`.
+- Permission-`denied` failures are covered in the "Permission" section. On web, `navigator.clipboard.writeText` can also reject for non-permission reasons, so wrapping in `try/catch` is always recommended.
+
+## Permission
+
+Requires the `clipboard` permission. The call fails only when the status is **explicitly `denied`** — wrap in `try/catch`. `notDetermined` lets the call through, but prompting the dialog first is the safer flow. See the forthcoming "Permissions pattern" guide for the full flow.
+
+The callable exposes permission helpers:
+
+```ts
+const status = await setClipboardText.getPermission();
+// 'allowed' | 'denied' | 'notDetermined'
+
+if (status !== 'allowed') {
+  await setClipboardText.openPermissionDialog();
+}
+```
 
 ## Examples
 
@@ -46,17 +61,21 @@ async function copyInviteCode() {
 }
 ```
 
-### With a toast
+### Realistic — copy with user feedback
 
 ```tsx
-import { setClipboardText, showToast } from '@apps-in-toss/web-framework';
+import { setClipboardText } from '@apps-in-toss/web-framework';
 
-async function copyAndToast(value: string) {
+// `showAppToast` is NOT provided by the SDK — substitute your app's own
+// toast / snackbar component.
+declare function showAppToast(message: string): void;
+
+async function copyWithFeedback(value: string) {
   try {
     await setClipboardText(value);
-    await showToast({ message: 'Copied to clipboard' });
+    showAppToast('Copied to clipboard');
   } catch (error) {
-    await showToast({ message: 'Copy failed — please try again.' });
+    showAppToast('Copy failed — please try again.');
     console.error(error);
   }
 }
@@ -64,18 +83,18 @@ async function copyAndToast(value: string) {
 
 ## Try it live
 
-Run the API in sdk-example and inspect the result and history.
+Run the API in sdk-example and inspect the result.
 
 <TryItLink group="clipboard" method="setClipboardText" />
 
 ## Related APIs
 
-- `getClipboardText` — read text from the clipboard. (Page coming soon.)
+- [`getClipboardText`](./getClipboardText) — read text from the clipboard.
 
 ## Related guides
 
 - _(coming soon)_ Recipes — copy/paste UX patterns
 
-## Upstream
+## External references
 
-- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

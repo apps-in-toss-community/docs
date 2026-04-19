@@ -7,15 +7,19 @@ import styles from './TryItLink.module.css';
  *
  * Contract (see CLAUDE.md → "sdk-example deep-link 컨벤션"):
  * - `group`  matches the sdk-example route segment, e.g. "clipboard"
- * - `method` matches the SDK export name, e.g. "setClipboardText"
- * - Resulting URL: https://apps-in-toss-community.github.io/sdk-example/<group>#<method>
+ * - `method` (optional) matches the SDK export name, e.g. "setClipboardText".
+ *   Omit on namespace overview pages — the link targets the group's page
+ *   without a method anchor.
+ * - Resulting URL:
+ *     - with method:    https://apps-in-toss-community.github.io/sdk-example/<group>#<method>
+ *     - without method: https://apps-in-toss-community.github.io/sdk-example/<group>
  *
  * The #<method> anchor is future-proofing: sdk-example does not honor anchors
  * yet, but the contract is fixed now so the links don't need to change later.
  */
 export interface TryItLinkProps {
   group: string;
-  method: string;
+  method?: string;
   children?: ReactNode;
 }
 
@@ -25,7 +29,10 @@ export default function TryItLink({ group, method, children }: TryItLinkProps): 
   const { i18n } = useDocusaurusContext();
   const isKorean = i18n.currentLocale === 'ko';
   const defaultLabel = isKorean ? 'sdk-example에서 실행해 보기' : 'Open in sdk-example';
-  const href = `${SDK_EXAMPLE_BASE}/${group}#${method}`;
+  const encodedGroup = encodeURIComponent(group);
+  const href = method
+    ? `${SDK_EXAMPLE_BASE}/${encodedGroup}#${encodeURIComponent(method)}`
+    : `${SDK_EXAMPLE_BASE}/${encodedGroup}`;
   return (
     <a
       className={styles.tryItLink}
@@ -33,7 +40,7 @@ export default function TryItLink({ group, method, children }: TryItLinkProps): 
       target="_blank"
       rel="noreferrer noopener"
       data-group={group}
-      data-method={method}
+      {...(method ? { 'data-method': method } : {})}
     >
       <span aria-hidden="true" className={styles.arrow}>
         →

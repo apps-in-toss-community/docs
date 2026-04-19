@@ -1,14 +1,15 @@
 # TODO
 
 ## High Priority
-(None)
+- [ ] 다음 네임스페이스 작성: **`storage`** (SDK 호출 표면이 작고 의존성 없음 → clipboard 다음 프로토타이핑 대상으로 적합). 이후 `haptic` → `navigation` 순.
+- [ ] Guides/permissions-pattern 문서 작성 — 모든 API 페이지의 "권한" 섹션이 이 가이드를 역참조하도록 설계됨. 현재는 placeholder 문구만 있음.
 
 ## Medium Priority
-- [ ] 실제 API 레퍼런스 페이지 작성 (SDK namespace별: auth, navigation, environment, permissions, storage, location, camera, contacts, clipboard, haptic, iap, ads, game, analytics, partner, events)
+- [x] ~~실제 API 레퍼런스 페이지 작성~~ — `clipboard` 네임스페이스가 per-namespace 템플릿의 프로토타입으로 확립됨 (overview + 메서드 + ko/en mirror). 남은 네임스페이스(auth, navigation, environment, permissions, storage, location, camera, contacts, haptic, iap, ads, game, analytics, partner, events)는 이 패턴을 따름.
 - [ ] sdk-example → docs 방향 링크: `ApiCard`에 `docsUrl` 옵셔널 prop 추가 (sdk-example repo PR 별도)
 - [ ] docs → sdk-example 방향 end-to-end 검증: `TryItLink`가 실제 sdk-example 배포로 열리는지, 앵커(`#<method>`) 지원이 ApiCard에 반영되는지 확인
 - [ ] `scripts/verify-crosslinks.ts` 추가 — 양쪽 repo의 `<group>/<method>` 네이밍 1:1 매칭 CI 검증
-- [ ] 영어(en) 전면 번역 — 현재는 파이프라인 증명용 1페이지(`clipboard/setClipboardText`)만 존재
+- [ ] 영어(en) 전면 번역 — 현재는 `clipboard` 네임스페이스 전체와 `intro`만 존재
 
 ## Low Priority
 - [ ] `pnpm.overrides`의 `webpack: 5.105.0` pin 제거 — webpackbar 6.0.2+ 릴리즈 후
