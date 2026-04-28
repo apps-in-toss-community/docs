@@ -35,6 +35,16 @@ pnpm lint:fix     # biome check --write .
 pnpm format       # biome format --write .
 ```
 
+## Pre-commit hook
+
+선택 사항이지만 권장합니다. clone 후 다음 한 줄로 표준 pre-commit hook을 활성화하세요 (staged 파일에 `biome check` 실행):
+
+```sh
+git config core.hooksPath .githooks
+```
+
+push 전 빠른 피드백을 위한 개발자 편의 기능입니다. CI가 동일한 검사를 실제 강제 계층으로 실행하므로, hook을 활성화하지 않은 contributor도 PR 단계에서 lint 실패를 확인하게 됩니다.
+
 ## Deploy
 
 GitHub Pages (`https://apps-in-toss-community.github.io/docs/`)로 자동 배포. 조직 루트 사이트(`apps-in-toss-community.github.io`)가 이미 있으므로 이 repo는 **서브패스 배포** (`baseUrl: '/docs/'`).
