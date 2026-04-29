@@ -1,6 +1,6 @@
 # docs
 
-> 🚧 **Work in Progress** — 콘텐츠는 초기 단계지만, 배포 파이프라인은 활성화되어 있습니다. `main` 푸시 시 GitHub Actions로 자동 배포.
+> 🚧 **Work in Progress** — 콘텐츠는 초기 단계입니다. 배포 파이프라인은 준비되어 있고, GitHub Pages source 활성화 이후 `main` 푸시 시 자동 배포됩니다 (아래 "GitHub Pages 활성화" 참고).
 
 **Apps in Toss** 미니앱 개발을 위한 커뮤니티 문서 사이트. 앱인토스 공식 문서를 기반으로 재구성한 **가이드/레퍼런스** 세트입니다.
 
