@@ -131,21 +131,42 @@ function scanDocsNamespaces(): Map<string, Set<string>> {
 /**
  * Match strings like:
  *   getClipboardText               → kept
- *   Storage.setItem                → trailing identifier kept (`setItem`)
- *   navigator.clipboard.writeText  → rejected (lowercase prefix is not a namespace)
+ *   Storage.setItem                → leaf kept (`setItem`)
+ *   partner.addAccessoryButton     → leaf kept (`addAccessoryButton`)
+ *   env.getDeploymentId            → leaf kept (`getDeploymentId`)
+ *   navigator.clipboard.writeText  → rejected (multi-segment Web API path)
+ *   navigator.onLine               → rejected (Web API skip-list)
+ *   SafeAreaInsets.get             → rejected (sub-namespace skip-list)
  *
- * Anything else (whitespace, symbols, capitalized leaf) → rejected.
- *
- * Justification: ApiCards in sdk-example mix two kinds of cards — SDK calls
- * (camelCase, optionally `Namespace.method`) and standard Web API demos
- * (`navigator.foo.bar`). Only the former participates in the docs deep-link
- * contract. The leaf must start lowercase to keep it on the SDK side.
+ * ApiCards in sdk-example mix three kinds of names: bare camelCase SDK calls
+ * (`setClipboardText`), single-segment-namespaced SDK calls (`Storage.setItem`,
+ * `partner.addAccessoryButton`), and standard Web API demo cards
+ * (`navigator.clipboard.writeText`, `navigator.onLine`). Only the first two
+ * participate in the docs deep-link contract — `TryItLink` only emits anchors
+ * for SDK methods. We accept either form and strip the prefix; the leaf must
+ * be camelCase. Multi-dot names (`a.b.c`) are always Web APIs. Known
+ * non-method-bearing prefixes are skip-listed.
  */
-const NAME_PATTERN = /^(?:[A-Z][A-Za-z0-9]*\.)?([a-z][A-Za-z0-9]*)$/;
+const NAME_PATTERN = /^(?:[A-Za-z][A-Za-z0-9]*\.)?([a-z][A-Za-z0-9]*)$/;
+
+/**
+ * Card names whose leaf identifier we should ignore even if it parses as a
+ * camelCase method. `SafeAreaInsets` is a constant object exposed in
+ * sdk-example as a sibling to `getSafeAreaInsets`, not a callable namespace —
+ * its `.get` accessor is not part of the `TryItLink` deep-link contract.
+ * `navigator` cards are standard Web API demos.
+ */
+const PREFIX_SKIP_LIST = new Set(['SafeAreaInsets', 'navigator']);
 
 function normalizeApiCardName(raw: string): string | null {
   const m = NAME_PATTERN.exec(raw);
-  return m ? (m[1] as string) : null;
+  if (!m) return null;
+  const dotIndex = raw.indexOf('.');
+  if (dotIndex !== -1) {
+    const prefix = raw.slice(0, dotIndex);
+    if (PREFIX_SKIP_LIST.has(prefix)) return null;
+  }
+  return m[1] as string;
 }
 
 const NAME_PROP_REGEX = /name="([^"]+)"/g;
@@ -161,15 +182,24 @@ function extractMethodsFromSource(source: string): string[] {
   return Array.from(new Set(out));
 }
 
+const FETCH_TIMEOUT_MS = 10_000;
+
 async function fetchSdkPage(group: string, ref: string): Promise<string> {
   const url = `https://raw.githubusercontent.com/${SDK_EXAMPLE_REPO}/${ref}/${sdkPageFilename(group)}`;
-  const res = await fetch(url, {
-    headers: { 'user-agent': 'verify-crosslinks (apps-in-toss-community/docs)' },
-  });
-  if (!res.ok) {
-    throw new Error(`GET ${url} → HTTP ${res.status}`);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'user-agent': 'verify-crosslinks (apps-in-toss-community/docs)' },
+    });
+    if (!res.ok) {
+      throw new Error(`GET ${url} → HTTP ${res.status}`);
+    }
+    return await res.text();
+  } finally {
+    clearTimeout(timer);
   }
-  return await res.text();
 }
 
 const COLOR = process.stdout.isTTY && !process.env.NO_COLOR;
@@ -216,43 +246,48 @@ async function main(): Promise<number> {
     reports.push({ group, docsMethods, sdkMethods, missingInSdk, missingInDocs, fetchError });
   }
 
-  // Console summary
-  console.log(c.bold('\nverify-crosslinks — docs ↔ sdk-example'));
-  console.log(c.dim(`ref: ${args.ref} · strict: ${args.strict ? 'on' : 'off'}\n`));
+  // Human-readable summary. With `--json`, route to stderr so stdout is pure
+  // JSON and pipeable (e.g. `verify:crosslinks --json | jq`).
+  const out = (line: string) => {
+    if (args.json) console.error(line);
+    else console.log(line);
+  };
+  out(c.bold('\nverify-crosslinks — docs ↔ sdk-example'));
+  out(c.dim(`ref: ${args.ref} · strict: ${args.strict ? 'on' : 'off'}\n`));
 
   let hasError = false;
   let hasInfo = false;
   for (const r of reports) {
     const sdkLabel = r.sdkMethods ? `${r.sdkMethods.length} sdk` : c.yellow('sdk: fetch failed');
-    console.log(
-      `${c.cyan(r.group.padEnd(14))} ${c.dim('|')} ${r.docsMethods.length} docs · ${sdkLabel}`,
-    );
+    out(`${c.cyan(r.group.padEnd(14))} ${c.dim('|')} ${r.docsMethods.length} docs · ${sdkLabel}`);
     if (r.fetchError) {
-      console.log(`  ${c.yellow('!')} ${r.fetchError}`);
+      out(`  ${c.yellow('!')} ${r.fetchError}`);
     }
     for (const m of r.missingInSdk) {
-      console.log(
-        `  ${c.red('✗')} ${m} ${c.dim('docs has it; sdk-example does not (link rot risk)')}`,
-      );
+      out(`  ${c.red('✗')} ${m} ${c.dim('docs has it; sdk-example does not (link rot risk)')}`);
       hasError = true;
     }
     for (const m of r.missingInDocs) {
       const tag = args.strict ? c.red('✗') : c.yellow('i');
-      console.log(
-        `  ${tag} ${m} ${c.dim('sdk-example has it; docs does not (not yet documented)')}`,
-      );
+      out(`  ${tag} ${m} ${c.dim('sdk-example has it; docs does not (not yet documented)')}`);
       if (args.strict) hasError = true;
       else hasInfo = true;
     }
     if (r.sdkMethods && r.missingInSdk.length === 0 && r.missingInDocs.length === 0) {
-      console.log(`  ${c.green('✓')} all match`);
+      out(`  ${c.green('✓')} all match`);
     }
   }
 
   if (args.json) {
-    console.log(`\n${JSON.stringify({ strict: args.strict, ref: args.ref, reports }, null, 2)}`);
+    process.stdout.write(
+      `${JSON.stringify({ strict: args.strict, ref: args.ref, reports }, null, 2)}\n`,
+    );
   }
 
+  // Exit-code precedence: fetch-failure-under-strict (2) > drift (1) > clean (0).
+  // When both fetch failures and drift are present under --strict, 2 masks 1 —
+  // intentional: a fetch failure means we couldn't fully verify, which is a
+  // higher-order signal than a confirmed drift in the namespaces we did reach.
   if (fetchFailed && args.strict) {
     console.error(c.red('\nfetch failure with --strict → exit 2'));
     return 2;
@@ -269,11 +304,9 @@ async function main(): Promise<number> {
     return 1;
   }
   if (hasInfo) {
-    console.log(
-      c.dim('\nverify-crosslinks: ok (info-level drift; pass --strict to fail on docs gaps)'),
-    );
+    out(c.dim('\nverify-crosslinks: ok (info-level drift; pass --strict to fail on docs gaps)'));
   } else {
-    console.log(c.green('\nverify-crosslinks: ok'));
+    out(c.green('\nverify-crosslinks: ok'));
   }
   return 0;
 }

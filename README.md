@@ -50,7 +50,13 @@ push 전 빠른 피드백을 위한 개발자 편의 기능입니다. CI가 동�
 
 `pnpm verify:crosslinks` checks that every method documented under `docs/api/<group>/<method>.mdx` (and its `i18n/en/...` mirror) has a matching `ApiCard name="..."` prop in the corresponding `apps-in-toss-community/sdk-example` page. Drift here silently breaks the `TryItLink` deep-links.
 
-**Adding a new namespace**: pick the same `<group>` slug in both repos. The docs slug is the lowercase namespace name (e.g. `clipboard`, `storage`); the sdk-example file is `src/pages/<Capitalized>Page.tsx` containing `<ApiCard name="<methodName>" ... />` for each method. Method names are SDK export names (camelCase). For namespaced SDK calls (`Storage.setItem`), only the trailing identifier counts.
+**Adding a new namespace**: pick the same `<group>` slug in both repos. The docs slug is the lowercase namespace name (e.g. `clipboard`, `storage`); the sdk-example file is `src/pages/<Capitalized>Page.tsx` containing `<ApiCard name="<methodName>" ... />` for each method. Method names are SDK export names (camelCase). The verifier accepts three card-name shapes from sdk-example and reduces them to the docs slug:
+
+- `setClipboardText` → `setClipboardText`
+- `Storage.setItem` → `setItem` (PascalCase namespace prefix stripped)
+- `partner.addAccessoryButton` → `addAccessoryButton` (lowercase namespace prefix stripped)
+
+Multi-segment Web API demos (`navigator.clipboard.writeText`) and known non-method prefixes (`navigator.*`, `SafeAreaInsets.*`) are skipped — they're not part of the deep-link contract. If the sdk-example file casing diverges from `Capitalize(group) + 'Page.tsx'` (acronym groups like `iap → IAPPage.tsx`), add the override in `scripts/verify-crosslinks.ts` (`SDK_PAGE_FILENAME_OVERRIDES`).
 
 ```bash
 pnpm verify:crosslinks            # docs methods missing in sdk-example → error

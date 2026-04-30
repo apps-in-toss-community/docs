@@ -41,6 +41,7 @@ jobs:
   # fetch failures as warnings — sdk-example downtime should not block docs PRs.
   verify-crosslinks:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
 
