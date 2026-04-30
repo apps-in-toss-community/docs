@@ -33,6 +33,7 @@ pnpm typecheck    # tsc --noEmit
 pnpm lint         # biome check .
 pnpm lint:fix     # biome check --write .
 pnpm format       # biome format --write .
+pnpm verify:crosslinks  # check docs ↔ sdk-example name parity
 ```
 
 ## Pre-commit hook
@@ -45,12 +46,26 @@ git config core.hooksPath .githooks
 
 push 전 빠른 피드백을 위한 개발자 편의 기능입니다. CI가 동일한 검사를 실제 강제 계층으로 실행하므로, hook을 활성화하지 않은 contributor도 PR 단계에서 lint 실패를 확인하게 됩니다.
 
+## Cross-link verification
+
+`pnpm verify:crosslinks` checks that every method documented under `docs/api/<group>/<method>.mdx` (and its `i18n/en/...` mirror) has a matching `ApiCard name="..."` prop in the corresponding `apps-in-toss-community/sdk-example` page. Drift here silently breaks the `TryItLink` deep-links.
+
+**Adding a new namespace**: pick the same `<group>` slug in both repos. The docs slug is the lowercase namespace name (e.g. `clipboard`, `storage`); the sdk-example file is `src/pages/<Capitalized>Page.tsx` containing `<ApiCard name="<methodName>" ... />` for each method. Method names are SDK export names (camelCase). For namespaced SDK calls (`Storage.setItem`), only the trailing identifier counts.
+
+```bash
+pnpm verify:crosslinks            # docs methods missing in sdk-example → error
+pnpm verify:crosslinks --strict   # also: sdk-example methods missing in docs → error
+pnpm verify:crosslinks --ref <branch>  # check against a non-main sdk-example ref
+```
+
+CI runs the default mode on every PR (job: `verify-crosslinks`). External fetch failures (GitHub raw down, rate limit) warn and exit 0 by default — sdk-example outage shouldn't block docs PRs. Use `--strict` locally to fail closed when you want certainty.
+
 ## Deploy
 
 배포 URL: **`https://docs.aitc.dev/`** (전용 sub-domain).
 
 - **워크플로**: [`.github/workflows/deploy-pages.yml`](./.github/workflows/deploy-pages.yml) — `main` push + `workflow_dispatch`. `pnpm build` → `actions/upload-pages-artifact@v3` → `actions/deploy-pages@v4`.
-- **CI**: [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) — lint + typecheck + build dry-run.
+- **CI**: [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) — `check` job runs lint + typecheck + build dry-run; `verify-crosslinks` job runs `pnpm verify:crosslinks`.
 - **버전 정책**: 없음. `main` = 배포 (Type C, Changesets 미사용).
 - **Pages source**: repo Settings → Pages → "GitHub Actions" (이미 활성화됨).
 
