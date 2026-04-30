@@ -30,7 +30,7 @@
 2. **React 스택 정렬.** sdk-example/homepage/devtools가 모두 React. docs에서 sdk-example의 `ApiCard` 같은 인터랙티브 요소를 재사용하거나, 공용 React 컴포넌트(`InfoBanner`, "Unofficial" 배지 등)를 뽑기 용이.
 3. **GitHub Pages 배포가 단순.** `url` + `baseUrl` 두 필드로 끝. homepage와 동일한 Pages workflow 재사용 가능.
 4. **트레이드오프**: Starlight가 더 가볍고 Pagefind 내장이 매력적이지만 (a) 조직에 Astro 경험 없음, (b) sdk-example React 컴포넌트 재사용 시 island 경계를 매번 의식해야 함. 도구 다양성은 비용.
-5. **Plan B로 Starlight 보존.** webpack 빌드 시간/번들 크기가 문제되면 MDX 트리째 이식 가능 (TODO.md backlog).
+5. **Plan B로 Starlight 보존.** webpack 빌드 시간/번들 크기가 문제되면 MDX 트리째 이식 가능 (umbrella `../TODO.md` `docs` 섹션의 backlog 참고; 조직 TODO는 umbrella가 single source of truth, 이 repo의 `TODO.md`는 stub).
 
 ## 정보 아키텍처 (IA)
 
@@ -119,7 +119,7 @@
 
 `package.json`의 `pnpm.overrides`에 `webpack: 5.105.0` 고정. Docusaurus 3.10이 의존하는 `webpackbar` 6.0.1이 webpack 5.106+의 내부 API 변경과 호환되지 않아 빌드가 터지는 문제 회피용.
 
-**제거 조건**: `webpackbar` 6.0.2+ 릴리즈 (호환 수정). 릴리즈 확인 후 override 제거, `pnpm install`로 최신 webpack으로 복구. TODO.md Low Priority에 트래킹.
+**제거 조건**: `webpackbar` 6.0.2+ 릴리즈 (호환 수정). 릴리즈 확인 후 override 제거, `pnpm install`로 최신 webpack으로 복구. umbrella `../TODO.md` `docs` 섹션 Low Priority에 트래킹.
 
 ## 배포 전략
 
@@ -168,4 +168,4 @@ pnpm format      # biome format --write .
 
 ## Status
 
-`clipboard` 네임스페이스(overview + `setClipboardText` + `getClipboardText`, ko/en) 완성 — per-namespace 템플릿 프로토타입으로 확립됨. 나머지 15개 네임스페이스는 이 패턴을 복제. 다음 우선순위와 backlog은 TODO.md 참고.
+`clipboard` 네임스페이스(overview + `setClipboardText` + `getClipboardText`, ko/en) 완성 — per-namespace 템플릿 프로토타입으로 확립됨. 나머지 15개 네임스페이스는 이 패턴을 복제. 다음 우선순위와 backlog은 umbrella `../TODO.md`의 `docs` 섹션 참고 (조직 TODO는 umbrella가 single source of truth).
