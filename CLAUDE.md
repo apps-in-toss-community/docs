@@ -15,7 +15,7 @@
 1. **i18n 성숙도가 가장 높다.** `i18n/<locale>/docusaurus-plugin-content-docs/current/` 트리. 한국어 default + 영어 secondary에 정확히 맞음.
 2. **React 스택 정렬.** sdk-example/homepage/devtools가 모두 React. `ApiCard` 등 컴포넌트 공유 용이.
 3. **GitHub Pages 배포 단순.** `url` + `baseUrl` 두 필드로 끝.
-4. **Plan B로 Starlight 보존.** webpack 빌드 시간/번들 크기가 문제되면 MDX 트리째 이식 가능.
+4. **Starlight는 Plan B.** Pagefind 내장 검색·작은 번들이 매력적이지만 (a) 조직에 Astro 경험 없음 (b) sdk-example React 컴포넌트 재사용 시 island 경계를 매번 의식해야 함. 거부가 아니라 보류 — webpack 빌드 시간/번들이 문제되면 MDX 트리째 이식 가능.
 
 ## 정보 아키텍처 (IA)
 
@@ -82,9 +82,9 @@ pnpm build       # build/ 정적 생성
 pnpm serve       # 빌드 결과 로컬 미리보기
 pnpm typecheck   # tsc --noEmit
 pnpm lint        # biome check .
+pnpm lint:fix    # biome check --write .
+pnpm format      # biome format --write .
 ```
-
-전체 스크립트는 `package.json` 참조.
 
 ## 코드/콘텐츠 규칙
 
