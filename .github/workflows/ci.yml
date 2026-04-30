@@ -33,3 +33,24 @@ jobs:
       - run: pnpm typecheck
 
       - run: pnpm build
+
+  # Verifies that docs/api/<group>/<method>.mdx names line up 1:1 with the
+  # ApiCard `name="..."` props in apps-in-toss-community/sdk-example. Kept as a
+  # separate job so the name (`verify-crosslinks`) stays stable for branch
+  # protection required checks. Default mode (no `--strict`) treats GitHub raw
+  # fetch failures as warnings — sdk-example downtime should not block docs PRs.
+  verify-crosslinks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm verify:crosslinks
