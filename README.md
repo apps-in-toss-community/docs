@@ -56,7 +56,7 @@ push 전 빠른 피드백을 위한 개발자 편의 기능입니다. CI가 동�
 - `Storage.setItem` → `setItem` (PascalCase namespace prefix stripped)
 - `partner.addAccessoryButton` → `addAccessoryButton` (lowercase namespace prefix stripped)
 
-Multi-segment Web API demos (`navigator.clipboard.writeText`) and known non-method prefixes (`navigator.*`, `SafeAreaInsets.*`) are skipped — they're not part of the deep-link contract. If the sdk-example file casing diverges from `Capitalize(group) + 'Page.tsx'` (acronym groups like `iap → IAPPage.tsx`), add the override in `scripts/verify-crosslinks.ts` (`SDK_PAGE_FILENAME_OVERRIDES`).
+Multi-dot names (`navigator.clipboard.writeText`) are rejected by the regex — only single-prefix form is accepted. Single-dot names with known non-SDK prefixes (`navigator.onLine`, `SafeAreaInsets.get`) are rejected by `PREFIX_SKIP_LIST` in the script — extend it if sdk-example gains demo cards for other Web APIs (`location.*`, `history.*`, etc.). If the sdk-example file casing diverges from `Capitalize(group) + 'Page.tsx'` (acronym groups like `iap → IAPPage.tsx`), add the override in `SDK_PAGE_FILENAME_OVERRIDES`.
 
 ```bash
 pnpm verify:crosslinks            # docs methods missing in sdk-example → error

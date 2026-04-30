@@ -150,11 +150,17 @@ function scanDocsNamespaces(): Map<string, Set<string>> {
 const NAME_PATTERN = /^(?:[A-Za-z][A-Za-z0-9]*\.)?([a-z][A-Za-z0-9]*)$/;
 
 /**
- * Card names whose leaf identifier we should ignore even if it parses as a
+ * Card-name prefixes whose leaves should be ignored even if they parse as a
  * camelCase method. `SafeAreaInsets` is a constant object exposed in
  * sdk-example as a sibling to `getSafeAreaInsets`, not a callable namespace —
  * its `.get` accessor is not part of the `TryItLink` deep-link contract.
  * `navigator` cards are standard Web API demos.
+ *
+ * Add an entry here for any sdk-example single-dot prefix that represents a
+ * Web API or non-method object rather than an SDK namespace (e.g. future
+ * `location.*`, `history.*`, `document.*`, `screen.*` demo cards). Without
+ * this list, those would otherwise leak into `missingInDocs` as info-level
+ * noise and break `--strict` runs.
  */
 const PREFIX_SKIP_LIST = new Set(['SafeAreaInsets', 'navigator']);
 
@@ -197,11 +203,21 @@ async function fetchSdkPage(group: string, ref: string): Promise<string> {
       throw new Error(`GET ${url} → HTTP ${res.status}`);
     }
     return await res.text();
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error(`GET ${url} → timed out after ${FETCH_TIMEOUT_MS}ms`);
+    }
+    throw err;
   } finally {
     clearTimeout(timer);
   }
 }
 
+// Color decision is keyed on stdout — the primary output channel. Edge case:
+// `verify-crosslinks --json > report.json` from a terminal will route the
+// human summary to stderr (still a TTY) but render it without color because
+// stdout is a file. Acceptable: that invocation is for piping to tools, not
+// for human reading.
 const COLOR = process.stdout.isTTY && !process.env.NO_COLOR;
 const c = {
   red: (s: string) => (COLOR ? `\x1b[31m${s}\x1b[0m` : s),
