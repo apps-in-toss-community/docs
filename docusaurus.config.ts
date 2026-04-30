@@ -10,9 +10,10 @@ const config: Config = {
   tagline: '커뮤니티가 정리한 앱인토스 미니앱 가이드·레퍼런스 (비공식)',
   favicon: 'img/logo.svg',
 
-  // Target URL. The homepage owns the org root, so docs lives at /docs/.
-  url: `https://${GITHUB_ORG}.github.io`,
-  baseUrl: '/docs/',
+  // Target URL. Docs serves from its own sub-domain (`docs.aitc.dev`) so
+  // baseUrl is root.
+  url: 'https://docs.aitc.dev',
+  baseUrl: '/',
 
   organizationName: GITHUB_ORG,
   projectName: REPO,
@@ -83,7 +84,7 @@ const config: Config = {
           position: 'right',
         },
         {
-          href: 'https://apps-in-toss-community.github.io/',
+          href: 'https://aitc.dev/',
           label: 'Home',
           position: 'right',
         },
@@ -102,11 +103,11 @@ const config: Config = {
           items: [
             {
               label: 'Landing',
-              href: 'https://apps-in-toss-community.github.io/',
+              href: 'https://aitc.dev/',
             },
             {
               label: 'sdk-example',
-              href: 'https://apps-in-toss-community.github.io/sdk-example/',
+              href: 'https://sdk-example.aitc.dev/',
             },
             {
               label: 'devtools',

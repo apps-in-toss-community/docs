@@ -16,7 +16,7 @@ This site provides friendlier, example-driven docs for developers building Apps 
 - **Getting started** — end-to-end flow from zero to deployed mini-app (coming soon)
 - **Guides** — common scenarios (auth, IAP, permissions) from a community lens (coming soon)
 - **API reference** — each SDK method with params, return value, examples, and related guides
-- **Try it** — every API page links to the matching page in [sdk-example](https://apps-in-toss-community.github.io/sdk-example/) so you can run it live
+- **Try it** — every API page links to the matching page in [sdk-example](https://sdk-example.aitc.dev/) so you can run it live
 
 ## Sample page
 
@@ -24,6 +24,6 @@ The reference is currently a scaffold. See [`setClipboardText`](./api/clipboard/
 
 ## Community
 
-- [Organization landing](https://apps-in-toss-community.github.io/)
+- [Organization landing](https://aitc.dev/)
 - [GitHub: apps-in-toss-community/docs](https://github.com/apps-in-toss-community/docs)
-- [sdk-example — run every SDK API interactively](https://apps-in-toss-community.github.io/sdk-example/)
+- [sdk-example — run every SDK API interactively](https://sdk-example.aitc.dev/)

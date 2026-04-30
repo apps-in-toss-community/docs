@@ -98,7 +98,7 @@
   - `<group>`: sdk-example 페이지 이름과 동일한 **소문자 단수형** (`clipboard`, `navigation`, `iap`, `ads`)
   - `<method>`: SDK export 이름과 동일한 **카멜케이스 원형** (`setClipboardText`, `appLogin`)
 - Try it 버튼 타겟 (현재 `TryItLink`가 emit하는 URL):
-  - prod: `https://apps-in-toss-community.github.io/sdk-example/<group>#<method>`
+  - prod: `https://sdk-example.aitc.dev/<group>#<method>`
   - dev: `http://localhost:5173/<group>#<method>`
 - 앵커(`#<method>`)는 **현재 sdk-example에서 무시되지만 URL 계약에 이미 포함**. sdk-example `ApiCard`가 `anchor` prop을 받도록 확장되면(후속 PR) 자동으로 스크롤/하이라이트가 동작하므로, docs 링크는 바꿀 필요 없음.
 - 링크 생성은 `src/components/TryItLink.tsx` 사용.
@@ -106,7 +106,7 @@
 ### sdk-example → docs
 
 - 각 `ApiCard`에 `docsUrl` 옵셔널 prop (sdk-example PR 별도).
-- URL: `https://apps-in-toss-community.github.io/docs/api/<group>/<method>`
+- URL: `https://docs.aitc.dev/api/<group>/<method>`
 
 ### 네이밍 동기화 책임
 
@@ -125,8 +125,8 @@
 
 **Type C (사이트)** — Changesets 사용 안 함. `main` = 배포.
 
-- 타깃: GitHub Pages → `https://apps-in-toss-community.github.io/docs/`
-- 서브패스 배포 (`baseUrl: '/docs/'`) — 조직 루트 사이트가 이미 있으므로.
+- 타깃: GitHub Pages custom domain → `https://docs.aitc.dev/`
+- 전용 sub-domain (`baseUrl: '/'`). `static/CNAME`에 `docs.aitc.dev` 한 줄 — Docusaurus가 `static/`을 `build/`로 verbatim 복사하므로 Pages에 그대로 도달.
 - Pages 환경: Settings → Pages → Source: GitHub Actions.
 - 워크플로: `.github/workflows/deploy-pages.yml`
   - 트리거: `push` to `main`, `workflow_dispatch`
