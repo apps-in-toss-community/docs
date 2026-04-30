@@ -1,8 +1,8 @@
 # TODO
 
 ## High Priority
-- [ ] 다음 네임스페이스 작성: **`storage`** (SDK 호출 표면이 작고 의존성 없음 → 빠르게 두 번째 프로토타이핑 대상으로 적합). 이후 `haptic` → `navigation` 순.
-- [ ] Guides/permissions-pattern 문서 작성 — 모든 API 페이지의 "권한" 섹션이 이 가이드를 역참조하도록 설계됨. 현재는 placeholder 문구만 있음. `clipboard`에 이어 `location`까지 두 네임스페이스가 같은 placeholder를 가리키므로 우선순위가 한 단계 올라감.
+- [x] ~~다음 네임스페이스 작성: **`storage`**~~ — overview + 4 메서드(getItem/setItem/removeItem/clearItems) ko/en 완성. 권한이 없는 네임스페이스의 첫 사례 — 권한 섹션이 permissions-pattern 가이드로 cross-link만 거는 패턴 확립. 다음은 `haptic` → `navigation` 순.
+- [x] ~~Guides/permissions-pattern 문서 작성~~ — ko/en 양쪽 작성, 기존 placeholder(clipboard 2개 + location 2개)를 모두 새 가이드 링크로 교체. storage 페이지들도 같은 가이드를 cross-link.
 
 ## Medium Priority
 - [x] ~~실제 API 레퍼런스 페이지 작성~~ — `clipboard` 네임스페이스가 per-namespace 템플릿의 프로토타입으로 확립됨 (overview + 메서드 + ko/en mirror). `location` 네임스페이스가 eventful API(`startUpdateLocation`)와 enum 파라미터(`Accuracy`)에 대한 템플릿 변형까지 검증함. 남은 네임스페이스(auth, navigation, environment, permissions, storage, camera, contacts, haptic, iap, ads, game, analytics, partner, events)는 이 패턴을 따름.

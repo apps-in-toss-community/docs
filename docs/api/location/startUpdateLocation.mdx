@@ -51,7 +51,7 @@ declare function startUpdateLocation(params: {
 
 ## 권한
 
-`geolocation` 권한이 필요합니다. 권한이 **명시적으로 `denied`** 상태이면 첫 위치 측정에서 실패하므로, 호출 **전에** 상태를 확인하고 필요하면 다이얼로그를 먼저 띄우는 것을 권장합니다. `geolocation` 권한은 네임스페이스 단위로 공유되므로 [`getCurrentLocation`](./getCurrentLocation#권한)의 유틸을 그대로 써도 결과가 같습니다. 상세 처리 패턴은 추후 작성될 Guides의 "권한 처리 패턴" 문서를 참고하세요.
+`geolocation` 권한이 필요합니다. 권한이 **명시적으로 `denied`** 상태이면 첫 위치 측정에서 실패하므로, 호출 **전에** 상태를 확인하고 필요하면 다이얼로그를 먼저 띄우는 것을 권장합니다. `geolocation` 권한은 네임스페이스 단위로 공유되므로 [`getCurrentLocation`](./getCurrentLocation#권한)의 유틸을 그대로 써도 결과가 같습니다. 상세 처리 패턴은 [Guides — 권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
 
 iOS/Android 모두 백그라운드 위치 추적은 별도의 권한 등급(`Always` / `WhenInUse`)으로 분리되어 있고, 앱이 포그라운드를 벗어나면 콜백이 멈추거나 throttle 될 수 있습니다.
 
