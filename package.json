@@ -18,7 +18,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "format": "biome format --write ."
+    "format": "biome format --write .",
+    "verify:crosslinks": "tsx scripts/verify-crosslinks.ts"
   },
   "dependencies": {
     "@docusaurus/core": "3.10.0",
@@ -34,7 +35,9 @@
     "@docusaurus/module-type-aliases": "3.10.0",
     "@docusaurus/tsconfig": "3.10.0",
     "@docusaurus/types": "3.10.0",
+    "@types/node": "24.12.2",
     "@types/react": "18.3.12",
+    "tsx": "4.21.0",
     "typescript": "5.6.3"
   },
   "browserslist": {
