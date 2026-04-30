@@ -3,7 +3,7 @@ id: permissions-pattern
 title: Permissions pattern
 sidebar_label: Permissions pattern
 slug: /guides/permissions-pattern
-description: How the SDK models permissions — the request → check → invoke flow, denied handling, and per-environment differences.
+description: How the SDK models permissions — the check → prompt → invoke flow, denied handling, and per-environment differences.
 ---
 
 # Permissions pattern
@@ -80,6 +80,8 @@ A call made while the status is `denied` throws. The standard error shape isn't 
 So **prompt for permission once, on the screen that actually needs it**. The "ask for everything up front, just in case" pattern only raises decline rates and is hard to recover from.
 
 ```ts
+import { getCurrentLocation } from '@apps-in-toss/web-framework';
+
 async function ensureGeolocation() {
   const status = await getCurrentLocation.getPermission();
   if (status === 'allowed') return true;

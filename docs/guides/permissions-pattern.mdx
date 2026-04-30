@@ -3,7 +3,7 @@ id: permissions-pattern
 title: 권한 처리 패턴
 sidebar_label: 권한 처리 패턴
 slug: /guides/permissions-pattern
-description: SDK가 권한을 다루는 일반 패턴 — request → check → invoke 흐름과 거절·환경별 차이.
+description: SDK가 권한을 다루는 일반 패턴 — check → prompt → invoke 흐름과 거절·환경별 차이.
 ---
 
 # 권한 처리 패턴
@@ -80,6 +80,8 @@ try {
 따라서 **권한 다이얼로그는 한 번에 한 번만**, 사용자가 그 권한이 정말 필요한 화면에 도달했을 때만 띄우세요. "혹시 모르니 진입 시 다 받아 두자"는 패턴은 거절률만 올리고 회복도 어렵습니다.
 
 ```ts
+import { getCurrentLocation } from '@apps-in-toss/web-framework';
+
 async function ensureGeolocation() {
   const status = await getCurrentLocation.getPermission();
   if (status === 'allowed') return true;
