@@ -11,8 +11,8 @@ import styles from './TryItLink.module.css';
  *   Omit on namespace overview pages — the link targets the group's page
  *   without a method anchor.
  * - Resulting URL:
- *     - with method:    https://apps-in-toss-community.github.io/sdk-example/<group>#<method>
- *     - without method: https://apps-in-toss-community.github.io/sdk-example/<group>
+ *     - with method:    https://sdk-example.aitc.dev/<group>#<method>
+ *     - without method: https://sdk-example.aitc.dev/<group>
  *
  * The #<method> anchor is future-proofing: sdk-example does not honor anchors
  * yet, but the contract is fixed now so the links don't need to change later.
@@ -23,7 +23,7 @@ export interface TryItLinkProps {
   children?: ReactNode;
 }
 
-const SDK_EXAMPLE_BASE = 'https://apps-in-toss-community.github.io/sdk-example';
+const SDK_EXAMPLE_BASE = 'https://sdk-example.aitc.dev';
 
 export default function TryItLink({ group, method, children }: TryItLinkProps): ReactNode {
   const { i18n } = useDocusaurusContext();

@@ -16,7 +16,7 @@ sidebar_position: 1
 - **Getting started** — 처음부터 미니앱 하나를 띄우기까지의 실전 플로우 (작성 예정)
 - **Guides** — 인증, 결제, 권한 같은 흔한 시나리오를 커뮤니티 관점에서 설명 (작성 예정)
 - **API reference** — SDK의 각 메서드를 그룹별로 정리. 파라미터·반환값·예제·관련 가이드를 한 페이지에
-- **Try it 링크** — 각 API 페이지는 [sdk-example](https://apps-in-toss-community.github.io/sdk-example/)의 대응 페이지로 바로 이동하는 버튼을 제공합니다
+- **Try it 링크** — 각 API 페이지는 [sdk-example](https://sdk-example.aitc.dev/)의 대응 페이지로 바로 이동하는 버튼을 제공합니다
 
 ## 첫 예시 페이지
 
@@ -24,6 +24,6 @@ sidebar_position: 1
 
 ## 커뮤니티
 
-- [조직 랜딩](https://apps-in-toss-community.github.io/)
+- [조직 랜딩](https://aitc.dev/)
 - [GitHub: apps-in-toss-community/docs](https://github.com/apps-in-toss-community/docs)
-- [sdk-example — 모든 API를 직접 실행](https://apps-in-toss-community.github.io/sdk-example/)
+- [sdk-example — 모든 API를 직접 실행](https://sdk-example.aitc.dev/)

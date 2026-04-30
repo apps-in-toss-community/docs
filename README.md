@@ -47,7 +47,7 @@ push 전 빠른 피드백을 위한 개발자 편의 기능입니다. CI가 동�
 
 ## Deploy
 
-배포 URL: **`https://apps-in-toss-community.github.io/docs/`** (서브패스 배포 — 조직 루트는 `apps-in-toss-community.github.io`가 이미 점유).
+배포 URL: **`https://docs.aitc.dev/`** (전용 sub-domain).
 
 - **워크플로**: [`.github/workflows/deploy-pages.yml`](./.github/workflows/deploy-pages.yml) — `main` push + `workflow_dispatch`. `pnpm build` → `actions/upload-pages-artifact@v3` → `actions/deploy-pages@v4`.
 - **CI**: [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) — lint + typecheck + build dry-run.
@@ -58,7 +58,7 @@ push 전 빠른 피드백을 위한 개발자 편의 기능입니다. CI가 동�
 
 현재 스캐폴드 완료 단계. 남은 작업은 [`TODO.md`](./TODO.md) 참고.
 
-조직 전체 로드맵은 [landing page](https://apps-in-toss-community.github.io/) 참고.
+조직 전체 로드맵은 [landing page](https://aitc.dev/) 참고.
 
 ## Pair repos
 

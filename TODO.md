@@ -12,20 +12,7 @@
 - [ ] 영어(en) 전면 번역 — 현재는 `clipboard` 네임스페이스 전체와 `intro`만 존재
 
 ## Low Priority
-- [ ] Migrate GitHub Pages to `docs.aitc.dev` custom domain (cross-repo decision; see umbrella `CLAUDE.md` § 운영 도메인 정책).
-  - Add `static/CNAME` containing `docs.aitc.dev` (Docusaurus copies `static/` verbatim into `build/`, so the file lands at the Pages site root).
-  - `docusaurus.config.ts`: change `url` from `https://${GITHUB_ORG}.github.io` to `https://docs.aitc.dev`, and change `baseUrl` from `/docs/` to `/`. With sub-domain hosting the site serves from root.
-  - Audit and replace hard-coded `apps-in-toss-community.github.io` URLs across the repo:
-    - `docusaurus.config.ts:86,105` (org landing → `https://aitc.dev/`)
-    - `docusaurus.config.ts:109` (sdk-example link → `https://sdk-example.aitc.dev/`)
-    - `src/components/TryItLink.tsx:26` (`SDK_EXAMPLE_BASE` constant → `https://sdk-example.aitc.dev`); also update the JSDoc URL examples on lines 14-15.
-    - `docs/intro.md:19,27,29` and `i18n/en/docusaurus-plugin-content-docs/current/intro.md:19,27,29` (sdk-example + org landing references).
-    - `README.md:50,61` (deployed URL line + organization landing).
-    - `CLAUDE.md:101,109,128` (the deep-link convention table — flip the prod URLs to the new domains).
-  - Add Cloudflare DNS `CNAME docs apps-in-toss-community.github.io.` (DNS-only).
-  - GitHub Settings → Pages → Custom domain: `docs.aitc.dev`, Enforce HTTPS.
-  - Verify `https://docs.aitc.dev/` loads the intro page and `https://docs.aitc.dev/api/clipboard/setClipboardText` (formerly `/docs/api/...`) renders correctly. Test "Try it live" deep-links resolve to the new `sdk-example.aitc.dev` host.
-  - Coordinate ordering: cut over `sdk-example` and homepage first (so the references this repo emits land on a working host). Doing docs alone leaves `TryItLink` pointing at the old sdk-example URL until that side flips.
+- [x] ~~Migrate GitHub Pages to `docs.aitc.dev` custom domain~~ — done. `static/CNAME` lands at site root, `docusaurus.config.ts` `url`/`baseUrl` flipped to sub-domain root, all hard-coded `apps-in-toss-community.github.io` URLs flipped to the new domains (`aitc.dev` / `sdk-example.aitc.dev`), Cloudflare CNAME `docs → apps-in-toss-community.github.io` added, GitHub Pages custom domain set + HTTPS enforced.
 - [ ] `pnpm.overrides`의 `webpack: 5.105.0` pin 제거 — webpackbar 6.0.2+ 릴리즈 후
 - [ ] 로컬 검색 플러그인 설치 (`@easyops-cn/docusaurus-search-local`) — 1단계 검색
 - [ ] Algolia DocSearch 신청 (커뮤니티 오픈소스 무료 등록 대상) — 문서 양이 의미 있게 커지면 로컬에서 DocSearch로 전환
