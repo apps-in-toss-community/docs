@@ -51,7 +51,7 @@ See the [namespace overview](/api/location) and [`getCurrentLocation`](./getCurr
 
 ## Permission
 
-Requires the `geolocation` permission. The first location fix will fail when the status is **explicitly `denied`**, so check the status and prompt the dialog **before** calling. The `geolocation` permission is shared at the namespace level, so reusing the helpers from [`getCurrentLocation`](./getCurrentLocation#permission) yields the same result. See the forthcoming "Permissions pattern" guide for the full flow.
+Requires the `geolocation` permission. The first location fix will fail when the status is **explicitly `denied`**, so check the status and prompt the dialog **before** calling. The `geolocation` permission is shared at the namespace level, so reusing the helpers from [`getCurrentLocation`](./getCurrentLocation#permission) yields the same result. See [Guides — Permissions pattern](/guides/permissions-pattern) for the full flow.
 
 Both iOS and Android split background location into a separate permission tier (`Always` / `WhenInUse`). When the app leaves the foreground, callbacks may pause or get throttled.
 

@@ -1,0 +1,95 @@
+---
+id: setItem
+title: Storage.setItem
+sidebar_label: setItem
+description: 키에 문자열 값을 저장합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `Storage.setItem`
+
+키-값 쌍을 미니앱 저장소에 비동기로 씁니다. 같은 키가 이미 있으면 덮어씁니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+```ts
+import { Storage } from '@apps-in-toss/web-framework';
+
+declare const Storage: {
+  setItem(key: string, value: string): Promise<void>;
+  // ...overview 참고
+};
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `key` | `string` | ✓ | 저장 키. 미니앱 안에서 평면 네임스페이스를 공유하므로, `feature.settings.theme` 같은 점-구분 prefix를 쓰면 충돌을 줄일 수 있습니다. 빈 문자열은 권장되지 않습니다. |
+| `value` | `string` | ✓ | 저장할 문자열. 객체나 배열이면 호출부에서 `JSON.stringify`로 직렬화하세요 — [네임스페이스 개요의 "값 형식 — 문자열만"](/api/storage#값-형식--문자열만)을 참고하세요. |
+
+## 반환값
+
+- `Promise<void>` — 쓰기가 완료되면 resolve.
+- 호스트가 제공하는 quota를 초과하거나 디스크 오류가 나면 reject 될 수 있습니다. 정확한 한도는 환경(실 토스 앱 / devtools mock)에 따라 다르므로, 큰 값을 다룰 때는 `try/catch`로 감싸세요.
+
+## 권한
+
+권한이 필요하지 않습니다 — `Storage` 네임스페이스는 별도의 `PermissionName`에 바인딩되지 않습니다. 권한이 필요한 다른 네임스페이스(`clipboard`, `geolocation` 등)에서의 일반적인 처리 흐름은 [Guides — 권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { Storage } from '@apps-in-toss/web-framework';
+
+await Storage.setItem('user.lastSeenScreen', 'home');
+```
+
+### 실전 예제 — 객체를 안전하게 직렬화
+
+```tsx
+import { Storage } from '@apps-in-toss/web-framework';
+
+interface UserPrefs {
+  theme: 'light' | 'dark';
+  language: string;
+}
+
+async function savePrefs(prefs: UserPrefs) {
+  try {
+    await Storage.setItem('user.prefs', JSON.stringify(prefs));
+  } catch (error) {
+    // quota 초과·디스크 오류 등. 실패해도 앱이 멈추지 않게 폴백 경로를 제공하세요.
+    console.error('failed to persist prefs', error);
+  }
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Storage 페이지에서 `setItem` 카드를 실행해 결과를 확인할 수 있습니다.
+
+<TryItLink group="storage" method="setItem" />
+
+## 관련 API
+
+- [`Storage.getItem`](./getItem) — 저장된 값을 읽습니다.
+- [`Storage.removeItem`](./removeItem) — 단일 키를 삭제합니다.
+- [`Storage.clearItems`](./clearItems) — 미니앱이 저장한 모든 키를 삭제합니다.
+
+## 관련 가이드
+
+- [Guides — 권한 처리 패턴](/guides/permissions-pattern) — 다른 네임스페이스의 권한 흐름 (참고용; `Storage`는 권한이 필요하지 않습니다).
+- _(작성 예정)_ Recipes — "사용자 설정 저장 패턴 (직렬화·마이그레이션·기본값)"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.
+- 표준 Web API 대응: [`Storage.setItem` (`localStorage`)](https://developer.mozilla.org/docs/Web/API/Storage/setItem) — SDK API는 비동기라는 점이 다릅니다.

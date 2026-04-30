@@ -1,0 +1,104 @@
+---
+id: getItem
+title: Storage.getItem
+sidebar_label: getItem
+description: 키로 저장된 값을 읽어 옵니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `Storage.getItem`
+
+키에 해당하는 문자열 값을 비동기로 읽어 옵니다. 키가 없으면 `null`입니다 — 빈 문자열(`''`)과 구분됩니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+```ts
+import { Storage } from '@apps-in-toss/web-framework';
+
+declare const Storage: {
+  getItem(key: string): Promise<string | null>;
+  // ...overview 참고
+};
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `key` | `string` | ✓ | 읽어 올 키. 같은 미니앱이 [`setItem`](./setItem)으로 쓴 키와 정확히 일치해야 합니다. |
+
+## 반환값
+
+- `Promise<string | null>` — 키에 저장된 문자열, 또는 키가 존재하지 않으면 `null`.
+
+:::caution `null` ≠ 빈 문자열
+`null`은 **키가 한 번도 저장된 적이 없거나 [`removeItem`](./removeItem)/[`clearItems`](./clearItems)로 삭제된 상태**를 의미합니다. 빈 문자열(`''`)은 호출부가 명시적으로 빈 값을 저장한 결과이며 두 경우는 별개입니다. 분기할 때는 `value === null`로 정확히 비교하세요 (`!value`는 `''`까지 묶어 버립니다).
+:::
+
+## 권한
+
+권한이 필요하지 않습니다 — `Storage` 네임스페이스는 별도의 `PermissionName`에 바인딩되지 않습니다. 권한이 필요한 다른 네임스페이스의 일반적인 처리 흐름은 [Guides — 권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { Storage } from '@apps-in-toss/web-framework';
+
+const lastSeen = await Storage.getItem('user.lastSeenScreen');
+console.log(lastSeen ?? 'home'); // 첫 방문이면 기본값 'home'
+```
+
+### 실전 예제 — 직렬화된 객체를 안전하게 복원
+
+```tsx
+import { Storage } from '@apps-in-toss/web-framework';
+
+interface UserPrefs {
+  theme: 'light' | 'dark';
+  language: string;
+}
+
+const DEFAULT_PREFS: UserPrefs = { theme: 'light', language: 'ko' };
+
+async function loadPrefs(): Promise<UserPrefs> {
+  const raw = await Storage.getItem('user.prefs');
+  if (raw === null) return DEFAULT_PREFS;
+  try {
+    const parsed = JSON.parse(raw) as Partial<UserPrefs>;
+    // 옛 버전이 일부 필드만 썼을 수 있으니 기본값으로 채웁니다.
+    return { ...DEFAULT_PREFS, ...parsed };
+  } catch {
+    // 형식이 깨졌거나 옛 스키마. 기본값으로 폴백.
+    return DEFAULT_PREFS;
+  }
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Storage 페이지에서 `getItem` 카드를 실행해 결과를 확인할 수 있습니다.
+
+<TryItLink group="storage" method="getItem" />
+
+## 관련 API
+
+- [`Storage.setItem`](./setItem) — 값을 저장합니다.
+- [`Storage.removeItem`](./removeItem) — 단일 키를 삭제합니다.
+- [`Storage.clearItems`](./clearItems) — 미니앱이 저장한 모든 키를 삭제합니다.
+
+## 관련 가이드
+
+- [Guides — 권한 처리 패턴](/guides/permissions-pattern) — 다른 네임스페이스의 권한 흐름 (참고용; `Storage`는 권한이 필요하지 않습니다).
+- _(작성 예정)_ Recipes — "사용자 설정 저장 패턴 (직렬화·마이그레이션·기본값)"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.
+- 표준 Web API 대응: [`Storage.getItem` (`localStorage`)](https://developer.mozilla.org/docs/Web/API/Storage/getItem) — 동기 API라는 점이 다르고, 키 부재 시 표준 API와 동일하게 `null`을 반환합니다.

@@ -1,0 +1,95 @@
+---
+id: setItem
+title: Storage.setItem
+sidebar_label: setItem
+description: Store a string value at a key.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `Storage.setItem`
+
+Asynchronously writes a key-value pair to the mini-app's storage. If the key already exists, the value is overwritten.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the upstream [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { Storage } from '@apps-in-toss/web-framework';
+
+declare const Storage: {
+  setItem(key: string, value: string): Promise<void>;
+  // ...see overview
+};
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `key` | `string` | ✓ | Storage key. The mini-app shares one flat namespace, so a dot-separated prefix like `feature.settings.theme` is a useful convention to avoid collisions. Empty strings aren't recommended. |
+| `value` | `string` | ✓ | The string to store. For objects or arrays, serialize at the call site with `JSON.stringify` — see [the namespace overview's "Value shape — strings only"](/api/storage#value-shape--strings-only). |
+
+## Returns
+
+- `Promise<void>` — resolves once the write completes.
+- The promise can reject when the host's storage quota is exceeded or on a disk error. Exact limits vary by environment (real Toss app vs. devtools mock), so wrap large writes in `try/catch`.
+
+## Permission
+
+No permission required — the `Storage` namespace is not bound to a `PermissionName`. For the typical permission flow used by other namespaces (`clipboard`, `geolocation`, …), see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { Storage } from '@apps-in-toss/web-framework';
+
+await Storage.setItem('user.lastSeenScreen', 'home');
+```
+
+### Realistic — safely serializing an object
+
+```tsx
+import { Storage } from '@apps-in-toss/web-framework';
+
+interface UserPrefs {
+  theme: 'light' | 'dark';
+  language: string;
+}
+
+async function savePrefs(prefs: UserPrefs) {
+  try {
+    await Storage.setItem('user.prefs', JSON.stringify(prefs));
+  } catch (error) {
+    // Quota exceeded, disk error, etc. Provide a fallback so the app keeps working.
+    console.error('failed to persist prefs', error);
+  }
+}
+```
+
+## Try it live
+
+Open the Storage page in sdk-example and run the `setItem` card to inspect the result.
+
+<TryItLink group="storage" method="setItem" />
+
+## Related APIs
+
+- [`Storage.getItem`](./getItem) — read a stored value.
+- [`Storage.removeItem`](./removeItem) — delete a single key.
+- [`Storage.clearItems`](./clearItems) — delete every key the mini-app has stored.
+
+## Related guides
+
+- [Guides — Permissions pattern](/guides/permissions-pattern) — permission flow used by other namespaces (reference only; `Storage` itself doesn't require a permission).
+- _(coming soon)_ Recipes — "User preferences pattern (serialization, migration, defaults)"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
+- Web standard counterpart: [`Storage.setItem` (`localStorage`)](https://developer.mozilla.org/docs/Web/API/Storage/setItem) — note that the SDK API is asynchronous.

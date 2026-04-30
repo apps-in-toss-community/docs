@@ -1,0 +1,82 @@
+---
+id: storage-overview
+title: storage
+sidebar_label: Overview
+slug: /api/storage
+description: SDK namespace for the mini-app's per-instance key-value store.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `Storage`
+
+A per-mini-app key-value (string-string) store. Use it for lightweight state that should survive between host (Toss app) launches — user preferences, the last screen visited, cached tokens. All methods are asynchronous and return a `Promise`.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the upstream [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Methods
+
+| Method | Purpose |
+| --- | --- |
+| [`Storage.clearItems`](/api/storage/clearItems) | Delete every key the mini-app has stored. |
+| [`Storage.getItem`](/api/storage/getItem) | Read a value by key. Returns `null` if missing. |
+| [`Storage.removeItem`](/api/storage/removeItem) | Delete a single key. |
+| [`Storage.setItem`](/api/storage/setItem) | Store a string value at a key. |
+
+## Permission
+
+No permission required. Unlike `clipboard` or `geolocation`, `Storage` is not bound to a `PermissionName` and does not expose `getPermission()` / `openPermissionDialog()` helpers — for the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Key namespace
+
+Storage is **isolated per mini-app instance**. Keys do not collide with the host (Toss) app's `localStorage` or with other mini-apps, so there's no need to add prefixes for isolation. Inside the same mini-app, however, all keys share a single flat namespace — a feature-level prefix (`feature.settings.theme` style) is a practical convention to avoid collisions across modules.
+
+In the devtools mock, values are written to the browser's `localStorage` under the `__ait_storage:` prefix, and [`Storage.clearItems`](/api/storage/clearItems) only clears keys matching that prefix — other `localStorage` keys your app writes directly are untouched.
+
+## Value shape — strings only
+
+Values **must be strings**. Serialize/deserialize objects and arrays in your call site.
+
+```ts
+import { Storage } from '@apps-in-toss/web-framework';
+
+interface UserPrefs {
+  theme: 'light' | 'dark';
+  language: string;
+}
+
+async function savePrefs(prefs: UserPrefs) {
+  await Storage.setItem('user.prefs', JSON.stringify(prefs));
+}
+
+async function loadPrefs(): Promise<UserPrefs | null> {
+  const raw = await Storage.getItem('user.prefs');
+  if (raw === null) return null;
+  try {
+    return JSON.parse(raw) as UserPrefs;
+  } catch {
+    // Most likely a stale shape from an older version — ignore and use defaults.
+    return null;
+  }
+}
+```
+
+## UX guidance
+
+- **Don't store sensitive data here.** Access tokens, refresh tokens, and payment information should live in your server session or in a host-provided secure-storage pattern, not in `Storage`. Always assume the device can be lost or that the mini-app may be inspected in a debug build.
+- **Keep payloads small.** Exact quotas vary by environment, and large blobs (e.g., base64-encoded images) can degrade performance or push `setItem` over the limit and reject. Prefer a separate cache or remote storage for binary data.
+- **Validate what you read.** A value written by an older version of your mini-app may still be there — rather than trusting `JSON.parse` output directly, normalize through a schema (zod/valibot) or wrap in `try/catch`.
+- **Plan for migrations.** When renaming a key or changing the value schema, the cleanest pattern is to read the legacy key, write to the new key, then [`removeItem`](/api/storage/removeItem) the old one.
+
+## Try it live
+
+All four methods are available on the Storage page in sdk-example.
+
+<TryItLink group="storage" />
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
+- Web standard counterpart: [`Window.localStorage`](https://developer.mozilla.org/docs/Web/API/Window/localStorage) — note that the standard API is synchronous and isolation is per-origin rather than per-mini-app. The upcoming `polyfill` package will expose an SDK-compatible async shim on top of it.
