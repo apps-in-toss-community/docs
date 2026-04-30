@@ -1,0 +1,104 @@
+---
+id: getItem
+title: Storage.getItem
+sidebar_label: getItem
+description: Read a stored value by key.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `Storage.getItem`
+
+Asynchronously reads the string value at the given key. Resolves to `null` when the key is missing — distinct from an empty string (`''`).
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the upstream [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { Storage } from '@apps-in-toss/web-framework';
+
+declare const Storage: {
+  getItem(key: string): Promise<string | null>;
+  // ...see overview
+};
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `key` | `string` | ✓ | The key to read. Must match exactly the key the mini-app wrote with [`setItem`](./setItem). |
+
+## Returns
+
+- `Promise<string | null>` — the stored string, or `null` if the key doesn't exist.
+
+:::caution `null` ≠ empty string
+`null` means the key **was never written, or has been deleted via [`removeItem`](./removeItem)/[`clearItems`](./clearItems)**. An empty string (`''`) is the result of explicitly storing an empty value — the two are distinct. Compare with `value === null` rather than `!value` (the latter swallows `''`).
+:::
+
+## Permission
+
+No permission required — the `Storage` namespace is not bound to a `PermissionName`. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { Storage } from '@apps-in-toss/web-framework';
+
+const lastSeen = await Storage.getItem('user.lastSeenScreen');
+console.log(lastSeen ?? 'home'); // first visit → fall back to 'home'
+```
+
+### Realistic — safely restoring a serialized object
+
+```tsx
+import { Storage } from '@apps-in-toss/web-framework';
+
+interface UserPrefs {
+  theme: 'light' | 'dark';
+  language: string;
+}
+
+const DEFAULT_PREFS: UserPrefs = { theme: 'light', language: 'ko' };
+
+async function loadPrefs(): Promise<UserPrefs> {
+  const raw = await Storage.getItem('user.prefs');
+  if (raw === null) return DEFAULT_PREFS;
+  try {
+    const parsed = JSON.parse(raw) as Partial<UserPrefs>;
+    // Older versions may have only written some fields — fill in defaults.
+    return { ...DEFAULT_PREFS, ...parsed };
+  } catch {
+    // Broken format or stale schema — fall back to defaults.
+    return DEFAULT_PREFS;
+  }
+}
+```
+
+## Try it live
+
+Open the Storage page in sdk-example and run the `getItem` card to inspect the result.
+
+<TryItLink group="storage" method="getItem" />
+
+## Related APIs
+
+- [`Storage.setItem`](./setItem) — store a value.
+- [`Storage.removeItem`](./removeItem) — delete a single key.
+- [`Storage.clearItems`](./clearItems) — delete every key the mini-app has stored.
+
+## Related guides
+
+- [Guides — Permissions pattern](/guides/permissions-pattern) — permission flow used by other namespaces (reference only; `Storage` itself doesn't require a permission).
+- _(coming soon)_ Recipes — "User preferences pattern (serialization, migration, defaults)"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
+- Web standard counterpart: [`Storage.getItem` (`localStorage`)](https://developer.mozilla.org/docs/Web/API/Storage/getItem) — synchronous in the standard; both return `null` when the key is absent.

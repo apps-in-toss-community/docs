@@ -1,0 +1,82 @@
+---
+id: storage-overview
+title: storage
+sidebar_label: Overview
+slug: /api/storage
+description: 미니앱 전용 키-값 저장소를 다루는 SDK 네임스페이스입니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `Storage`
+
+미니앱 전용 키-값(string-string) 저장소입니다. 사용자 설정, 마지막으로 본 화면, 캐시된 토큰 같은 가벼운 상태를 호스트(토스 앱) 재시작 사이에 유지할 때 씁니다. 모든 메서드가 `Promise`를 돌려주는 비동기 API입니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 메서드
+
+| 메서드 | 용도 |
+| --- | --- |
+| [`Storage.clearItems`](/api/storage/clearItems) | 미니앱이 저장한 모든 키를 지웁니다. |
+| [`Storage.getItem`](/api/storage/getItem) | 키로 값을 읽습니다. 없으면 `null`. |
+| [`Storage.removeItem`](/api/storage/removeItem) | 단일 키를 삭제합니다. |
+| [`Storage.setItem`](/api/storage/setItem) | 키에 문자열 값을 저장합니다. |
+
+## 권한
+
+권한이 필요하지 않습니다. `clipboard`나 `geolocation`과 달리 `Storage`는 별도의 `PermissionName`에 바인딩되지 않으며, `getPermission()` / `openPermissionDialog()` 유틸도 노출하지 않습니다 — 다른 네임스페이스에서 권한을 처리하는 방식은 [Guides — 권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
+
+## 키 네임스페이스
+
+저장소는 **현재 미니앱 인스턴스 단위로 격리**되어 있습니다. 다른 미니앱이나 호스트 앱(토스)의 `localStorage`와는 키가 섞이지 않으니 prefix를 직접 붙일 필요가 없습니다. 다만 같은 미니앱 안에서는 단일 평면(flat) 키 공간을 공유하므로, 기능별 prefix(`feature.settings.theme` 같은 형태)를 직접 정해 두는 것이 충돌을 줄이는 실용적인 패턴입니다.
+
+devtools mock 환경에서는 브라우저의 `localStorage`에 `__ait_storage:` 프리픽스로 저장되며, [`Storage.clearItems`](/api/storage/clearItems)가 이 프리픽스에 해당하는 키만 지웁니다 — 앱이 직접 쓴 다른 `localStorage` 키는 영향받지 않습니다.
+
+## 값 형식 — 문자열만
+
+저장 값은 **문자열만 허용**됩니다. 객체나 배열은 호출부에서 직접 직렬화/역직렬화해야 합니다.
+
+```ts
+import { Storage } from '@apps-in-toss/web-framework';
+
+interface UserPrefs {
+  theme: 'light' | 'dark';
+  language: string;
+}
+
+async function savePrefs(prefs: UserPrefs) {
+  await Storage.setItem('user.prefs', JSON.stringify(prefs));
+}
+
+async function loadPrefs(): Promise<UserPrefs | null> {
+  const raw = await Storage.getItem('user.prefs');
+  if (raw === null) return null;
+  try {
+    return JSON.parse(raw) as UserPrefs;
+  } catch {
+    // 파싱 실패는 형식이 바뀐 옛 데이터일 가능성이 큽니다 — 무시하고 기본값으로.
+    return null;
+  }
+}
+```
+
+## UX 가이드
+
+- **신뢰 경계가 있는 데이터는 저장하지 마세요.** 액세스 토큰·리프레시 토큰·결제 정보 같은 민감한 값은 `Storage`에 두지 말고 서버 세션이나 호스트가 제공하는 보안 저장소 패턴을 쓰세요. 사용자가 디바이스를 잃어버리거나 미니앱이 디버그 빌드로 노출되는 시나리오를 항상 가정합니다.
+- **사이즈는 작게 유지하세요.** 호스트가 제공하는 정확한 쿼터는 환경에 따라 다를 수 있고, 큰 BLOB(이미지 base64 등)을 넣으면 성능 저하나 quota 초과로 `setItem`이 reject 될 수 있습니다. 이미지·바이너리는 별도의 캐시 또는 원격 저장소를 쓰는 게 안전합니다.
+- **읽은 값은 항상 검증하세요.** 옛 버전 미니앱이 쓴 값이 그대로 남아 있을 수 있으므로, `JSON.parse` 결과를 곧장 신뢰하기보다 zod/valibot 같은 스키마로 정규화하거나 `try/catch`로 감싸는 패턴이 유리합니다.
+- **마이그레이션을 고려하세요.** 키 이름이나 값 스키마를 바꿀 때는 옛 키를 한 번 읽어 새 키로 옮긴 뒤 [`removeItem`](/api/storage/removeItem)으로 삭제하는 흐름이 가장 단순합니다.
+
+## 직접 실행해 보기
+
+sdk-example의 Storage 페이지에서 네 메서드를 모두 실험해 볼 수 있습니다.
+
+<TryItLink group="storage" />
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.
+- 표준 Web API 대응: [`Window.localStorage`](https://developer.mozilla.org/docs/Web/API/Window/localStorage) — 동기 API라는 점이 다르고, 격리 단위(원본 origin)도 다릅니다. `polyfill` 패키지(예정)가 표준 API 위에 SDK 호환 비동기 shim을 제공할 예정입니다.

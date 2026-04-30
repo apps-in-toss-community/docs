@@ -1,0 +1,91 @@
+---
+id: clearItems
+title: Storage.clearItems
+sidebar_label: clearItems
+description: Delete every key the mini-app has stored.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `Storage.clearItems`
+
+Asynchronously deletes **every key** the current mini-app has stored, in one call. It does not affect data owned by the host (Toss) app or by other mini-apps — `Storage` is isolated per mini-app.
+
+In the devtools mock, only `localStorage` keys under the `__ait_storage:` prefix are removed — other `localStorage` keys your app writes directly are left in place.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the upstream [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { Storage } from '@apps-in-toss/web-framework';
+
+declare const Storage: {
+  clearItems(): Promise<void>;
+  // ...see overview
+};
+```
+
+## Parameters
+
+None.
+
+## Returns
+
+- `Promise<void>` — resolves once the deletion completes. Resolves normally when there is nothing stored.
+
+:::caution Not reversible
+The deletion is immediate and permanent. Call this only for explicit user-driven actions like "Sign out". When a partial reset is enough, prefer calling [`removeItem`](./removeItem) per key.
+:::
+
+## Permission
+
+No permission required — the `Storage` namespace is not bound to a `PermissionName`. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { Storage } from '@apps-in-toss/web-framework';
+
+await Storage.clearItems();
+```
+
+### Realistic — wiping local state on sign-out
+
+```tsx
+import { Storage } from '@apps-in-toss/web-framework';
+
+async function signOut() {
+  // 1. Invalidate the server session (your app's own logic).
+  await fetch('/api/sign-out', { method: 'POST' });
+  // 2. Wipe everything the mini-app stored locally.
+  await Storage.clearItems();
+  // 3. Navigate to the entry screen (navigation API is separate).
+}
+```
+
+## Try it live
+
+Open the Storage page in sdk-example and run the `clearItems` card to inspect the result.
+
+<TryItLink group="storage" method="clearItems" />
+
+## Related APIs
+
+- [`Storage.removeItem`](./removeItem) — delete a single key.
+- [`Storage.getItem`](./getItem) — read a stored value.
+- [`Storage.setItem`](./setItem) — store a value.
+
+## Related guides
+
+- [Guides — Permissions pattern](/guides/permissions-pattern) — permission flow used by other namespaces (reference only; `Storage` itself doesn't require a permission).
+- _(coming soon)_ Recipes — "User preferences pattern (serialization, migration, defaults)"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
+- Web standard counterpart: [`Storage.clear` (`localStorage`)](https://developer.mozilla.org/docs/Web/API/Storage/clear) — synchronous, and clears the entire origin's storage rather than being scoped to a single mini-app.

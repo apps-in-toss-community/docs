@@ -13,6 +13,12 @@ const sidebars: SidebarsConfig = {
     'intro',
     {
       type: 'category',
+      label: 'Guides',
+      collapsed: false,
+      items: ['guides/permissions-pattern'],
+    },
+    {
+      type: 'category',
       label: 'API',
       collapsed: false,
       items: [
@@ -34,6 +40,18 @@ const sidebars: SidebarsConfig = {
             'api/location/location-overview',
             'api/location/getCurrentLocation',
             'api/location/startUpdateLocation',
+          ],
+        },
+        {
+          type: 'category',
+          label: 'storage',
+          collapsed: false,
+          items: [
+            'api/storage/storage-overview',
+            'api/storage/clearItems',
+            'api/storage/getItem',
+            'api/storage/removeItem',
+            'api/storage/setItem',
           ],
         },
       ],

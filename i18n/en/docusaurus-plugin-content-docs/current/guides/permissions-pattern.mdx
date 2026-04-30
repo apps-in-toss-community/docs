@@ -1,0 +1,148 @@
+---
+id: permissions-pattern
+title: Permissions pattern
+sidebar_label: Permissions pattern
+slug: /guides/permissions-pattern
+description: How the SDK models permissions — the request → check → invoke flow, denied handling, and per-environment differences.
+---
+
+# Permissions pattern
+
+Sensitive device APIs like `clipboard`, `geolocation`, `camera`, `microphone`, `contacts`, and `photos` all share the same permission model. This guide collects that model in one place — each API page's "Permission" section links back here instead of repeating the same explanation.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the upstream [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Model at a glance
+
+| Concept | Type | Description |
+| --- | --- | --- |
+| `PermissionName` | `'clipboard' \| 'contacts' \| 'photos' \| 'geolocation' \| 'camera' \| 'microphone'` | The unit a permission is granted at. All methods in a namespace share the same `PermissionName` (e.g., both `getClipboardText` and `setClipboardText` use `clipboard`). |
+| `PermissionStatus` | `'notDetermined' \| 'denied' \| 'allowed'` | The user's current state for a given permission. First entry is `notDetermined`; declining the dialog gives `denied`; accepting gives `allowed`. |
+| Permission-aware function | callable + `.getPermission()` + `.openPermissionDialog()` | The SDK attaches both helpers to functions that need a permission, so you can check / prompt right next to the call site without importing a separate module. |
+
+The `Storage` namespace is **not** part of this model — `Storage` is not bound to a `PermissionName` and does not expose `getPermission()` / `openPermissionDialog()` helpers.
+
+## Standard flow: check → prompt → invoke
+
+Every permission-gated call boils down to the same three steps.
+
+```ts
+import { setClipboardText } from '@apps-in-toss/web-framework';
+
+async function copyWithPermission(value: string) {
+  // 1. Check the current status first.
+  const status = await setClipboardText.getPermission();
+
+  // 2. If denied, the call itself will fail — point users to the OS settings screen.
+  if (status === 'denied') {
+    throw new Error('PERMISSION_DENIED');
+  }
+
+  // 3. If undecided, prompt the user via the system dialog.
+  if (status === 'notDetermined') {
+    const result = await setClipboardText.openPermissionDialog();
+    if (result === 'denied') {
+      throw new Error('PERMISSION_DENIED');
+    }
+  }
+
+  // 4. We now know the permission is allowed — make the actual call.
+  await setClipboardText(value);
+}
+```
+
+`openPermissionDialog()` resolves to `'allowed' | 'denied'` only — it never falls back to `notDetermined`, so right after the dialog you only need to handle the two terminal states.
+
+### Shorter: call and catch
+
+The four-step version above is the canonical flow, but for simple UX (e.g., a single "Copy" button), calling directly and handling the failure is fine too.
+
+```ts
+try {
+  await setClipboardText(value);
+  showAppToast('Copied to clipboard');
+} catch {
+  showAppToast("Couldn't copy — please grant the permission in Settings.");
+}
+```
+
+This shortcut works in environments where **`notDetermined` lets the call through**. The system dialog may still appear on the first call, so use this only in response to an explicit user action, never for background-initiated calls.
+
+## Handling `denied`
+
+A call made while the status is `denied` throws. The standard error shape isn't documented in the SDK, so don't pattern-match on the message — rely on these two facts only:
+
+1. A call made while `denied` **always fails**. Either gate it with `getPermission()` first or wrap it in `try/catch`.
+2. **There is no in-app SDK path that turns `denied` back into `allowed`.** Once a permission is declined, the user has to grant it from the OS settings screen. The best your app can do is point the way (e.g., "Settings → Toss → Permissions") — there's no programmatic recovery.
+
+So **prompt for permission once, on the screen that actually needs it**. The "ask for everything up front, just in case" pattern only raises decline rates and is hard to recover from.
+
+```ts
+async function ensureGeolocation() {
+  const status = await getCurrentLocation.getPermission();
+  if (status === 'allowed') return true;
+  if (status === 'denied') {
+    // Re-prompting won't help — just surface the guidance.
+    return false;
+  }
+  // Only prompt for `notDetermined`.
+  const result = await getCurrentLocation.openPermissionDialog();
+  return result === 'allowed';
+}
+```
+
+## Permissions are shared at the namespace level
+
+Methods that share a `PermissionName` see each other's status changes immediately. For example, `setClipboardText.getPermission()` and `getClipboardText.getPermission()` always return the same value, and an approval granted through one is reflected in the other right away. The same holds for `getCurrentLocation` / `startUpdateLocation` sharing `geolocation`.
+
+So:
+
+- It doesn't matter which method you call `getPermission()` on — pick whichever is closest to the call site for readability.
+- Once the user has approved a permission on a screen, don't re-prompt for other methods in the same namespace.
+
+## Per-environment differences
+
+The same code can behave slightly differently depending on where it runs.
+
+### Real Toss app (iOS / Android)
+
+- The permission dialog is the OS system dialog, not in-app UI.
+- Once the user declines (`denied`), recovery only happens through the OS settings screen. iOS in particular often blocks subsequent dialog prompts entirely.
+- Location (`geolocation`) carries an extra tier — `accessLocation: 'FINE' | 'COARSE'`. A user who declines "precise" location ends up with `allowed` status but `COARSE` granularity. See the [`getCurrentLocation` caution](/api/location/getCurrentLocation#permission) for details.
+- Background permissions (e.g., background location tracking) are a separate tier; callbacks may be throttled or stop entirely once the app leaves the foreground.
+
+### Web browsers (an actual browser, outside the devtools mock)
+
+- For permissions with a Web standard counterpart (like `clipboard`), behavior depends on the browser's [Permissions API](https://developer.mozilla.org/docs/Web/API/Permissions_API).
+- Calls like `navigator.clipboard.writeText` can reject when not made directly in response to a user gesture — that failure is unrelated to permission state, so handle it the same way as any other rejection (`try/catch`).
+
+### devtools mock
+
+- In the [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) mock, you can flip permission status directly from the "Permissions" tab in the DevTools panel.
+- The mock's `openPermissionDialog()` doesn't show an OS dialog — it just sets the panel state to `allowed`. To exercise the denial flow, set the permission to `denied` from the panel beforehand.
+- A call made against a mock-`denied` permission throws an explicit error of the form `[@ait-co/devtools] <fn>: Permission "<name>" is denied.`. The real SDK's message format may differ, so production code should branch on the `getPermission()` result rather than on the error message.
+
+## How API pages reference this guide
+
+Each method page's "Permission" section keeps just the per-method essentials and defers the rest here:
+
+- which `PermissionName` is required (`clipboard`, `geolocation`, …),
+- whether the call fails on `denied` or lets it through,
+- a short snippet calling `getPermission()` / `openPermissionDialog()`.
+
+The general rules — standard flow, denial handling, per-environment differences — live in this guide. The split is intentional, so that the same explanation isn't duplicated on every API page.
+
+The `Storage` namespace pages call out that no permission is required and link here, so a reader curious about how permissions work elsewhere can land on this guide in one click.
+
+## Related docs
+
+- [`api/clipboard`](/api/clipboard) — `clipboard` permission.
+- [`api/location`](/api/location) — `geolocation` permission.
+- [`api/storage`](/api/storage) — namespace that doesn't require a permission (for contrast).
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package.
+- [Web Permissions API (MDN)](https://developer.mozilla.org/docs/Web/API/Permissions_API) — the standard Web permission model. Vocabulary overlaps with the SDK's but is not identical.
