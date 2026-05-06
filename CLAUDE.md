@@ -1,8 +1,10 @@
 # CLAUDE.md
 
-## 프로젝트 성격 (요약)
+## 프로젝트 성격
 
-`apps-in-toss-community`는 **비공식(unofficial) 오픈소스 커뮤니티**다. 사용자에게 보이는 산출물에서 "공식/official/토스가 제공하는/powered by Toss" 등 제휴·후원·인증 암시 표현 금지. 대신 "커뮤니티/오픈소스/비공식". 문서 특성상 앱인토스 공식 docs를 참조·인용하는 건 괜찮지만 **이 사이트 자체가 공식이라는 인상은 절대 주지 않는다** — 루트 레이아웃에 "비공식 커뮤니티 프로젝트" 배너 상시 고정. 상세는 umbrella [`CLAUDE.md`](https://github.com/apps-in-toss-community/umbrella/blob/main/CLAUDE.md) 참조.
+`apps-in-toss-community`는 **비공식(unofficial) 오픈소스 커뮤니티**다. 토스/앱인토스 팀과 제휴·후원·인증 관계가 없다. 사용자에게 보이는 모든 산출물(문서 본문, UI 카피, 패키지 설명, 커밋/PR 메시지, 코드 주석 등)에서 "공식(official)", "토스가 제공하는", "앱인토스에서 만든", "powered by Toss" 같은 제휴·후원·인증 암시 표현은 **금지**. 대신 "커뮤니티(community)", "오픈소스", "비공식(unofficial)"을 쓴다. 의심스러우면 뺀다.
+
+문서 특성상 앱인토스 공식 docs를 참조·인용하는 건 괜찮지만 **이 사이트 자체가 공식이라는 인상은 절대 주지 않는다** — 루트 레이아웃에 "비공식 커뮤니티 프로젝트" 배너 상시 고정.
 
 ## 프로젝트 개요
 
@@ -58,11 +60,11 @@
 
 ## webpack 5.105.0 pin 근거
 
-`package.json`의 `pnpm.overrides`에 `webpack: 5.105.0` 고정. Docusaurus 3.10이 의존하는 `webpackbar` 6.0.1이 webpack 5.106+ 내부 API와 비호환 → 빌드 실패 회피용. **제거 조건**: `webpackbar` 6.0.2+ 릴리즈 후 override 제거 + `pnpm install`. umbrella [`TODO.md`](https://github.com/apps-in-toss-community/umbrella/blob/main/TODO.md) `docs` 섹션에서 트래킹.
+`package.json`의 `pnpm.overrides`에 `webpack: 5.105.0` 고정. Docusaurus 3.10이 의존하는 `webpackbar` 6.0.1이 webpack 5.106+ 내부 API와 비호환 → 빌드 실패 회피용. **제거 조건**: `webpackbar` 6.0.2+ 릴리즈 후 override 제거 + `pnpm install`.
 
-## 배포 전략 (Type C, repo-specific)
+## 배포 전략 (Type C: 사이트, Changesets 없음)
 
-Type C(사이트) 일반 정책은 umbrella [`meta/release-strategy.md`](https://github.com/apps-in-toss-community/umbrella/blob/main/meta/release-strategy.md) 참조. 이 repo의 구체:
+이 repo는 **Type C(서비스/사이트)** — npm 배포 없음, Changesets 없음, `main` push가 곧 배포.
 
 - 타깃: GitHub Pages custom domain → `https://docs.aitc.dev/`. 전용 sub-domain이라 `baseUrl: '/'`.
 - `static/CNAME`에 `docs.aitc.dev` 한 줄 — Docusaurus가 `static/`을 `build/`로 verbatim 복사.
@@ -86,21 +88,31 @@ pnpm lint:fix    # biome check --write .
 pnpm format      # biome format --write .
 ```
 
+## 공통 스택
+
+- **Node 24 LTS**, **pnpm 10.33.0** (`packageManager` 고정), **TypeScript strict**.
+- **Biome** (lint + formatter). ESLint/Prettier 사용 안 함. `any` 금지 (`suspicious.noExplicitAny: error`).
+- Biome 적용 범위: `docusaurus.config.ts`, `sidebars.ts`, 커스텀 React 소스. `.docusaurus/`, `build/`, `.vercel/` 무시. `*.md`/`*.mdx`는 Biome 제외 (MDX 파서/Docusaurus 컨벤션 따름).
+- **Pre-commit hook**: `.githooks/pre-commit`이 source-controlled. contributor가 수동 활성화:
+  ```bash
+  git config core.hooksPath .githooks
+  ```
+  CI `pnpm lint`가 실제 강제 계층, hook은 빠른 피드백.
+- **Commit message**: Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`).
+
 ## 코드/콘텐츠 규칙
 
-- 사용자 가시 콘텐츠에서 "공식/official/powered by Toss" 등 금지 (umbrella 정책 승계).
-- Biome 적용 범위: `docusaurus.config.ts`, `sidebars.ts`, 커스텀 React 소스. `.docusaurus/`, `build/`, `.vercel/` 무시. `*.md`/`*.mdx`는 Biome 제외 (MDX 파서/Docusaurus 컨벤션 따름). `any` 금지.
-- 공통 스택(Node 24, pnpm 10.33.0, TypeScript strict, Biome, pre-commit hook)은 umbrella [`CLAUDE.md`](https://github.com/apps-in-toss-community/umbrella/blob/main/CLAUDE.md) 참조.
+- 사용자 가시 콘텐츠에서 "공식/official/powered by Toss" 등 금지 ("프로젝트 성격" 섹션 참조).
+- "공통 스택" 섹션의 규칙(Biome 적용 범위, `any` 금지) 준수.
 
 ## 짝 repo
 
 - **`sdk-example`** — 양방향 deep-link. 위 "sdk-example deep-link 컨벤션" 참조. docs가 완성되면 sdk-example에서 각 API의 문서를 바로 읽어볼 수 있게 개선하는 것이 주요 통합 목표.
-- 나머지 짝 관계는 umbrella [`CLAUDE.md`](https://github.com/apps-in-toss-community/umbrella/blob/main/CLAUDE.md)의 "짝(pair) 관계" 참조.
-
-## TODO
-
-조직 TODO는 umbrella [`TODO.md`](https://github.com/apps-in-toss-community/umbrella/blob/main/TODO.md)가 single source of truth. 이 repo의 `TODO.md`는 stub.
 
 ## Status
 
-`clipboard` 네임스페이스(overview + `setClipboardText` + `getClipboardText`, ko/en) 완성 — per-namespace 템플릿 프로토타입으로 확립됨. 나머지 15개 네임스페이스는 이 패턴을 복제. 다음 우선순위와 backlog은 umbrella [`TODO.md`](https://github.com/apps-in-toss-community/umbrella/blob/main/TODO.md)의 `docs` 섹션 참고.
+`clipboard` 네임스페이스(overview + `setClipboardText` + `getClipboardText`, ko/en) 완성 — per-namespace 템플릿 프로토타입으로 확립됨. 나머지 15개 네임스페이스는 이 패턴을 복제.
+
+## 이슈/제안
+
+이슈/제안은 GitHub Issues로 (`apps-in-toss-community/docs`).
