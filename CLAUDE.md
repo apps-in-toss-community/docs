@@ -102,8 +102,8 @@ pnpm format      # biome format --write .
 
 ## 코드/콘텐츠 규칙
 
-- 사용자 가시 콘텐츠에서 "공식/official/powered by Toss" 등 금지 (위 "프로젝트 성격" 참조).
-- 위 "공통 스택" 규칙(Biome 적용 범위, `any` 금지) 준수.
+- 사용자 가시 콘텐츠에서 "공식/official/powered by Toss" 등 금지 ("프로젝트 성격" 섹션 참조).
+- "공통 스택" 섹션의 규칙(Biome 적용 범위, `any` 금지) 준수.
 
 ## 짝 repo
 
