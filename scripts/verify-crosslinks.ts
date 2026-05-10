@@ -175,11 +175,24 @@ function normalizeApiCardName(raw: string): string | null {
   return m[1] as string;
 }
 
-const NAME_PROP_REGEX = /name="([^"]+)"/g;
+// Matches JSX prop form:  name="setClipboardText"   (ApiCard)
+const NAME_JSX_PROP_REGEX = /name="([^"]+)"/g;
+
+// Matches docsLink calls:  docsLink('clipboard', 'setClipboardText')
+// The second argument is the method slug — this is the most reliable signal
+// because it explicitly ties a card to a docs deep-link, regardless of which
+// card component (ApiCard, PolyfillToggleCard, etc.) is used.
+const DOCS_LINK_REGEX = /docsLink\(\s*['"][^'"]+['"]\s*,\s*['"]([^'"]+)['"]\s*\)/g;
 
 function extractMethodsFromSource(source: string): string[] {
   const out: string[] = [];
-  for (const match of source.matchAll(NAME_PROP_REGEX)) {
+  for (const match of source.matchAll(NAME_JSX_PROP_REGEX)) {
+    const raw = match[1];
+    if (raw === undefined) continue;
+    const norm = normalizeApiCardName(raw);
+    if (norm) out.push(norm);
+  }
+  for (const match of source.matchAll(DOCS_LINK_REGEX)) {
     const raw = match[1];
     if (raw === undefined) continue;
     const norm = normalizeApiCardName(raw);
