@@ -53,6 +53,19 @@ const config: Config = {
     ],
   ],
 
+  themes: [
+    [
+      require.resolve('@easyops-cn/docusaurus-search-local'),
+      {
+        hashed: true,
+        language: ['en', 'ko'],
+        indexDocs: true,
+        indexBlog: false,
+        docsRouteBasePath: '/',
+      },
+    ],
+  ],
+
   themeConfig: {
     colorMode: {
       defaultMode: 'light',
