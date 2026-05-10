@@ -58,10 +58,6 @@
 
 **네이밍 동기화**: `sidebars.ts`가 `<group>` 목록의 source of truth. sdk-example의 `pages/XxxPage.tsx` 이름 변경 시 sidebar 엔트리도 동시 변경. **한쪽이 바뀌면 반대쪽 링크가 깨진다** — path naming 변경은 양쪽 동시 PR. `scripts/verify-crosslinks.ts`가 CI 검증.
 
-## webpack 5.105.0 pin 근거
-
-`package.json`의 `pnpm.overrides`에 `webpack: 5.105.0` 고정. Docusaurus 3.10이 의존하는 `webpackbar` 6.0.1이 webpack 5.106+ 내부 API와 비호환 → 빌드 실패 회피용. **제거 조건**: `webpackbar` 6.0.2+ 릴리즈 후 override 제거 + `pnpm install`.
-
 ## 배포 전략 (Type C: 사이트, Changesets 없음)
 
 이 repo는 **Type C(서비스/사이트)** — npm 배포 없음, Changesets 없음, `main` push가 곧 배포.

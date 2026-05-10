@@ -22,23 +22,23 @@
     "verify:crosslinks": "tsx scripts/verify-crosslinks.ts"
   },
   "dependencies": {
-    "@docusaurus/core": "3.10.0",
-    "@docusaurus/preset-classic": "3.10.0",
-    "@mdx-js/react": "3.1.0",
+    "@docusaurus/core": "3.10.1",
+    "@docusaurus/preset-classic": "3.10.1",
+    "@mdx-js/react": "3.1.1",
     "clsx": "2.1.1",
     "prism-react-renderer": "2.4.1",
-    "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "react": "19.2.6",
+    "react-dom": "19.2.6"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.12",
-    "@docusaurus/module-type-aliases": "3.10.0",
-    "@docusaurus/tsconfig": "3.10.0",
-    "@docusaurus/types": "3.10.0",
-    "@types/node": "24.12.2",
-    "@types/react": "18.3.12",
+    "@biomejs/biome": "2.4.15",
+    "@docusaurus/module-type-aliases": "3.10.1",
+    "@docusaurus/tsconfig": "3.10.1",
+    "@docusaurus/types": "3.10.1",
+    "@types/node": "25.6.2",
+    "@types/react": "19.2.14",
     "tsx": "4.21.0",
-    "typescript": "5.6.3"
+    "typescript": "6.0.3"
   },
   "browserslist": {
     "production": [
@@ -59,11 +59,6 @@
     "docs"
   ],
   "packageManager": "pnpm@10.33.0",
-  "pnpm": {
-    "overrides": {
-      "webpack": "5.105.0"
-    }
-  },
   "license": "BSD-3-Clause",
   "repository": {
     "type": "git",
