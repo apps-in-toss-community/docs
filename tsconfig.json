@@ -1,7 +1,7 @@
 {
   "extends": "@docusaurus/tsconfig",
   "compilerOptions": {
-    "ignoreDeprecations": "6.0"
+    "baseUrl": null
   },
   "include": ["src/", "scripts/", "docusaurus.config.ts", "sidebars.ts"],
   "exclude": [".docusaurus", "build", "node_modules"]
