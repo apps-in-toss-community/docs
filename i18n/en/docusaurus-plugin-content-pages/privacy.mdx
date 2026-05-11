@@ -1,0 +1,115 @@
+---
+title: Privacy — anonymous usage telemetry
+description: What the apps-in-toss-community tools collect, why, and how to turn it off
+---
+
+# Privacy — anonymous usage telemetry
+
+apps-in-toss-community tools collect anonymous usage telemetry on an **opt-in** basis. No events are sent before you explicitly agree.
+
+:::info Why we collect this
+To decide *when* to commit to a `1.0.0` stable release we need a signal of **real, active usage** — download counts are noisy. Opt-in telemetry produces a smaller sample, but one without bots or CI noise.
+:::
+
+## Sources (per tool)
+
+| Tool | Package / location | Status |
+|---|---|---|
+| `@ait-co/devtools` | npm `@ait-co/devtools` | Active (`source: "devtools"`) |
+| `@ait-co/console-cli` | npm `@ait-co/console-cli` | Not yet integrated |
+| agent-plugin | Claude Code / Codex plugin | Not yet integrated |
+
+Each new source updates this page and the `source` allowlist in [`apps-in-toss-community/metrics-ingest`](https://github.com/apps-in-toss-community/metrics-ingest) together.
+
+## What we collect
+
+One event looks like this:
+
+```json
+{
+  "source": "devtools",
+  "event": "panel_open",
+  "anon_id": "<random UUID v4 stored in your browser's localStorage>",
+  "version": "0.1.14",
+  "ts": 1715423400000,
+  "meta": { "tab": "iap" }
+}
+```
+
+The Worker additionally records the originating country code (Cloudflare's `cf.country`, two letters).
+
+### `@ait-co/devtools` events
+
+| Event | Meaning |
+|---|---|
+| `panel_mount` | The devtools panel mounted once on page load |
+| `panel_open` | You opened the panel |
+| `tab_view` | You switched tabs. `meta.tab` carries the label |
+| `session_duration` | Accumulated time-on-panel (ms), sent on page unload |
+
+`meta` is free-form JSON per tool, but **the server caps it at 256 bytes** when JSON-serialized.
+
+## What we never collect
+
+- **IP addresses** — visible momentarily during request handling, but never stored in the DB or logs
+- **User-Agent strings**
+- **Personally identifiable information** — no names, emails, phone numbers, account IDs
+- **Mock-call arguments or user-written code** — devtools' SDK mock arguments are not part of telemetry
+- **No `cf.*` fields other than `cf.country`** are stored
+
+## Retention
+
+Events are kept for **90 days only**. A daily cron at UTC 03:00 deletes rows older than `now - 90 days`.
+
+## Consent / opt-out
+
+The default is **off**.
+
+- The first time you open a tool, a one-time toast appears: "Yes, send", "No, thanks", or "Learn more" (this page)
+- If you choose "No, thanks", we'll ask **once more after 30 days**, then never again
+- You can flip the choice anytime from the tool panel's **Environment tab**
+- Once you opt out, no further events are sent (for events already stored, see "Deletion request" below)
+
+The following localStorage keys are used:
+
+| Key | Meaning |
+|---|---|
+| `__ait_telemetry:consent` | `granted` / `denied` / unset |
+| `__ait_telemetry:reprompt_after` | Next allowable reprompt time (epoch ms) |
+| `__ait_telemetry:policy_version` | Policy version you consented to. A meaningful change bumps this and triggers a reprompt |
+| `__ait_telemetry:anon_id` | Per-browser random UUID v4. Not a cookie |
+
+## Deletion request
+
+You can immediately delete every event tied to your `anon_id`.
+
+1. In the devtools panel's Environment tab, click **"Delete my anon_id data"**, or
+2. Call the endpoint directly:
+
+```bash
+curl -X DELETE 'https://t.aitc.dev/e?anon_id=<your-anon_id>'
+```
+
+Find your `anon_id` in browser DevTools → Application → Local Storage → `__ait_telemetry:anon_id`.
+
+The response is `{ "ok": true, "deleted": <rows removed> }`.
+
+## Infrastructure
+
+The ingest endpoint runs on Cloudflare Workers; the full source is public.
+
+- Repository: [`apps-in-toss-community/metrics-ingest`](https://github.com/apps-in-toss-community/metrics-ingest)
+- Production host: `t.aitc.dev`
+- Staging host: `t-staging.aitc.dev` (for policy verification)
+- Storage: Cloudflare D1 (events) + KV (rate-limit state)
+- 60 requests/minute per IP
+
+Schema at [`migrations/0001_init.sql`](https://github.com/apps-in-toss-community/metrics-ingest/blob/main/migrations/0001_init.sql); validation at [`src/lib/schema.ts`](https://github.com/apps-in-toss-community/metrics-ingest/blob/main/src/lib/schema.ts).
+
+## Policy changes
+
+When this page changes in a meaningful way, `__ait_telemetry:policy_version` bumps and tools will ask for consent again. Typo fixes and wording polish don't trigger a bump.
+
+## Questions
+
+For questions or deletion requests, please open an issue at [GitHub Issues](https://github.com/apps-in-toss-community/metrics-ingest/issues).
