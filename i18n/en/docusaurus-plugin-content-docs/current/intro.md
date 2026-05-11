@@ -9,7 +9,7 @@ sidebar_position: 1
 
 > **Unofficial project.** This site is a community-maintained set of guides and references built by the `apps-in-toss-community` community. It is not affiliated with or endorsed by the Toss team.
 
-This site provides friendlier, example-driven docs for developers building Apps in Toss mini-apps with [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework). It complements the upstream docs with deeper explanations, recipe-style code, and links to an interactive sandbox.
+This site provides friendlier, example-driven docs for developers building Apps in Toss mini-apps with [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework). It complements the official docs with deeper explanations, recipe-style code, and links to an interactive sandbox.
 
 ## What's here
 
