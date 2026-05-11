@@ -56,6 +56,12 @@ const sidebars: SidebarsConfig = {
         },
       ],
     },
+    {
+      type: 'category',
+      label: 'Reference',
+      collapsed: false,
+      items: ['reference/glossary'],
+    },
   ],
 };
 
