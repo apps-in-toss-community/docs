@@ -1,0 +1,90 @@
+---
+id: share
+title: share
+sidebar_label: share
+description: Open the system share sheet with a text message.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `share`
+
+Opens the system share sheet with a text message. The user can then send the content through any app they choose — a messenger, email, notes, and so on.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { share } from '@apps-in-toss/web-framework';
+
+declare function share(message: { message: string }): Promise<void>;
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `message.message` | `string` | ✓ | The text to share. URLs in the message are typically detected and rendered as previews by the receiving app. |
+
+## Returns
+
+- `Promise<void>` — resolves once the share sheet opens. Rejecting by cancelling does not cause a rejection.
+- In the devtools mock, `navigator.share` is used when available. In unsupported environments, the message is logged to the console.
+
+## Permission
+
+No permission required.
+
+## Examples
+
+### Minimal
+
+```tsx
+import { share } from '@apps-in-toss/web-framework';
+
+await share({ message: 'Check this out! https://example.com' });
+```
+
+### Realistic — invite code share button
+
+```tsx
+import { getTossShareLink, share } from '@apps-in-toss/web-framework';
+
+export function InviteButton({ inviteCode }: { inviteCode: string }) {
+  async function handleShare() {
+    const link = await getTossShareLink(`/invite/${inviteCode}`);
+    await share({
+      message: `Join me! Invite code: ${inviteCode}\n${link}`,
+    });
+  }
+
+  return (
+    <button type="button" onClick={handleShare}>
+      Invite a friend
+    </button>
+  );
+}
+```
+
+## Try it live
+
+Open the Navigation page in sdk-example and run the `share` card.
+
+<TryItLink group="navigation" method="share" />
+
+## Related APIs
+
+- [`getTossShareLink`](./getTossShareLink) — generate a Toss in-app share link.
+- [`openURL`](./openURL) — open an external URL.
+
+## Related guides
+
+- _(coming soon)_ Recipes — "Share link patterns"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
+- Web standard counterpart: [`navigator.share`](https://developer.mozilla.org/docs/Web/API/Navigator/share) — the `@ait-co/polyfill` package provides a shim that routes `share` through `navigator.share`.

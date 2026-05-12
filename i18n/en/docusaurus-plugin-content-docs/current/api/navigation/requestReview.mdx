@@ -1,0 +1,81 @@
+---
+id: requestReview
+title: requestReview
+sidebar_label: requestReview
+description: Trigger an App Store / Play Store review prompt.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `requestReview`
+
+Triggers the host (Toss) app's App Store / Play Store review prompt. Whether the OS actually shows the dialog is up to the platform (iOS StoreKit / Android Play In-App Review) — the call does not guarantee that a prompt appears.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { requestReview } from '@apps-in-toss/web-framework';
+
+declare function requestReview(): Promise<void>;
+```
+
+## Parameters
+
+None.
+
+## Returns
+
+- `Promise<void>` — resolves once the request is delivered. The return value gives no information about whether the dialog was actually shown.
+
+:::caution No display guarantee
+Both iOS and Android throttle review prompts internally to prevent spam. A prompt visible in development may never appear for real users. Ask at most once per meaningful milestone.
+:::
+
+## Permission
+
+No permission required.
+
+## Examples
+
+### Minimal
+
+```tsx
+import { requestReview } from '@apps-in-toss/web-framework';
+
+await requestReview();
+```
+
+### Realistic — prompt after a meaningful milestone
+
+```tsx
+import { requestReview } from '@apps-in-toss/web-framework';
+
+// Ask for a review when the user completes their 5th order.
+async function onOrderComplete(orderCount: number) {
+  if (orderCount === 5) {
+    await requestReview();
+  }
+}
+```
+
+## Try it live
+
+Open the Navigation page in sdk-example and run the `requestReview` card.
+
+<TryItLink group="navigation" method="requestReview" />
+
+## Related APIs
+
+- [`closeView`](./closeView) — close the current mini-app view.
+
+## Related guides
+
+- _(coming soon)_ Recipes — "User engagement patterns"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

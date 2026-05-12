@@ -184,6 +184,14 @@ const NAME_JSX_PROP_REGEX = /name="([^"]+)"/g;
 // card component (ApiCard, PolyfillToggleCard, etc.) is used.
 const DOCS_LINK_REGEX = /docsLink\(\s*['"][^'"]+['"]\s*,\s*['"]([^'"]+)['"]\s*\)/g;
 
+// Matches PolyfillToggleCard's `sdk={{ name: '...' }}` JSX prop form.
+// PolyfillToggleCard receives an `sdk` object prop rather than a plain `name=""`
+// prop, so NAME_JSX_PROP_REGEX misses it.  We match the JSX attribute start
+// `sdk={{` and then the first `name:` key that follows — this is always the
+// sdk.name field (it appears before `description:` and `params:`).
+// The regex is non-greedy and stops at the first single-quoted value.
+const POLYFILL_TOGGLE_SDK_NAME_REGEX = /sdk=\{\{\s*name:\s*'([^']+)'/g;
+
 function extractMethodsFromSource(source: string): string[] {
   const out: string[] = [];
   for (const match of source.matchAll(NAME_JSX_PROP_REGEX)) {
@@ -193,6 +201,12 @@ function extractMethodsFromSource(source: string): string[] {
     if (norm) out.push(norm);
   }
   for (const match of source.matchAll(DOCS_LINK_REGEX)) {
+    const raw = match[1];
+    if (raw === undefined) continue;
+    const norm = normalizeApiCardName(raw);
+    if (norm) out.push(norm);
+  }
+  for (const match of source.matchAll(POLYFILL_TOGGLE_SDK_NAME_REGEX)) {
     const raw = match[1];
     if (raw === undefined) continue;
     const norm = normalizeApiCardName(raw);

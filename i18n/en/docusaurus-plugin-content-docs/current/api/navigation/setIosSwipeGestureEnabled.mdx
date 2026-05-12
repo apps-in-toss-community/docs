@@ -1,0 +1,96 @@
+---
+id: setIosSwipeGestureEnabled
+title: setIosSwipeGestureEnabled
+sidebar_label: setIosSwipeGestureEnabled
+description: Enable or disable the iOS edge-swipe back gesture.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `setIosSwipeGestureEnabled`
+
+Enables or disables the iOS left-edge swipe-to-go-back gesture. Has no effect on Android.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { setIosSwipeGestureEnabled } from '@apps-in-toss/web-framework';
+
+declare function setIosSwipeGestureEnabled(options: {
+  isEnabled: boolean;
+}): Promise<void>;
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `options.isEnabled` | `boolean` | ✓ | `true` enables the swipe-back gesture; `false` disables it. |
+
+## Returns
+
+- `Promise<void>` — resolves once the setting is delivered.
+- In the devtools mock, a log entry is printed to the console.
+
+:::caution iOS only
+This API only takes effect on iOS. On Android the call is ignored.
+:::
+
+## Permission
+
+No permission required.
+
+## Examples
+
+### Minimal
+
+```tsx
+import { setIosSwipeGestureEnabled } from '@apps-in-toss/web-framework';
+
+// Disable swipe-back.
+await setIosSwipeGestureEnabled({ isEnabled: false });
+```
+
+### Realistic — prevent accidental navigation during payment entry
+
+```tsx
+import { setIosSwipeGestureEnabled } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+export function PaymentForm() {
+  useEffect(() => {
+    // Disable swipe-back while the user is filling in payment details.
+    setIosSwipeGestureEnabled({ isEnabled: false });
+
+    return () => {
+      // Restore when leaving the screen.
+      setIosSwipeGestureEnabled({ isEnabled: true });
+    };
+  }, []);
+
+  return <form>{/* Payment input fields */}</form>;
+}
+```
+
+## Try it live
+
+Open the Navigation page in sdk-example and run the `setIosSwipeGestureEnabled` card.
+
+<TryItLink group="navigation" method="setIosSwipeGestureEnabled" />
+
+## Related APIs
+
+- [`setDeviceOrientation`](./setDeviceOrientation) — lock the screen orientation.
+- [`closeView`](./closeView) — close the current view.
+
+## Related guides
+
+- _(coming soon)_ Guides — "Mini-app navigation flow patterns"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

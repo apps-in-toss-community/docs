@@ -44,6 +44,33 @@ const sidebars: SidebarsConfig = {
         },
         {
           type: 'category',
+          label: 'haptic',
+          collapsed: false,
+          items: [
+            'api/haptic/haptic-overview',
+            'api/haptic/generateHapticFeedback',
+            'api/haptic/saveBase64Data',
+          ],
+        },
+        {
+          type: 'category',
+          label: 'navigation',
+          collapsed: false,
+          items: [
+            'api/navigation/navigation-overview',
+            'api/navigation/closeView',
+            'api/navigation/getTossShareLink',
+            'api/navigation/openURL',
+            'api/navigation/requestReview',
+            'api/navigation/setDeviceOrientation',
+            'api/navigation/setIosSwipeGestureEnabled',
+            'api/navigation/setScreenAwakeMode',
+            'api/navigation/setSecureScreen',
+            'api/navigation/share',
+          ],
+        },
+        {
+          type: 'category',
           label: 'storage',
           collapsed: false,
           items: [

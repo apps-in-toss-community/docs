@@ -1,0 +1,90 @@
+---
+id: setSecureScreen
+title: setSecureScreen
+sidebar_label: setSecureScreen
+description: Block screen capture and recording.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `setSecureScreen`
+
+Blocks or allows screen capture (screenshots) and screen recording. Use this for screens that contain sensitive data — payment details, personal identification numbers, authentication codes.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { setSecureScreen } from '@apps-in-toss/web-framework';
+
+declare function setSecureScreen(options: {
+  enabled: boolean;
+}): Promise<{ enabled: boolean }>;
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `options.enabled` | `boolean` | ✓ | `true` to block capture and recording; `false` to restore normal behavior. |
+
+## Returns
+
+- `Promise<{ enabled: boolean }>` — resolves with the current `enabled` state after the setting is applied.
+
+## Permission
+
+No permission required.
+
+## Examples
+
+### Minimal
+
+```tsx
+import { setSecureScreen } from '@apps-in-toss/web-framework';
+
+await setSecureScreen({ enabled: true });
+```
+
+### Realistic — protecting a payment details screen
+
+```tsx
+import { setSecureScreen } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+export function PaymentDetailsScreen() {
+  useEffect(() => {
+    // Block capture while sensitive payment data is visible.
+    setSecureScreen({ enabled: true });
+
+    return () => {
+      // Lift the restriction when the screen unmounts.
+      setSecureScreen({ enabled: false });
+    };
+  }, []);
+
+  return <div>{/* Card number, account details, etc. */}</div>;
+}
+```
+
+## Try it live
+
+Open the Navigation page in sdk-example and run the `setSecureScreen` card.
+
+<TryItLink group="navigation" method="setSecureScreen" />
+
+## Related APIs
+
+- [`setScreenAwakeMode`](./setScreenAwakeMode) — prevent the screen from auto-dimming.
+- [`setDeviceOrientation`](./setDeviceOrientation) — lock the screen orientation.
+
+## Related guides
+
+- _(coming soon)_ Guides — "Mini-app navigation flow patterns"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
