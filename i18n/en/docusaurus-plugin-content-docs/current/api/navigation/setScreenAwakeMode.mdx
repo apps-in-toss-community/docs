@@ -1,0 +1,95 @@
+---
+id: setScreenAwakeMode
+title: setScreenAwakeMode
+sidebar_label: setScreenAwakeMode
+description: Prevent the screen from auto-dimming.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `setScreenAwakeMode`
+
+Prevents the screen from automatically dimming and locking. Use this for features where the user needs the screen on without touching it — navigation maps, workout tracking, recipe reading.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { setScreenAwakeMode } from '@apps-in-toss/web-framework';
+
+declare function setScreenAwakeMode(options: {
+  enabled: boolean;
+}): Promise<{ enabled: boolean }>;
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `options.enabled` | `boolean` | ✓ | `true` to prevent the screen from dimming; `false` to restore normal behavior. |
+
+## Returns
+
+- `Promise<{ enabled: boolean }>` — resolves with the current `enabled` state after the setting is applied.
+
+:::caution Always release the lock
+Screen-awake mode drains the battery quickly. Call `setScreenAwakeMode({ enabled: false })` when the feature is done or the component unmounts. A `useEffect` cleanup is the right place.
+:::
+
+## Permission
+
+No permission required.
+
+## Examples
+
+### Minimal
+
+```tsx
+import { setScreenAwakeMode } from '@apps-in-toss/web-framework';
+
+await setScreenAwakeMode({ enabled: true });
+```
+
+### Realistic — navigation map screen
+
+```tsx
+import { setScreenAwakeMode } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+export function NavigationMap() {
+  useEffect(() => {
+    // Keep the screen on while navigating.
+    setScreenAwakeMode({ enabled: true });
+
+    return () => {
+      // Release when leaving.
+      setScreenAwakeMode({ enabled: false });
+    };
+  }, []);
+
+  return <div>{/* Map component */}</div>;
+}
+```
+
+## Try it live
+
+Open the Navigation page in sdk-example and run the `setScreenAwakeMode` card.
+
+<TryItLink group="navigation" method="setScreenAwakeMode" />
+
+## Related APIs
+
+- [`setDeviceOrientation`](./setDeviceOrientation) — lock the screen orientation.
+- [`setSecureScreen`](./setSecureScreen) — block screen capture and recording.
+
+## Related guides
+
+- _(coming soon)_ Guides — "Mini-app navigation flow patterns"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
+- Web standard counterpart: [`Screen Wake Lock API`](https://developer.mozilla.org/docs/Web/API/Screen_Wake_Lock_API) — a browser standard, but in-app webview support depends on the host app.

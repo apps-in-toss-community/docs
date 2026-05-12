@@ -1,0 +1,91 @@
+---
+id: setDeviceOrientation
+title: setDeviceOrientation
+sidebar_label: setDeviceOrientation
+description: Lock the screen to portrait or landscape.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `setDeviceOrientation`
+
+Sets the mini-app's screen orientation to portrait (`'portrait'`) or landscape (`'landscape'`). Use for features that genuinely require a specific orientation — video players, games, maps.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { setDeviceOrientation } from '@apps-in-toss/web-framework';
+
+declare function setDeviceOrientation(options: {
+  type: 'portrait' | 'landscape';
+}): Promise<void>;
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `options.type` | `'portrait' \| 'landscape'` | ✓ | The orientation to lock to. `'portrait'` is vertical, `'landscape'` is horizontal. |
+
+## Returns
+
+- `Promise<void>` — resolves once the orientation request is delivered.
+- In the devtools mock, the Viewport tab orientation changes. If the panel has the orientation pinned to a fixed value (not `auto`), the SDK call is ignored and a warning is logged.
+
+## Permission
+
+No permission required.
+
+## Examples
+
+### Minimal
+
+```tsx
+import { setDeviceOrientation } from '@apps-in-toss/web-framework';
+
+await setDeviceOrientation({ type: 'landscape' });
+```
+
+### Realistic — fullscreen video player
+
+```tsx
+import { setDeviceOrientation } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+export function FullscreenVideoPlayer() {
+  useEffect(() => {
+    // Lock to landscape when the video player mounts.
+    setDeviceOrientation({ type: 'landscape' });
+
+    return () => {
+      // Restore portrait when leaving.
+      setDeviceOrientation({ type: 'portrait' });
+    };
+  }, []);
+
+  return <video src="/sample.mp4" controls />;
+}
+```
+
+## Try it live
+
+Open the Navigation page in sdk-example and run the `setDeviceOrientation` card.
+
+<TryItLink group="navigation" method="setDeviceOrientation" />
+
+## Related APIs
+
+- [`setScreenAwakeMode`](./setScreenAwakeMode) — prevent the screen from auto-dimming.
+- [`setIosSwipeGestureEnabled`](./setIosSwipeGestureEnabled) — control the iOS edge-swipe back gesture.
+
+## Related guides
+
+- _(coming soon)_ Guides — "Mini-app navigation flow patterns"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
