@@ -1,0 +1,101 @@
+---
+id: saveBase64Data
+title: saveBase64Data
+sidebar_label: saveBase64Data
+description: Save Base64-encoded data as a local file on the device.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `saveBase64Data`
+
+Saves Base64-encoded data to the device as a file with the given filename and MIME type. Use this when you need to hand the user an in-memory binary — a PDF from the server, an image, a CSV export.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { saveBase64Data } from '@apps-in-toss/web-framework';
+
+declare function saveBase64Data(params: {
+  data: string;
+  fileName: string;
+  mimeType: string;
+}): Promise<void>;
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `params.data` | `string` | ✓ | The raw Base64-encoded string. Pass the Base64 payload only — no `data:` URI prefix. |
+| `params.fileName` | `string` | ✓ | The filename to save as, including the extension (e.g. `report.pdf`, `photo.jpg`). |
+| `params.mimeType` | `string` | ✓ | The file's MIME type (e.g. `application/pdf`, `image/jpeg`, `text/csv`). |
+
+## Returns
+
+- `Promise<void>` — resolves once the save completes.
+- In the devtools mock, the browser's file download is triggered instead. The real in-app storage behavior is only visible inside the Toss app on iOS / Android.
+
+## Permission
+
+No permission required — the `haptic` namespace is not bound to a `PermissionName`. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { saveBase64Data } from '@apps-in-toss/web-framework';
+
+// Base64 for 'Hello, World!'
+await saveBase64Data({
+  data: 'SGVsbG8sIFdvcmxkIQ==',
+  fileName: 'hello.txt',
+  mimeType: 'text/plain',
+});
+```
+
+### Realistic — saving a server-issued PDF receipt
+
+```tsx
+import { saveBase64Data } from '@apps-in-toss/web-framework';
+
+async function downloadReceipt(orderId: string) {
+  // Fetch a Base64-encoded PDF from the server.
+  const response = await fetch(`/api/receipts/${orderId}`, {
+    headers: { Accept: 'application/json' },
+  });
+  const { base64Pdf, fileName } = await response.json() as {
+    base64Pdf: string;
+    fileName: string;
+  };
+
+  await saveBase64Data({
+    data: base64Pdf,
+    fileName: fileName ?? `receipt-${orderId}.pdf`,
+    mimeType: 'application/pdf',
+  });
+}
+```
+
+## Try it live
+
+Open the Haptic page in sdk-example and run the `saveBase64Data` card.
+
+<TryItLink group="haptic" method="saveBase64Data" />
+
+## Related APIs
+
+- [`generateHapticFeedback`](./generateHapticFeedback) — trigger a haptic vibration.
+
+## Related guides
+
+- [Guides — Permissions pattern](/guides/permissions-pattern) — permission flow for other namespaces (reference only; `haptic` doesn't require a permission).
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

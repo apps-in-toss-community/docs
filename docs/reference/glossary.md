@@ -1,4 +1,5 @@
 ---
+image: /og/reference-glossary.png
 id: glossary
 title: 용어 사전 (한↔영)
 sidebar_label: 용어 사전

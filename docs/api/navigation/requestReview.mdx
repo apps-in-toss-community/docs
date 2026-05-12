@@ -1,0 +1,82 @@
+---
+image: /og/api-navigation-requestReview.png
+id: requestReview
+title: requestReview
+sidebar_label: requestReview
+description: 앱 스토어 리뷰 요청 다이얼로그를 트리거합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `requestReview`
+
+호스트 앱(토스)의 앱 스토어 리뷰 요청 다이얼로그를 트리거합니다. OS가 다이얼로그를 실제로 표시할지는 플랫폼(iOS StoreKit / Android Play In-App Review)이 결정하므로, 호출이 항상 다이얼로그 표시로 이어지지는 않습니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+```ts
+import { requestReview } from '@apps-in-toss/web-framework';
+
+declare function requestReview(): Promise<void>;
+```
+
+## 파라미터
+
+없음.
+
+## 반환값
+
+- `Promise<void>` — 요청이 전달되면 resolve. 다이얼로그가 실제로 표시됐는지 여부는 알 수 없습니다.
+
+:::caution 표시 보장 없음
+iOS와 Android 모두 단기간에 리뷰 요청이 여러 번 표시되지 않도록 내부적으로 제한합니다. 개발 환경에서는 다이얼로그가 보이더라도 실제 사용자에게는 표시되지 않을 수 있습니다.
+:::
+
+## 권한
+
+권한이 필요하지 않습니다.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { requestReview } from '@apps-in-toss/web-framework';
+
+await requestReview();
+```
+
+### 실전 예제 — 사용자 완료 후 리뷰 요청
+
+```tsx
+import { requestReview } from '@apps-in-toss/web-framework';
+
+// 사용자가 특정 목표(예: 5번째 주문)를 달성했을 때 리뷰를 요청합니다.
+async function onOrderComplete(orderCount: number) {
+  if (orderCount === 5) {
+    await requestReview();
+  }
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Navigation 페이지에서 `requestReview` 카드를 실행해 결과를 확인할 수 있습니다.
+
+<TryItLink group="navigation" method="requestReview" />
+
+## 관련 API
+
+- [`closeView`](./closeView) — 현재 미니앱 뷰를 닫습니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Recipes — "사용자 인게이지먼트 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.

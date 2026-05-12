@@ -1,0 +1,87 @@
+---
+image: /og/api-navigation-openURL.png
+id: openURL
+title: openURL
+sidebar_label: openURL
+description: 외부 URL을 엽니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `openURL`
+
+지정한 URL을 엽니다. 호스트 앱 내부 브라우저 또는 외부 앱(예: 전화, 메일)으로 이동합니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+```ts
+import { openURL } from '@apps-in-toss/web-framework';
+
+declare function openURL(url: string): Promise<void>;
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `url` | `string` | ✓ | 열 URL. `https://`, `tel:`, `mailto:` 스킴을 지원합니다. 유효하지 않은 URL은 무시될 수 있습니다. |
+
+## 반환값
+
+- `Promise<void>` — URL 열기 요청이 전달되면 resolve.
+- devtools mock 환경에서는 `window.open(url, '_blank')`으로 처리됩니다.
+
+## 권한
+
+권한이 필요하지 않습니다.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { openURL } from '@apps-in-toss/web-framework';
+
+await openURL('https://example.com');
+```
+
+### 실전 예제 — 고객센터 연결 버튼
+
+```tsx
+import { openURL } from '@apps-in-toss/web-framework';
+
+export function SupportButton() {
+  async function callSupport() {
+    await openURL('tel:1234-5678');
+  }
+
+  return (
+    <button type="button" onClick={callSupport}>
+      고객센터 전화
+    </button>
+  );
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Navigation 페이지에서 `openURL` 카드를 실행해 결과를 확인할 수 있습니다.
+
+<TryItLink group="navigation" method="openURL" />
+
+## 관련 API
+
+- [`closeView`](./closeView) — 현재 미니앱 뷰를 닫습니다.
+- [`share`](./share) — 시스템 공유 시트를 통해 메시지를 공유합니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Guides — "미니앱 화면 흐름 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.

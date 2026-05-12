@@ -1,0 +1,91 @@
+---
+id: share
+title: share
+sidebar_label: share
+description: 시스템 공유 시트를 통해 메시지를 공유합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `share`
+
+시스템 공유 시트를 통해 텍스트 메시지를 공유합니다. 사용자가 메신저, 이메일, 메모장 등 원하는 앱으로 내용을 전달할 수 있습니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+```ts
+import { share } from '@apps-in-toss/web-framework';
+
+declare function share(message: { message: string }): Promise<void>;
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `message.message` | `string` | ✓ | 공유할 텍스트. URL을 포함할 수 있으며, 공유 대상 앱이 링크를 자동 감지해 미리보기를 표시합니다. |
+
+## 반환값
+
+- `Promise<void>` — 공유 시트가 열리면 resolve. 사용자가 공유를 취소하더라도 reject되지 않습니다.
+- devtools mock 환경에서 `navigator.share`가 지원되면 표준 API를 통해 공유 시트를 엽니다. 미지원 환경에서는 콘솔에 메시지를 로그합니다.
+
+## 권한
+
+권한이 필요하지 않습니다.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { share } from '@apps-in-toss/web-framework';
+
+await share({ message: '이 앱 추천해요! https://example.com' });
+```
+
+### 실전 예제 — 초대 코드 공유 버튼
+
+```tsx
+import { share } from '@apps-in-toss/web-framework';
+import { getTossShareLink } from '@apps-in-toss/web-framework';
+
+export function InviteButton({ inviteCode }: { inviteCode: string }) {
+  async function handleShare() {
+    const link = await getTossShareLink(`/invite/${inviteCode}`);
+    await share({
+      message: `친구와 함께 사용해 보세요! 초대 코드: ${inviteCode}\n${link}`,
+    });
+  }
+
+  return (
+    <button type="button" onClick={handleShare}>
+      친구 초대하기
+    </button>
+  );
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Navigation 페이지에서 `share` 카드를 실행해 결과를 확인할 수 있습니다.
+
+<TryItLink group="navigation" method="share" />
+
+## 관련 API
+
+- [`getTossShareLink`](./getTossShareLink) — 토스 인앱 공유 링크를 생성합니다.
+- [`openURL`](./openURL) — 외부 URL을 엽니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Recipes — "공유 링크 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.
+- 표준 Web API 대응: [`navigator.share`](https://developer.mozilla.org/docs/Web/API/Navigator/share) — `@ait-co/polyfill`이 `share`를 `navigator.share` 위에 shim으로 제공합니다.

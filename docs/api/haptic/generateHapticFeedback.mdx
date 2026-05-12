@@ -1,0 +1,112 @@
+---
+image: /og/api-haptic-generateHapticFeedback.png
+id: generateHapticFeedback
+title: generateHapticFeedback
+sidebar_label: generateHapticFeedback
+description: 지정한 타입으로 햅틱 피드백을 발생시킵니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `generateHapticFeedback`
+
+장치의 진동 모터를 제어해 지정한 타입의 햅틱 피드백을 발생시킵니다. 버튼 탭 확인, 오류 알림, 완료 축하 등 중요한 상호작용 순간에 촉각 단서를 추가합니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+```ts
+import { generateHapticFeedback } from '@apps-in-toss/web-framework';
+
+type HapticFeedbackType =
+  | 'tickWeak'
+  | 'tap'
+  | 'tickMedium'
+  | 'softMedium'
+  | 'basicWeak'
+  | 'basicMedium'
+  | 'success'
+  | 'error'
+  | 'wiggle'
+  | 'confetti';
+
+declare function generateHapticFeedback(options: { type: HapticFeedbackType }): Promise<void>;
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `options.type` | `HapticFeedbackType` | ✓ | 피드백 강도와 느낌. 자세한 타입 설명은 [네임스페이스 개요의 "피드백 타입"](/api/haptic#피드백-타입)을 참고하세요. |
+
+## 반환값
+
+- `Promise<void>` — 진동 요청이 전달되면 resolve.
+- devtools mock 환경에서는 실제 진동 없이 콘솔에 로그만 출력됩니다. 실제 피드백은 토스 앱 내부(iOS / Android)에서만 확인할 수 있습니다.
+
+## 권한
+
+권한이 필요하지 않습니다 — `haptic` 네임스페이스는 별도의 `PermissionName`에 바인딩되지 않습니다. 권한이 필요한 다른 네임스페이스의 일반적인 처리 흐름은 [Guides — 권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { generateHapticFeedback } from '@apps-in-toss/web-framework';
+
+await generateHapticFeedback({ type: 'success' });
+```
+
+### 실전 예제 — 결제 완료 버튼
+
+```tsx
+import { generateHapticFeedback } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+export function PayButton() {
+  const [status, setStatus] = useState<'idle' | 'pending' | 'done' | 'error'>('idle');
+
+  async function handlePay() {
+    setStatus('pending');
+    try {
+      // 앱 자체 결제 로직 (예시)
+      await submitPayment();
+      await generateHapticFeedback({ type: 'success' });
+      setStatus('done');
+    } catch {
+      await generateHapticFeedback({ type: 'error' });
+      setStatus('error');
+    }
+  }
+
+  return (
+    <button type="button" onClick={handlePay} disabled={status === 'pending'}>
+      {status === 'pending' ? '처리 중…' : '결제하기'}
+    </button>
+  );
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Haptic 페이지에서 `generateHapticFeedback` 카드를 실행해 결과를 확인할 수 있습니다.
+
+<TryItLink group="haptic" method="generateHapticFeedback" />
+
+## 관련 API
+
+- [`saveBase64Data`](./saveBase64Data) — Base64 인코딩된 데이터를 파일로 저장합니다.
+
+## 관련 가이드
+
+- [Guides — 권한 처리 패턴](/guides/permissions-pattern) — 다른 네임스페이스의 권한 흐름 (참고용; `haptic`은 권한이 필요하지 않습니다).
+- _(작성 예정)_ Recipes — "햅틱 피드백 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.
+- 표준 Web API 대응: [`navigator.vibrate`](https://developer.mozilla.org/docs/Web/API/Navigator/vibrate) — `@ait-co/polyfill`이 `generateHapticFeedback`을 `navigator.vibrate` 위에 shim으로 제공합니다.

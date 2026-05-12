@@ -1,0 +1,63 @@
+---
+id: haptic-overview
+title: haptic
+sidebar_label: Overview
+slug: /api/haptic
+description: SDK namespace for haptic feedback and file saving.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `haptic`
+
+Control the device's vibration motor to produce haptic feedback, or save Base64-encoded data as a local file. Adding tactile cues at moments like button taps, errors, and completions makes UX feel more alive.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Methods
+
+| Method | Purpose |
+| --- | --- |
+| [`generateHapticFeedback`](/api/haptic/generateHapticFeedback) | Trigger a vibration with the specified feedback type. |
+| [`saveBase64Data`](/api/haptic/saveBase64Data) | Save Base64-encoded data as a file on the device. |
+
+## Permission
+
+No permission required. The `haptic` namespace is not bound to a `PermissionName` and does not expose `getPermission()` / `openPermissionDialog()` helpers. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Feedback types
+
+`generateHapticFeedback` uses the `type` parameter to distinguish intensity and character.
+
+| Type | Class | When to use |
+| --- | --- | --- |
+| `tickWeak` | tick | Light list scroll, segment step |
+| `tickMedium` | tick | Medium-intensity tap, step change |
+| `tap` | general | Button-tap confirmation |
+| `softMedium` | soft | Toggle or slider adjustment |
+| `basicWeak` | basic | Minor notification, hint |
+| `basicMedium` | basic | Standard selection, confirmation |
+| `success` | semantic | Payment complete, save success |
+| `error` | semantic | Error, failure |
+| `wiggle` | emphasis | Warning, shake |
+| `confetti` | emphasis | Celebration, reward delivery |
+
+## UX guidance
+
+- **React to user actions.** Use vibration only at moments of clear user intent — a button tap, a swipe gesture completing, a payment confirmed. Background tasks or automatic events feel surprising.
+- **Avoid overuse.** Frequent vibration desensitizes users. Reserve it for meaningful moments and the effect stays impactful.
+- **Prefer semantic types.** `success` and `error` communicate intent clearly and will be more stable across future SDK updates. Fall back to intensity-based types only when no semantic type fits.
+- **Respect low-power mode.** Some devices suppress vibration in low-power mode. Haptics complement visual feedback; they should never be the sole signal.
+
+## Try it live
+
+Both methods are available on the Haptic page in sdk-example.
+
+<TryItLink group="haptic" />
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
+- Web standard counterpart: [`navigator.vibrate`](https://developer.mozilla.org/docs/Web/API/Navigator/vibrate) — the `@ait-co/polyfill` package provides a shim that routes `generateHapticFeedback` through `navigator.vibrate`.
