@@ -1,4 +1,5 @@
 ---
+image: /og/intro.png
 id: intro
 title: 소개
 slug: /

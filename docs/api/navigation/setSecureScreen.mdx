@@ -1,0 +1,90 @@
+---
+id: setSecureScreen
+title: setSecureScreen
+sidebar_label: setSecureScreen
+description: 화면 캡처 및 녹화 차단을 설정합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `setSecureScreen`
+
+화면 캡처(스크린샷)와 화면 녹화를 차단하거나 허용합니다. 결제 정보, 개인 식별 정보, 인증 코드처럼 외부 유출을 막아야 하는 민감한 화면에 사용합니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+```ts
+import { setSecureScreen } from '@apps-in-toss/web-framework';
+
+declare function setSecureScreen(options: {
+  enabled: boolean;
+}): Promise<{ enabled: boolean }>;
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `options.enabled` | `boolean` | ✓ | `true`이면 캡처·녹화 차단 활성화, `false`이면 비활성화(기본 동작 복원). |
+
+## 반환값
+
+- `Promise<{ enabled: boolean }>` — 설정이 적용된 후 현재 `enabled` 상태를 반환합니다.
+
+## 권한
+
+권한이 필요하지 않습니다.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { setSecureScreen } from '@apps-in-toss/web-framework';
+
+await setSecureScreen({ enabled: true });
+```
+
+### 실전 예제 — 결제 화면 보호
+
+```tsx
+import { setSecureScreen } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+export function PaymentDetailsScreen() {
+  useEffect(() => {
+    // 결제 화면 진입 시 캡처 차단
+    setSecureScreen({ enabled: true });
+
+    return () => {
+      // 화면을 벗어날 때 캡처 차단 해제
+      setSecureScreen({ enabled: false });
+    };
+  }, []);
+
+  return <div>{/* 카드 정보, 계좌 번호 등 민감한 콘텐츠 */}</div>;
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Navigation 페이지에서 `setSecureScreen` 카드를 실행해 결과를 확인할 수 있습니다.
+
+<TryItLink group="navigation" method="setSecureScreen" />
+
+## 관련 API
+
+- [`setScreenAwakeMode`](./setScreenAwakeMode) — 화면 자동 꺼짐을 방지합니다.
+- [`setDeviceOrientation`](./setDeviceOrientation) — 화면 방향을 설정합니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Guides — "미니앱 화면 흐름 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.

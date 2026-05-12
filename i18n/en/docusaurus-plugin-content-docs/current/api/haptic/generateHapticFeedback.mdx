@@ -1,0 +1,111 @@
+---
+id: generateHapticFeedback
+title: generateHapticFeedback
+sidebar_label: generateHapticFeedback
+description: Trigger a haptic feedback vibration with the specified type.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `generateHapticFeedback`
+
+Controls the device's vibration motor to deliver the specified haptic feedback type. Adds a tactile cue at important interaction moments — a button-tap confirmation, an error alert, a completion celebration.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { generateHapticFeedback } from '@apps-in-toss/web-framework';
+
+type HapticFeedbackType =
+  | 'tickWeak'
+  | 'tap'
+  | 'tickMedium'
+  | 'softMedium'
+  | 'basicWeak'
+  | 'basicMedium'
+  | 'success'
+  | 'error'
+  | 'wiggle'
+  | 'confetti';
+
+declare function generateHapticFeedback(options: { type: HapticFeedbackType }): Promise<void>;
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `options.type` | `HapticFeedbackType` | ✓ | Feedback intensity and character. See the [namespace overview's "Feedback types"](/api/haptic#feedback-types) for a full comparison table. |
+
+## Returns
+
+- `Promise<void>` — resolves once the vibration request is delivered.
+- In the devtools mock, no actual vibration occurs — a log entry appears in the console instead. Real feedback is only felt inside the Toss app on iOS / Android.
+
+## Permission
+
+No permission required — the `haptic` namespace is not bound to a `PermissionName`. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { generateHapticFeedback } from '@apps-in-toss/web-framework';
+
+await generateHapticFeedback({ type: 'success' });
+```
+
+### Realistic — payment confirmation button
+
+```tsx
+import { generateHapticFeedback } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+export function PayButton() {
+  const [status, setStatus] = useState<'idle' | 'pending' | 'done' | 'error'>('idle');
+
+  async function handlePay() {
+    setStatus('pending');
+    try {
+      // Your payment logic here.
+      await submitPayment();
+      await generateHapticFeedback({ type: 'success' });
+      setStatus('done');
+    } catch {
+      await generateHapticFeedback({ type: 'error' });
+      setStatus('error');
+    }
+  }
+
+  return (
+    <button type="button" onClick={handlePay} disabled={status === 'pending'}>
+      {status === 'pending' ? 'Processing…' : 'Pay now'}
+    </button>
+  );
+}
+```
+
+## Try it live
+
+Open the Haptic page in sdk-example and run the `generateHapticFeedback` card.
+
+<TryItLink group="haptic" method="generateHapticFeedback" />
+
+## Related APIs
+
+- [`saveBase64Data`](./saveBase64Data) — save Base64-encoded data as a local file.
+
+## Related guides
+
+- [Guides — Permissions pattern](/guides/permissions-pattern) — permission flow for other namespaces (reference only; `haptic` doesn't require a permission).
+- _(coming soon)_ Recipes — "Haptic feedback patterns"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
+- Web standard counterpart: [`navigator.vibrate`](https://developer.mozilla.org/docs/Web/API/Navigator/vibrate) — the `@ait-co/polyfill` package provides a shim that routes `generateHapticFeedback` through `navigator.vibrate`.

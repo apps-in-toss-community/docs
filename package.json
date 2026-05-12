@@ -9,6 +9,8 @@
   "scripts": {
     "dev": "docusaurus start",
     "start": "docusaurus start",
+    "build:og": "tsx --tsconfig tsconfig.json scripts/build-og-images.tsx",
+    "prebuild": "pnpm build:og",
     "build": "docusaurus build",
     "swizzle": "docusaurus swizzle",
     "serve": "docusaurus serve",
@@ -38,6 +40,8 @@
     "@easyops-cn/docusaurus-search-local": "0.55.1",
     "@types/node": "25.6.2",
     "@types/react": "19.2.14",
+    "satori": "^0.26.0",
+    "sharp": "^0.34.5",
     "tsx": "4.21.0",
     "typescript": "6.0.3"
   },

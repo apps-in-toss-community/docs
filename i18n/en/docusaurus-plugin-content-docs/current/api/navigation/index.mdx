@@ -1,0 +1,53 @@
+---
+id: navigation-overview
+title: navigation
+sidebar_label: Overview
+slug: /api/navigation
+description: SDK namespace for view navigation, URL handling, sharing, and device display settings.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `navigation`
+
+Close the current view, open external URLs, share content, and control device-level display settings like orientation, secure screen, and screen-awake mode. This namespace covers the host-environment integration points that shape how a mini-app fits into the surrounding Toss app.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Methods
+
+| Method | Purpose |
+| --- | --- |
+| [`closeView`](/api/navigation/closeView) | Close the current mini-app view. |
+| [`getTossShareLink`](/api/navigation/getTossShareLink) | Generate a Toss in-app share link. |
+| [`openURL`](/api/navigation/openURL) | Open an external URL. |
+| [`requestReview`](/api/navigation/requestReview) | Trigger an App Store / Play Store review prompt. |
+| [`setDeviceOrientation`](/api/navigation/setDeviceOrientation) | Lock the screen to portrait or landscape. |
+| [`setIosSwipeGestureEnabled`](/api/navigation/setIosSwipeGestureEnabled) | Enable or disable the iOS edge-swipe back gesture. |
+| [`setScreenAwakeMode`](/api/navigation/setScreenAwakeMode) | Prevent the screen from auto-dimming. |
+| [`setSecureScreen`](/api/navigation/setSecureScreen) | Block screen capture and recording. |
+| [`share`](/api/navigation/share) | Open the system share sheet with a message. |
+
+## Permission
+
+No permission required. None of the methods in this namespace are bound to a `PermissionName`, and none expose `getPermission()` / `openPermissionDialog()` helpers. For the permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## UX guidance
+
+- **Use `closeView` only for deliberate exits.** Call it from a "Done" button or an "×" icon — explicit signals that the user wants to leave. Calling it from an error handler makes the view disappear unexpectedly.
+- **Always release `setScreenAwakeMode`.** Screen-awake mode drains the battery fast. When the feature that needs the screen on is done (or the component unmounts), call `setScreenAwakeMode({ enabled: false })`. A `useEffect` cleanup is the right place.
+- **Don't over-apply `setSecureScreen`.** Reserve it for screens that genuinely contain sensitive data — payment details, identity numbers. Blocking every screen makes sharing impossible and can clash with accessibility tools.
+- **Use `setDeviceOrientation` for real layout needs.** Only lock orientation when the feature meaningfully requires it (video playback, a game, a map in landscape). Arbitrary locks create friction.
+
+## Try it live
+
+All methods are available on the Navigation page in sdk-example.
+
+<TryItLink group="navigation" />
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
+- Web standard counterpart: [`navigator.share`](https://developer.mozilla.org/docs/Web/API/Navigator/share) — the `@ait-co/polyfill` package provides a shim that routes `share` through `navigator.share`.

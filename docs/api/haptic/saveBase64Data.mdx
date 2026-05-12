@@ -1,0 +1,102 @@
+---
+image: /og/api-haptic-saveBase64Data.png
+id: saveBase64Data
+title: saveBase64Data
+sidebar_label: saveBase64Data
+description: Base64 인코딩된 데이터를 로컬 파일로 저장합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `saveBase64Data`
+
+Base64 인코딩된 데이터를 지정한 파일명과 MIME 타입으로 장치에 저장합니다. 서버에서 받은 PDF, 이미지, CSV처럼 인-메모리 바이너리를 사용자에게 파일로 전달해야 할 때 씁니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+```ts
+import { saveBase64Data } from '@apps-in-toss/web-framework';
+
+declare function saveBase64Data(params: {
+  data: string;
+  fileName: string;
+  mimeType: string;
+}): Promise<void>;
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `params.data` | `string` | ✓ | Base64 인코딩된 데이터 문자열. `data:` URI 접두사 없이 순수 Base64 문자열만 전달하세요. |
+| `params.fileName` | `string` | ✓ | 저장될 파일명. 확장자를 포함하세요 (예: `report.pdf`, `photo.jpg`). |
+| `params.mimeType` | `string` | ✓ | 파일의 MIME 타입 (예: `application/pdf`, `image/jpeg`, `text/csv`). |
+
+## 반환값
+
+- `Promise<void>` — 저장이 완료되면 resolve.
+- devtools mock 환경에서는 브라우저의 파일 다운로드로 처리됩니다. 실제 앱 저장소 동작은 토스 앱 내부(iOS / Android)에서 확인해야 합니다.
+
+## 권한
+
+권한이 필요하지 않습니다 — `haptic` 네임스페이스는 별도의 `PermissionName`에 바인딩되지 않습니다. 권한이 필요한 다른 네임스페이스의 일반적인 처리 흐름은 [Guides — 권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { saveBase64Data } from '@apps-in-toss/web-framework';
+
+// 'Hello, World!'의 Base64 인코딩
+await saveBase64Data({
+  data: 'SGVsbG8sIFdvcmxkIQ==',
+  fileName: 'hello.txt',
+  mimeType: 'text/plain',
+});
+```
+
+### 실전 예제 — 서버에서 받은 PDF 저장
+
+```tsx
+import { saveBase64Data } from '@apps-in-toss/web-framework';
+
+async function downloadReceipt(orderId: string) {
+  // 서버에서 Base64 인코딩된 PDF를 받아옴
+  const response = await fetch(`/api/receipts/${orderId}`, {
+    headers: { Accept: 'application/json' },
+  });
+  const { base64Pdf, fileName } = await response.json() as {
+    base64Pdf: string;
+    fileName: string;
+  };
+
+  await saveBase64Data({
+    data: base64Pdf,
+    fileName: fileName ?? `receipt-${orderId}.pdf`,
+    mimeType: 'application/pdf',
+  });
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Haptic 페이지에서 `saveBase64Data` 카드를 실행해 결과를 확인할 수 있습니다.
+
+<TryItLink group="haptic" method="saveBase64Data" />
+
+## 관련 API
+
+- [`generateHapticFeedback`](./generateHapticFeedback) — 햅틱 피드백을 발생시킵니다.
+
+## 관련 가이드
+
+- [Guides — 권한 처리 패턴](/guides/permissions-pattern) — 다른 네임스페이스의 권한 흐름 (참고용; `haptic`은 권한이 필요하지 않습니다).
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.

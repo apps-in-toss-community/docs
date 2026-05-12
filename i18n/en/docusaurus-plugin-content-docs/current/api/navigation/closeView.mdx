@@ -1,0 +1,90 @@
+---
+id: closeView
+title: closeView
+sidebar_label: closeView
+description: Close the current mini-app view and return to the host app.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `closeView`
+
+Closes the current mini-app view and returns to the host (Toss) app. Call this when the user has completed a task or explicitly decides to leave the mini-app.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { closeView } from '@apps-in-toss/web-framework';
+
+declare function closeView(): Promise<void>;
+```
+
+## Parameters
+
+None.
+
+## Returns
+
+- `Promise<void>` — resolves once the close request is delivered.
+- In the devtools mock, `window.history.back()` is called instead.
+
+## Permission
+
+No permission required.
+
+## Examples
+
+### Minimal
+
+```tsx
+import { closeView } from '@apps-in-toss/web-framework';
+
+await closeView();
+```
+
+### Realistic — closing after a completed payment
+
+```tsx
+import { closeView } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+export function PaymentSuccess() {
+  const [closing, setClosing] = useState(false);
+
+  async function handleClose() {
+    setClosing(true);
+    await closeView();
+  }
+
+  return (
+    <div>
+      <p>Payment complete!</p>
+      <button type="button" onClick={handleClose} disabled={closing}>
+        {closing ? 'Closing…' : 'Close'}
+      </button>
+    </div>
+  );
+}
+```
+
+## Try it live
+
+Open the Navigation page in sdk-example and run the `closeView` card.
+
+<TryItLink group="navigation" method="closeView" />
+
+## Related APIs
+
+- [`openURL`](./openURL) — open an external URL.
+
+## Related guides
+
+- _(coming soon)_ Guides — "Mini-app navigation flow patterns"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

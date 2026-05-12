@@ -1,0 +1,82 @@
+---
+image: /og/api-navigation-getTossShareLink.png
+id: getTossShareLink
+title: getTossShareLink
+sidebar_label: getTossShareLink
+description: 토스 인앱 공유 링크를 생성합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `getTossShareLink`
+
+지정한 경로와 OG 이미지 URL로 토스 인앱 공유 링크를 생성합니다. 반환된 링크를 [`share`](./share)에 전달하거나 클립보드에 복사해 다른 사용자가 미니앱의 특정 화면으로 바로 진입할 수 있게 합니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+```ts
+import { getTossShareLink } from '@apps-in-toss/web-framework';
+
+declare function getTossShareLink(path: string, ogImageUrl?: string): Promise<string>;
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `path` | `string` | ✓ | 미니앱 내 경로 (예: `/products/123`). 수신자가 이 링크를 열면 해당 경로로 진입합니다. |
+| `ogImageUrl` | `string` | — | 링크 미리보기에 사용할 OG 이미지 URL (선택). 카카오톡·문자 등 메신저에서 링크를 공유할 때 표시됩니다. |
+
+## 반환값
+
+- `Promise<string>` — 생성된 토스 인앱 공유 링크 문자열.
+- devtools mock 환경에서는 `https://toss.im/share/mock<path>` 형식의 플레이스홀더 링크를 반환합니다.
+
+## 권한
+
+권한이 필요하지 않습니다.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { getTossShareLink } from '@apps-in-toss/web-framework';
+
+const link = await getTossShareLink('/products/123');
+console.log(link);
+```
+
+### 실전 예제 — 공유 링크 생성 후 share로 전달
+
+```tsx
+import { getTossShareLink, share } from '@apps-in-toss/web-framework';
+
+async function shareProduct(productId: string, ogImageUrl: string) {
+  const link = await getTossShareLink(`/products/${productId}`, ogImageUrl);
+  await share({ message: link });
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Navigation 페이지에서 `getTossShareLink` 카드를 실행해 결과를 확인할 수 있습니다.
+
+<TryItLink group="navigation" method="getTossShareLink" />
+
+## 관련 API
+
+- [`share`](./share) — 시스템 공유 시트를 통해 메시지를 공유합니다.
+- [`openURL`](./openURL) — 외부 URL을 엽니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Recipes — "공유 링크 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.

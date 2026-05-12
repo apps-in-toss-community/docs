@@ -1,0 +1,91 @@
+---
+image: /og/api-navigation-closeView.png
+id: closeView
+title: closeView
+sidebar_label: closeView
+description: 현재 미니앱 뷰를 닫습니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `closeView`
+
+현재 미니앱 뷰를 닫고 호스트 앱(토스)으로 돌아갑니다. 사용자가 작업을 완료했거나 의도적으로 미니앱을 종료하는 시점에 호출합니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+```ts
+import { closeView } from '@apps-in-toss/web-framework';
+
+declare function closeView(): Promise<void>;
+```
+
+## 파라미터
+
+없음.
+
+## 반환값
+
+- `Promise<void>` — 닫기 요청이 전달되면 resolve.
+- devtools mock 환경에서는 `window.history.back()`으로 처리됩니다.
+
+## 권한
+
+권한이 필요하지 않습니다.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { closeView } from '@apps-in-toss/web-framework';
+
+await closeView();
+```
+
+### 실전 예제 — 결제 완료 후 닫기
+
+```tsx
+import { closeView } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+export function PaymentSuccess() {
+  const [closing, setClosing] = useState(false);
+
+  async function handleClose() {
+    setClosing(true);
+    await closeView();
+  }
+
+  return (
+    <div>
+      <p>결제가 완료되었습니다!</p>
+      <button type="button" onClick={handleClose} disabled={closing}>
+        {closing ? '닫는 중…' : '닫기'}
+      </button>
+    </div>
+  );
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Navigation 페이지에서 `closeView` 카드를 실행해 결과를 확인할 수 있습니다.
+
+<TryItLink group="navigation" method="closeView" />
+
+## 관련 API
+
+- [`openURL`](./openURL) — 외부 URL을 엽니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Guides — "미니앱 화면 흐름 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.
