@@ -61,6 +61,10 @@ Worker는 Cloudflare가 제공하는 **국가 코드(`cf.country`, 2-letter)** �
 
 이벤트는 **90일 동안만 보관**됩니다. 매일 UTC 03:00에 cron이 `now - 90일`보다 오래된 행을 일괄 삭제합니다.
 
+## 집계 공개
+
+같은 일일 cron이 보존 정리와 함께 **그날(UTC) 들어온 이벤트 행 수**를 세어 14일치 history를 남깁니다. 이 집계는 `GET https://t.aitc.dev/stats`로 누구나 인증 없이 조회할 수 있으며, **개수와 날짜만** 담깁니다 — 개별 이벤트나 `anon_id`는 노출되지 않습니다. (cron이 아직 한 번도 안 돈 환경에서는 `503`.) 비정상적으로 많은 행이 들어오면 운영자에게 알림이 가도록 임계값도 함께 설정돼 있습니다.
+
 ## 동의 / 거부
 
 기본값은 **opt-out**(전송하지 않음)입니다.
@@ -103,6 +107,7 @@ curl -X DELETE 'https://t.aitc.dev/e?anon_id=<당신의-anon_id>'
 - Staging 호스트: `t-staging.aitc.dev` (정책 검증용)
 - 저장소: Cloudflare D1 (이벤트) + KV (rate limit 상태)
 - 분당 IP 당 60요청 rate limit
+- 공개 집계 엔드포인트: `GET /stats` (개수·날짜만, 인증 없음)
 
 스키마는 [`migrations/0001_init.sql`](https://github.com/apps-in-toss-community/metrics-ingest/blob/main/migrations/0001_init.sql), 검증 규칙은 [`src/lib/schema.ts`](https://github.com/apps-in-toss-community/metrics-ingest/blob/main/src/lib/schema.ts)에 있습니다.
 
