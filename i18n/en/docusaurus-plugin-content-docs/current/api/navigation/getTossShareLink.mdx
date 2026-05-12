@@ -1,0 +1,81 @@
+---
+id: getTossShareLink
+title: getTossShareLink
+sidebar_label: getTossShareLink
+description: Generate a Toss in-app share link for a given path.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `getTossShareLink`
+
+Generates a Toss in-app share link for the given path and optional OG image URL. Pass the returned link to [`share`](./share) or copy it to the clipboard so other users can deep-link directly into a specific screen of the mini-app.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { getTossShareLink } from '@apps-in-toss/web-framework';
+
+declare function getTossShareLink(path: string, ogImageUrl?: string): Promise<string>;
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `path` | `string` | ✓ | The mini-app path the recipient will land on (e.g. `/products/123`). |
+| `ogImageUrl` | `string` | — | Optional OG image URL used for link previews in messengers and SMS. |
+
+## Returns
+
+- `Promise<string>` — the generated Toss in-app share link.
+- In the devtools mock, returns a placeholder of the form `https://toss.im/share/mock<path>`.
+
+## Permission
+
+No permission required.
+
+## Examples
+
+### Minimal
+
+```tsx
+import { getTossShareLink } from '@apps-in-toss/web-framework';
+
+const link = await getTossShareLink('/products/123');
+console.log(link);
+```
+
+### Realistic — generate then share
+
+```tsx
+import { getTossShareLink, share } from '@apps-in-toss/web-framework';
+
+async function shareProduct(productId: string, ogImageUrl: string) {
+  const link = await getTossShareLink(`/products/${productId}`, ogImageUrl);
+  await share({ message: link });
+}
+```
+
+## Try it live
+
+Open the Navigation page in sdk-example and run the `getTossShareLink` card.
+
+<TryItLink group="navigation" method="getTossShareLink" />
+
+## Related APIs
+
+- [`share`](./share) — open the system share sheet with a message.
+- [`openURL`](./openURL) — open an external URL.
+
+## Related guides
+
+- _(coming soon)_ Recipes — "Share link patterns"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
