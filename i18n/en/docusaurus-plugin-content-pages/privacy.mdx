@@ -61,6 +61,10 @@ The Worker additionally records the originating country code (Cloudflare's `cf.c
 
 Events are kept for **90 days only**. A daily cron at UTC 03:00 deletes rows older than `now - 90 days`.
 
+## Aggregate stats
+
+Alongside the retention sweep, the same daily cron counts **how many event rows arrived that day (UTC)** and keeps a 14-day history. Anyone can read this aggregate at `GET https://t.aitc.dev/stats` with no auth; it contains **counts and dates only** — no individual events or `anon_id`s are exposed. (Returns `503` in environments where the cron has not run yet.) A threshold is also configured so operators get an alert if an abnormal number of rows arrives.
+
 ## Consent / opt-out
 
 The default is **off**.
@@ -103,6 +107,7 @@ The ingest endpoint runs on Cloudflare Workers; the full source is public.
 - Staging host: `t-staging.aitc.dev` (for policy verification)
 - Storage: Cloudflare D1 (events) + KV (rate-limit state)
 - 60 requests/minute per IP
+- Public aggregate endpoint: `GET /stats` (counts and dates only, no auth)
 
 Schema at [`migrations/0001_init.sql`](https://github.com/apps-in-toss-community/metrics-ingest/blob/main/migrations/0001_init.sql); validation at [`src/lib/schema.ts`](https://github.com/apps-in-toss-community/metrics-ingest/blob/main/src/lib/schema.ts).
 
