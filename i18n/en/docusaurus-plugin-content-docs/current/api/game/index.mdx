@@ -1,0 +1,68 @@
+---
+id: game-overview
+title: game
+sidebar_label: Overview
+slug: /api/game
+description: SDK namespace for Toss Game Center — profile, leaderboard, and promotion rewards.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `game`
+
+Functions for Toss Game Center integration. Covers game profile lookup, leaderboard score submission and display, promotion reward grants, and anonymous key issuance. All functions return a `Promise` and require no explicit permission (`PermissionName`).
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Methods
+
+| Method | Return type | Purpose |
+| --- | --- | --- |
+| [`getGameCenterGameProfile`](/api/game/getGameCenterGameProfile) | `Promise<GameCenterGameProfileResponse \| undefined>` | Fetch the Toss Game Center profile (nickname, avatar). |
+| [`getUserKeyForGame`](/api/game/getUserKeyForGame) | `Promise<...>` | **Deprecated.** Issue an anonymous key for game sessions. Use `getAnonymousKey` instead. |
+| [`grantPromotionReward`](/api/game/grantPromotionReward) | `Promise<GrantPromotionRewardResult>` | Grant a promotion reward in any mini-app category. |
+| [`grantPromotionRewardForGame`](/api/game/grantPromotionRewardForGame) | `Promise<GrantPromotionRewardResult>` | **Deprecated.** Grant a promotion reward in game-category mini-apps. Use `grantPromotionReward` instead. |
+| [`openGameCenterLeaderboard`](/api/game/openGameCenterLeaderboard) | `Promise<void>` | Open the Game Center leaderboard web view. |
+| [`submitGameCenterLeaderBoardScore`](/api/game/submitGameCenterLeaderBoardScore) | `Promise<SubmitGameCenterLeaderBoardScoreResponse \| undefined>` | Submit a game score to the leaderboard. |
+
+## Permission
+
+No permission required. All functions in the `game` namespace are not bound to any `PermissionName`. Account binding is handled by the Toss session. `getPermission()` / `openPermissionDialog()` utilities are not exposed.
+
+## Minimum supported version
+
+Game Center APIs require **Toss app 5.221.0 or later** (Android and iOS). Calls on older versions return `undefined` or do nothing.
+
+```ts
+import { isMinVersionSupported } from '@apps-in-toss/web-framework';
+
+if (!isMinVersionSupported('5.221.0')) {
+  // Prompt the user to update the app.
+}
+```
+
+## Deprecated function migration
+
+| Old | New | Notes |
+| --- | --- | --- |
+| `getUserKeyForGame` | `getAnonymousKey` | Same type and behavior |
+| `grantPromotionRewardForGame` | `grantPromotionReward` | Expanded from game-only to all categories |
+
+## UX guidance
+
+- **Profiles may be absent.** `getGameCenterGameProfile` can return `statusCode: 'PROFILE_NOT_FOUND'`. Show a profile creation prompt in that case.
+- **Scores must be float strings.** `submitGameCenterLeaderBoardScore` expects a string like `"123.45"`, not a `number`.
+- **Handle reward error codes.** `grantPromotionReward` / `grantPromotionRewardForGame` return structured error codes — see each method page for the full list.
+- **Gate on version first.** An `undefined` return signals an outdated app. Pre-checking with `isMinVersionSupported` lets you show a clearer prompt.
+
+## Try it live
+
+All methods are available on the Game page in sdk-example.
+
+<TryItLink group="game" />
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

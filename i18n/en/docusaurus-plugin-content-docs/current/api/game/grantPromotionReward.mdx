@@ -1,0 +1,147 @@
+---
+id: grantPromotionReward
+title: grantPromotionReward
+sidebar_label: grantPromotionReward
+description: Grant a promotion reward to the user using a promotion code. Works in any mini-app category.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `grantPromotionReward`
+
+Grants a point reward to the user using a promotion code. Available in all mini-app categories. Successor to the deprecated [`grantPromotionRewardForGame`](./grantPromotionRewardForGame).
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { grantPromotionReward } from '@apps-in-toss/web-framework';
+
+type GrantPromotionRewardResult =
+  | { key: string }
+  | { code: string; [key: string]: unknown }
+  | { errorCode: string; message: string }
+  | 'ERROR'
+  | undefined;
+
+declare function grantPromotionReward(params: {
+  params: {
+    promotionCode: string;
+    amount: number;
+  };
+}): Promise<GrantPromotionRewardResult>;
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `params` | `object` | ✓ | Wrapper object containing reward details. |
+| `params.promotionCode` | `string` | ✓ | The pre-registered promotion code. |
+| `params.amount` | `number` | ✓ | Points to grant. |
+
+## Returns
+
+- `{ key: string }` — Grant succeeded. `key` is the reward key.
+- `{ errorCode: string; message: string }` — Grant failed. Error codes:
+  - `"4100"` — Promotion not found.
+  - `"4104"` — Promotion is paused.
+  - `"4105"` — Promotion has ended.
+  - `"4108"` — Promotion is not approved.
+  - `"4109"` — Promotion is not active.
+  - `"4110"` — Reward cannot be granted or revoked.
+  - `"4112"` — Insufficient promotion funds.
+  - `"4113"` — Already granted or revoked.
+  - `"4114"` — Exceeds the per-grant amount limit.
+- `'ERROR'` — Unknown error.
+- `undefined` — App version is below the minimum supported version.
+
+## Permission
+
+No permission required. Account binding is handled by the Toss session.
+
+## Examples
+
+### Minimal
+
+```tsx
+import { grantPromotionReward } from '@apps-in-toss/web-framework';
+
+const result = await grantPromotionReward({
+  params: { promotionCode: 'PROMO_2026', amount: 1000 },
+});
+
+if (!result) {
+  console.warn('App version is below the minimum supported version.');
+} else if (result === 'ERROR') {
+  console.error('Unknown error while granting reward.');
+} else if ('key' in result) {
+  console.log('Reward granted! Key:', result.key);
+} else if ('errorCode' in result) {
+  console.error('Grant failed:', result.errorCode, result.message);
+}
+```
+
+### Realistic — reward button with feedback
+
+```tsx
+import { grantPromotionReward } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+function RewardButton({ promotionCode }: { promotionCode: string }) {
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [message, setMessage] = useState('');
+
+  async function handleClick() {
+    setStatus('loading');
+    const result = await grantPromotionReward({
+      params: { promotionCode, amount: 500 },
+    });
+
+    if (!result) {
+      setStatus('error');
+      setMessage('Please update the Toss app.');
+    } else if (result === 'ERROR') {
+      setStatus('error');
+      setMessage('An error occurred. Please try again.');
+    } else if ('key' in result) {
+      setStatus('success');
+      setMessage('Reward granted!');
+    } else if ('errorCode' in result) {
+      setStatus('error');
+      setMessage(`Grant failed (${result.errorCode}): ${result.message}`);
+    }
+  }
+
+  return (
+    <div>
+      <button type="button" onClick={handleClick} disabled={status === 'loading'}>
+        Claim reward
+      </button>
+      {message && <p>{message}</p>}
+    </div>
+  );
+}
+```
+
+## Try it live
+
+Run the `grantPromotionReward` card on the Game page in sdk-example.
+
+<TryItLink group="game" method="grantPromotionReward" />
+
+## Related APIs
+
+- [`grantPromotionRewardForGame`](./grantPromotionRewardForGame) — (Deprecated) Game-category-only predecessor.
+- [`getGameCenterGameProfile`](./getGameCenterGameProfile) — Fetch the Game Center profile.
+
+## Related guides
+
+- _(coming soon)_ Recipes — Promotion reward grant patterns
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

@@ -1,0 +1,102 @@
+---
+id: getUserKeyForGame
+title: getUserKeyForGame
+sidebar_label: getUserKeyForGame
+description: "(Deprecated) Issue an anonymous key for game sessions. Use getAnonymousKey instead."
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `getUserKeyForGame`
+
+:::caution Deprecated
+`getUserKeyForGame` is deprecated. Use `getAnonymousKey` instead — the type and behavior are identical.
+:::
+
+Issues an anonymous key for game mini-apps, allowing your server to identify a game session without direct access to the user's Toss account.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { getUserKeyForGame } from '@apps-in-toss/web-framework';
+
+declare function getUserKeyForGame(): Promise<
+  | { key: string }
+  | 'INVALID_CATEGORY'
+  | 'ERROR'
+  | undefined
+>;
+```
+
+## Parameters
+
+None.
+
+## Returns
+
+- `Promise<{ key: string } | 'INVALID_CATEGORY' | 'ERROR' | undefined>`
+  - `{ key: string }` — Key issued successfully. Use it as a short-lived session token.
+  - `'INVALID_CATEGORY'` — Called from a mini-app that is not in the game category.
+  - `'ERROR'` — Unknown error.
+  - `undefined` — App version is below the minimum supported version.
+
+## Permission
+
+No permission required. Account binding is handled by the Toss session.
+
+## Migration
+
+Replace `getUserKeyForGame` with `getAnonymousKey`:
+
+```ts
+// Old
+import { getUserKeyForGame } from '@apps-in-toss/web-framework';
+const result = await getUserKeyForGame();
+
+// Recommended
+import { getAnonymousKey } from '@apps-in-toss/web-framework';
+const result = await getAnonymousKey();
+```
+
+## Examples
+
+### Minimal
+
+```tsx
+import { getUserKeyForGame } from '@apps-in-toss/web-framework';
+
+const result = await getUserKeyForGame();
+
+if (!result) {
+  console.warn('App version is below the minimum supported version.');
+} else if (result === 'INVALID_CATEGORY') {
+  console.error('Must be called from a game-category mini-app.');
+} else if (result === 'ERROR') {
+  console.error('Failed to issue anonymous key.');
+} else {
+  console.log('Anonymous key:', result.key);
+}
+```
+
+## Try it live
+
+Run the `getUserKeyForGame` card on the Auth page in sdk-example.
+
+<TryItLink group="auth" method="getUserKeyForGame" />
+
+## Related APIs
+
+- [`getGameCenterGameProfile`](./getGameCenterGameProfile) — Fetch the Game Center profile.
+- [`grantPromotionReward`](./grantPromotionReward) — Grant a promotion reward.
+
+## Related guides
+
+- _(coming soon)_ Guides — Anonymous key patterns for game session identification
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

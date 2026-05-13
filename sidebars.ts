@@ -136,6 +136,20 @@ const sidebars: SidebarsConfig = {
         },
         {
           type: 'category',
+          label: 'game',
+          collapsed: false,
+          items: [
+            'api/game/game-overview',
+            'api/game/getGameCenterGameProfile',
+            'api/game/getUserKeyForGame',
+            'api/game/grantPromotionReward',
+            'api/game/grantPromotionRewardForGame',
+            'api/game/openGameCenterLeaderboard',
+            'api/game/submitGameCenterLeaderBoardScore',
+          ],
+        },
+        {
+          type: 'category',
           label: 'haptic',
           collapsed: false,
           items: [
