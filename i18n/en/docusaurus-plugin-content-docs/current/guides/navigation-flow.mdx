@@ -1,0 +1,185 @@
+---
+id: navigation-flow
+title: Mini-app navigation flow patterns
+sidebar_label: Mini-app navigation flow patterns
+slug: /guides/navigation-flow
+description: How a mini-app screen enters, leaves, and presents itself inside the Toss container — entry/exit, opening external URLs, and screen-context APIs.
+---
+
+# Mini-app navigation flow patterns
+
+A mini-app runs inside the Toss app container. This guide collects the navigation APIs that decide **how your screens enter, how they leave, and how they present themselves** — each method page documents only its signature; timing, pairing, and environment differences live here.
+
+## Mini-app screen lifecycle at a glance
+
+```
+[Toss app container]
+      │
+      │ User opens the mini-app
+      ▼
+┌────────────────────────────────────┐
+│  First mini-app screen mounts      │
+│  └ Call setDeviceOrientation,      │
+│    setSecureScreen, setScreenAwakeMode
+│    once in the first effect       │
+└────────────────────────────────────┘
+      │
+      │ Internal routing (history API · React Router · etc.)
+      ▼
+┌────────────────────────────────────┐
+│  Other screens inside the mini-app │
+│  └ Adjust screen context on entry  │
+└────────────────────────────────────┘
+      │
+      │ openURL(...) or leave for outside
+      ▼
+[External browser / other app]
+      │
+      │ Or user explicitly finishes
+      ▼
+closeView() → back to the Toss container
+```
+
+The mental model:
+
+- **A mini-app is a single webview** — it has its own routing, like a browser. Screen transitions belong to your SPA router, not the SDK. The SDK shows up only at the **boundary** between webview and container.
+- **Screen context persists per-webview** — once you call `setDeviceOrientation('landscape')`, it stays until the mini-app exits. You don't re-call it per screen; you only re-call it when you have an explicit reason to change.
+- **The user owns exit** — your code rarely has good reason to force-close. Call `closeView` only after explicit "done" actions; never on a background timer or auto-redirect.
+
+## Set screen context once at entry
+
+Three calls are commonly paired — all are boolean toggles, all live at the **session level**, not the per-screen level.
+
+| API | What it changes | When to call |
+| --- | --- | --- |
+| [`setDeviceOrientation`](/api/navigation/setDeviceOrientation) | Locks rotation to `'portrait' \| 'landscape'` | On screens that need landscape (video, games) |
+| [`setScreenAwakeMode`](/api/navigation/setScreenAwakeMode) | Disables the auto-sleep timeout | On screens where users stare without touching (reading, watching, workouts) |
+| [`setSecureScreen`](/api/navigation/setSecureScreen) | Blocks OS screenshots and screen recording | On sensitive screens (payments, signing) |
+
+```tsx
+import {
+  setDeviceOrientation,
+  setScreenAwakeMode,
+  setSecureScreen,
+} from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function VideoPlayerScreen() {
+  useEffect(() => {
+    setDeviceOrientation({ type: 'landscape' });
+    setScreenAwakeMode({ enabled: true });
+
+    return () => {
+      // Reset to the default context when leaving.
+      setDeviceOrientation({ type: 'portrait' });
+      setScreenAwakeMode({ enabled: false });
+    };
+  }, []);
+
+  return <video ... />;
+}
+```
+
+If your baseline assumes portrait, awake off, secure off, restore those in your effect cleanup. Otherwise the next screen inherits your overrides.
+
+`setScreenAwakeMode` and `setSecureScreen` return `{ enabled: boolean }` — meaning the **request can be refused** even when the call doesn't throw (for example, the OS may not let you enforce a secure screen). Check the response and adjust your UI:
+
+```ts
+const { enabled } = await setSecureScreen({ enabled: true });
+if (!enabled) {
+  // Secure screen wasn't activated — warn the user about capture risk
+  // or skip the sensitive input step.
+}
+```
+
+## Disable the iOS edge-swipe gesture
+
+[`setIosSwipeGestureEnabled`](/api/navigation/setIosSwipeGestureEnabled) toggles iOS's edge-swipe-back gesture. Because your mini-app routes inside an SPA, an unintended system back-swipe at the container level pulls users out of the mini-app entirely.
+
+```tsx
+import { setIosSwipeGestureEnabled } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function MultiStepFormScreen() {
+  useEffect(() => {
+    setIosSwipeGestureEnabled({ isEnabled: false });
+    return () => {
+      setIosSwipeGestureEnabled({ isEnabled: true });
+    };
+  }, []);
+
+  return <Form ... />;
+}
+```
+
+**Rule of thumb**: keep `isEnabled: true` (the default) on entry screens so users can swipe back to the Toss container naturally. Toggle to `false` only on screens where an accidental back-swipe loses progress — multi-step forms, payments, games.
+
+## Open an external URL
+
+[`openURL`](/api/navigation/openURL) opens an external browser or another app (URL schemes supported). It **doesn't** redirect the mini-app's own webview — your mini-app stays alive while a new context opens externally.
+
+```tsx
+import { openURL } from '@apps-in-toss/web-framework';
+
+await openURL('https://example.com/help');
+// Your mini-app is still mounted; the user can come back.
+```
+
+Anti-patterns to avoid:
+
+- **Don't use it for internal routing.** Screen transitions within your mini-app belong to the SPA router.
+- **Don't pair it with `closeView`.** "Send the user out and close ourselves" leaves the container in an awkward state — users come back to an empty Toss screen.
+- **Only on explicit user action.** OS/browsers may block auto-redirects, and the context break is jarring either way.
+
+## Exit the mini-app
+
+[`closeView`](/api/navigation/closeView) closes the mini-app's webview and returns the user to the Toss container.
+
+```tsx
+import { closeView } from '@apps-in-toss/web-framework';
+
+async function handleComplete() {
+  // 1. Show a quick confirmation.
+  showAppToast('Your order is complete');
+  // 2. Then close after a moment.
+  await closeView();
+}
+```
+
+Timing rules:
+
+- **Only after explicit completion actions.** Bind to user buttons: "Done", "Close", "Cancel and go back".
+- **Don't auto-close from error dialogs.** If the webview disappears before the user reads the message, they don't know what happened.
+- **Don't bulldoze unsaved state.** Confirm before closing a partially filled form.
+
+## Common-mistakes checklist
+
+- Are you **resetting screen context** (`setDeviceOrientation`, etc.) in your effect cleanup? If not, the next screen inherits your overrides.
+- Are you **restoring** `setIosSwipeGestureEnabled({ isEnabled: true })` after toggling it off?
+- Are you **inspecting the `{ enabled }` response** from `setScreenAwakeMode` / `setSecureScreen`? Don't assume the request was honored.
+- Are you using `openURL` for internal navigation? Use your router instead.
+- Are you calling `closeView` from a timer or error callback? Move it to an explicit user action.
+
+## Environment differences
+
+- **Real Toss app**: every API works as documented. `setSecureScreen` typically succeeds on Android but may be refused on iOS depending on OS version and policy — always inspect the `enabled` response.
+- **devtools mock**: the [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) mock no-ops every navigation call and echoes the requested `{ enabled }` value. Verify real OS behavior on-device.
+- **External browser**: there is no container, so calls throw. Don't attempt routing outside the mini-app environment.
+
+## Related APIs
+
+- [`api/navigation`](/api/navigation) — `navigation` namespace overview.
+- [`closeView`](/api/navigation/closeView) — exit the mini-app.
+- [`openURL`](/api/navigation/openURL) — open an external URL or app.
+- [`setDeviceOrientation`](/api/navigation/setDeviceOrientation) — lock device rotation.
+- [`setIosSwipeGestureEnabled`](/api/navigation/setIosSwipeGestureEnabled) — toggle the iOS back-swipe gesture.
+- [`setScreenAwakeMode`](/api/navigation/setScreenAwakeMode) — toggle screen auto-sleep.
+- [`setSecureScreen`](/api/navigation/setSecureScreen) — toggle screenshot/recording protection.
+
+## Related guides
+
+- [Guides — Permissions pattern](/guides/permissions-pattern) — `navigation` has no permissions itself, but useful when navigation pairs with permission-gated APIs (e.g. location screens).
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — upstream SDK package.
