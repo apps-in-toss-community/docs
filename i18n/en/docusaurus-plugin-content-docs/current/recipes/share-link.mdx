@@ -1,0 +1,67 @@
+---
+id: share-link
+title: Share link patterns
+sidebar_label: Share link
+slug: /recipes/share-link
+description: Two paths — open the system share sheet with share(), or copy a deep link to the clipboard with getTossShareLink + setClipboardText.
+---
+
+# Share link patterns
+
+Two paths for sharing: open the system share sheet so the user can send it to any app, or copy the link directly to the clipboard.
+
+## Share via share sheet
+
+```tsx
+import { getTossShareLink, share } from '@apps-in-toss/web-framework';
+
+async function shareProductPage(productId: string, ogImageUrl?: string) {
+  const link = await getTossShareLink(`/products/${productId}`, ogImageUrl);
+  await share({
+    message: `Check this out!\n${link}`,
+  });
+}
+```
+
+`getTossShareLink` returns a URL that opens the mini-app at the given path when tapped. Pass `ogImageUrl` to show a link preview image in messengers like KakaoTalk.
+
+`share()` returns `void` — it does not reject when the user cancels, so no extra error handling is needed.
+
+## Copy link button
+
+When you only want to put the link on the clipboard without opening the share sheet:
+
+```tsx
+import { getTossShareLink, setClipboardText } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+export function CopyLinkButton({ path }: { path: string }) {
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  const onCopy = async () => {
+    try {
+      const link = await getTossShareLink(path);
+      await setClipboardText({ text: link });
+      setFeedback('Link copied');
+    } catch {
+      setFeedback('Copy failed');
+    }
+    setTimeout(() => setFeedback(null), 1500);
+  };
+
+  return (
+    <>
+      <button type="button" onClick={onCopy}>Copy link</button>
+      {feedback && <span role="status">{feedback}</span>}
+    </>
+  );
+}
+```
+
+Two steps in sequence: generate the link, then write to clipboard. Either step can fail — the `catch` branch shows the error feedback.
+
+## Related APIs
+
+- [`getTossShareLink`](/api/navigation/getTossShareLink) — generate an in-app share link.
+- [`share`](/api/navigation/share) — open the system share sheet.
+- [`setClipboardText`](/api/clipboard/setClipboardText) — write text to the clipboard.

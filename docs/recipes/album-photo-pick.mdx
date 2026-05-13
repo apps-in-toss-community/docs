@@ -1,0 +1,110 @@
+---
+image: /og/recipes-album-photo-pick.png
+id: album-photo-pick
+title: 앨범 사진 선택 UI 패턴
+sidebar_label: 앨범 사진 선택
+slug: /recipes/album-photo-pick
+description: fetchAlbumPhotos로 앨범을 열고, Base64 썸네일을 그리드로 표시한 뒤 선택한 사진을 서버에 업로드하는 흐름을 짧게 정리한 스니펫.
+---
+
+# 앨범 사진 선택 UI 패턴
+
+앨범을 열고 → 사진을 Base64로 받아 → 썸네일 그리드로 표시하고 → 선택한 사진을 서버에 올리는 흐름.
+
+## 사진 선택 후 그리드 표시
+
+```tsx
+import { fetchAlbumPhotos } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+interface Photo {
+  id: string;
+  dataUri: string;
+}
+
+export function PhotoPicker() {
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [message, setMessage] = useState('');
+
+  async function openAlbum() {
+    setMessage('');
+    const status = await fetchAlbumPhotos.getPermission();
+    if (status === 'denied') {
+      setMessage('설정에서 사진 접근 권한을 허용해 주세요.');
+      return;
+    }
+    if (status === 'notDetermined') {
+      await fetchAlbumPhotos.openPermissionDialog();
+    }
+
+    try {
+      const result = await fetchAlbumPhotos({ maxCount: 9, maxWidth: 360, base64: true });
+      setPhotos(result);
+      setSelected(new Set());
+    } catch {
+      setMessage('앨범을 불러오지 못했어요.');
+    }
+  }
+
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  return (
+    <div>
+      <button type="button" onClick={openAlbum}>앨범 열기</button>
+      {message && <p role="status">{message}</p>}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
+        {photos.map((photo) => (
+          <div
+            key={photo.id}
+            onClick={() => toggle(photo.id)}
+            style={{ outline: selected.has(photo.id) ? '3px solid #3182F6' : 'none', cursor: 'pointer' }}
+          >
+            <img
+              src={`data:image/jpeg;base64,${photo.dataUri}`}
+              alt=""
+              style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+`base64: true`로 받은 `dataUri`는 `data:image/jpeg;base64,` prefix를 붙여야 `<img src>`에서 동작한다.
+
+## 선택 후 서버 업로드
+
+```tsx
+async function uploadSelected(photos: Photo[], selected: Set<string>) {
+  const targets = photos.filter((p) => selected.has(p.id));
+  const form = new FormData();
+
+  for (const photo of targets) {
+    // Base64 → Blob 변환
+    const res = await fetch(`data:image/jpeg;base64,${photo.dataUri}`);
+    const blob = await res.blob();
+    form.append('photos', blob, `${photo.id}.jpg`);
+  }
+
+  await fetch('/api/upload', { method: 'POST', body: form });
+}
+```
+
+`fetch('data:...')`로 Base64를 Blob으로 바꿔 FormData에 붙이면 별도 디코딩 라이브러리 없이 처리할 수 있다.
+
+## 관련 API
+
+- [`fetchAlbumPhotos`](/api/camera/fetchAlbumPhotos) — 기기 앨범에서 사진 목록을 가져옵니다.
+
+## 관련 가이드
+
+- [Guides — 카메라/앨범 UX](/guides/camera-album-ux) — 권한 요청 타이밍과 촬영·앨범 선택 UX 전체 흐름.

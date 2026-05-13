@@ -1,0 +1,82 @@
+---
+image: /og/recipes-haptic-feedback.png
+id: haptic-feedback
+title: 햅틱 피드백 패턴
+sidebar_label: 햅틱 피드백
+slug: /recipes/haptic-feedback
+description: generateHapticFeedback을 토스 앱 밖에서도 안전하게 쓸 수 있는 useHaptic 래퍼와 이벤트별 타입 매핑 스니펫.
+---
+
+# 햅틱 피드백 패턴
+
+햅틱은 토스 앱 안에서만 실제 진동으로 동작한다. 브라우저 dev 환경에서는 콘솔 로그로만 출력되므로, 별도 환경 분기 없이 그대로 호출해도 무방하다. 아래는 이벤트별 타입을 한 곳에서 관리하는 래퍼 예시다.
+
+## useHaptic 훅
+
+```tsx
+import { generateHapticFeedback } from '@apps-in-toss/web-framework';
+import { useCallback } from 'react';
+
+type HapticEvent = 'tap' | 'success' | 'error' | 'celebrate';
+
+const HAPTIC_MAP: Record<HapticEvent, Parameters<typeof generateHapticFeedback>[0]['type']> = {
+  tap:       'tickWeak',
+  success:   'success',
+  error:     'error',
+  celebrate: 'confetti',
+};
+
+export function useHaptic() {
+  const trigger = useCallback(async (event: HapticEvent) => {
+    try {
+      await generateHapticFeedback({ type: HAPTIC_MAP[event] });
+    } catch {
+      // 진동 실패는 무시 — 기능에 영향 없음
+    }
+  }, []);
+
+  return trigger;
+}
+```
+
+`HapticEvent`는 앱 도메인 용어로, `HapticFeedbackType` 원본 값을 직접 여기저기 퍼뜨리지 않아도 된다. 새 이벤트를 추가할 때는 `HAPTIC_MAP`만 수정하면 된다.
+
+## 이벤트 매핑 예시
+
+| 상황 | 추천 타입 |
+|---|---|
+| 버튼 탭 | `tickWeak` |
+| 폼 제출 / 완료 | `success` |
+| 오류 / 입력 실패 | `error` |
+| 레벨 업 / 축하 | `confetti` |
+| 드래그 진입 / 피커 | `softMedium` |
+
+## 사용 예시
+
+```tsx
+import { useHaptic } from './useHaptic';
+
+export function SubmitButton({ onSubmit }: { onSubmit: () => Promise<void> }) {
+  const haptic = useHaptic();
+
+  const handleClick = async () => {
+    await haptic('tap');
+    try {
+      await onSubmit();
+      await haptic('success');
+    } catch {
+      await haptic('error');
+    }
+  };
+
+  return (
+    <button type="button" onClick={handleClick}>
+      제출
+    </button>
+  );
+}
+```
+
+## 관련 API
+
+- [`generateHapticFeedback`](/api/haptic/generateHapticFeedback) — 진동 타입별 햅틱 피드백을 발생시킵니다.

@@ -1,0 +1,77 @@
+---
+id: deeplink-routing
+title: Deeplink parameter parsing and routing
+sidebar_label: Deeplink parameter routing
+slug: /recipes/deeplink-routing
+description: Read the entry URI with getSchemeUri, parse path and query params with the URL API, then push to the app router. Includes defensive parsing for non-standard scheme URIs.
+---
+
+# Deeplink parameter parsing and routing
+
+`getSchemeUri()` returns the scheme URI that was used when the mini-app was first opened. Parse the path and query parameters from it, then navigate to the matching screen.
+
+## useDeeplinkParams hook
+
+```tsx
+import { getSchemeUri } from '@apps-in-toss/web-framework';
+import { useMemo } from 'react';
+
+interface DeeplinkInfo {
+  pathname: string;
+  params: Record<string, string>;
+}
+
+export function useDeeplinkParams(): DeeplinkInfo {
+  return useMemo(() => {
+    try {
+      const uri = getSchemeUri();
+      // Scheme URIs like "toss://..." are not parseable by the URL constructor directly.
+      // Swap the scheme for "https://" to extract pathname and searchParams.
+      const normalized = uri.replace(/^[a-z][a-z0-9+\-.]*:\/\//i, 'https://placeholder/');
+      const url = new URL(normalized);
+      const params: Record<string, string> = {};
+      url.searchParams.forEach((value, key) => {
+        params[key] = value;
+      });
+      return { pathname: url.pathname, params };
+    } catch {
+      return { pathname: '/', params: {} };
+    }
+  }, []);
+}
+```
+
+`getSchemeUri()` only reflects the **initial entry URI** and does not update on subsequent in-app navigation. Parsing once in `useMemo` is sufficient.
+
+## Router integration
+
+```tsx
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom'; // or your app's router
+import { useDeeplinkParams } from './useDeeplinkParams';
+
+const ROUTES: Record<string, string> = {
+  '/invite':   '/invite-landing',
+  '/product':  '/product-detail',
+  '/promo':    '/promotion',
+};
+
+export function DeeplinkRouter() {
+  const navigate = useNavigate();
+  const { pathname, params } = useDeeplinkParams();
+
+  useEffect(() => {
+    const target = ROUTES[pathname];
+    if (!target) return; // unknown path — show default screen
+    navigate(target, { state: params, replace: true });
+  }, []); // run once on mount
+
+  return null;
+}
+```
+
+Unknown paths (not in `ROUTES`) are silently ignored — the default entry screen remains. Centralising the route map means adding a new deeplink only requires one table update.
+
+## Related APIs
+
+- [`getSchemeUri`](/api/environment/getSchemeUri) — returns the scheme URI used when the mini-app was first opened.

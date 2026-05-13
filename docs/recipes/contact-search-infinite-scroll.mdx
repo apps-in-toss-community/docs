@@ -1,0 +1,118 @@
+---
+image: /og/recipes-contact-search-infinite-scroll.png
+id: contact-search-infinite-scroll
+title: 연락처 검색과 무한 스크롤 패턴
+sidebar_label: 연락처 검색 + 무한 스크롤
+slug: /recipes/contact-search-infinite-scroll
+description: fetchContacts의 offset/size 페이지네이션으로 무한 스크롤을 구현하고, 검색 입력을 디바운스해 네트워크 요청을 줄이는 패턴.
+---
+
+# 연락처 검색과 무한 스크롤 패턴
+
+`fetchContacts`는 `offset`/`size` 페이지네이션과 이름 검색(`query.contains`)을 지원한다. 두 기능을 조합해 무한 스크롤 연락처 검색 UI를 만드는 패턴이다.
+
+## 디바운스 검색 + 무한 스크롤
+
+```tsx
+import { fetchContacts } from '@apps-in-toss/web-framework';
+import { useEffect, useRef, useState } from 'react';
+
+const PAGE_SIZE = 20;
+
+interface Contact {
+  name: string;
+  phoneNumber: string;
+}
+
+export function ContactSearch() {
+  const [query, setQuery] = useState('');
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [nextOffset, setNextOffset] = useState<number | null>(0);
+  const [done, setDone] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [message, setMessage] = useState('');
+  const bottomRef = useRef<HTMLDivElement>(null);
+  // 디바운스용 타이머
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 검색어가 바뀌면 목록 초기화
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setContacts([]);
+      setNextOffset(0);
+      setDone(false);
+    }, 300);
+  }, [query]);
+
+  async function loadMore() {
+    if (done || pending || nextOffset === null) return;
+    setPending(true);
+    setMessage('');
+
+    const status = await fetchContacts.getPermission();
+    if (status === 'denied') {
+      setMessage('설정에서 연락처 접근 권한을 허용해 주세요.');
+      setPending(false);
+      return;
+    }
+    if (status === 'notDetermined') {
+      await fetchContacts.openPermissionDialog();
+    }
+
+    try {
+      const res = await fetchContacts({
+        size: PAGE_SIZE,
+        offset: nextOffset,
+        query: query.trim() ? { contains: query.trim() } : undefined,
+      });
+      setContacts((prev) => [...prev, ...res.result]);
+      setNextOffset(res.nextOffset);
+      setDone(res.done);
+    } catch {
+      setMessage('연락처를 불러오지 못했어요.');
+    } finally {
+      setPending(false);
+    }
+  }
+
+  // 스크롤 끝 감지 → 다음 페이지 로드
+  useEffect(() => {
+    const el = bottomRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) loadMore(); },
+      { threshold: 0.1 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  });
+
+  return (
+    <div>
+      <input
+        type="search"
+        placeholder="이름으로 검색"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      />
+      <ul>
+        {contacts.map((c, i) => (
+          <li key={i}>{c.name} — {c.phoneNumber}</li>
+        ))}
+      </ul>
+      {message && <p role="status">{message}</p>}
+      {!done && <div ref={bottomRef} style={{ height: 1 }} />}
+      {done && contacts.length > 0 && <p>모든 연락처를 불러왔어요.</p>}
+    </div>
+  );
+}
+```
+
+- 검색어가 바뀔 때마다 300ms 디바운스 후 목록을 초기화한다. 타이핑 중 불필요한 요청을 줄인다.
+- `IntersectionObserver`로 리스트 맨 아래 요소가 뷰포트에 들어오면 `loadMore`를 호출한다.
+- `nextOffset`이 `null`이면 더 이상 데이터가 없으므로 요청하지 않는다.
+
+## 관련 API
+
+- [`fetchContacts`](/api/contacts/fetchContacts) — 연락처 목록을 페이지 단위로 조회합니다.

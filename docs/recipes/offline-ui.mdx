@@ -1,0 +1,104 @@
+---
+image: /og/recipes-offline-ui.png
+id: offline-ui
+title: 오프라인 대응 UI 패턴
+sidebar_label: 오프라인 대응 UI
+slug: /recipes/offline-ui
+description: getNetworkStatus를 폴링해 오프라인 여부를 감지하고, 상태에 따라 배너를 표시하거나 네트워크 요청을 차단하는 패턴.
+---
+
+# 오프라인 대응 UI 패턴
+
+`getNetworkStatus()`는 단일 호출로 현재 연결 상태를 반환한다. SDK에 이벤트 구독 API가 없으므로 폴링으로 변화를 감지한다.
+
+## useNetworkStatus 훅
+
+```tsx
+import { getNetworkStatus } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+type NetworkStatus = 'OFFLINE' | 'WIFI' | '2G' | '3G' | '4G' | '5G' | 'WWAN' | 'UNKNOWN';
+
+export function useNetworkStatus(intervalMs = 5000) {
+  const [status, setStatus] = useState<NetworkStatus | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    async function check() {
+      try {
+        const s = await getNetworkStatus();
+        if (active) setStatus(s);
+      } catch {
+        // 상태 조회 실패 시 이전 값 유지
+      }
+    }
+
+    check(); // 마운트 즉시 1회
+    const id = setInterval(check, intervalMs);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+  }, [intervalMs]);
+
+  return status;
+}
+```
+
+`active` 플래그로 unmount 후 setState를 막는다. 폴링 간격은 `intervalMs`로 조정할 수 있다.
+
+## 오프라인 배너
+
+```tsx
+import { useNetworkStatus } from './useNetworkStatus';
+
+export function OfflineBanner() {
+  const status = useNetworkStatus();
+  const isOffline = status === 'OFFLINE';
+
+  if (!isOffline) return null;
+
+  return (
+    <div
+      role="alert"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        padding: '8px 16px',
+        background: '#222',
+        color: '#fff',
+        textAlign: 'center',
+        fontSize: 14,
+        zIndex: 9999,
+      }}
+    >
+      인터넷에 연결되지 않았어요. 연결 후 다시 시도해 주세요.
+    </div>
+  );
+}
+```
+
+## 네트워크 요청 전 체크
+
+빠른 연결 확인이 필요할 때 훅 없이 직접 호출도 가능하다:
+
+```tsx
+import { getNetworkStatus } from '@apps-in-toss/web-framework';
+
+async function fetchWithNetworkGuard(url: string) {
+  const status = await getNetworkStatus();
+  if (status === 'OFFLINE') {
+    throw new Error('오프라인 상태입니다. 나중에 다시 시도해 주세요.');
+  }
+  return fetch(url);
+}
+```
+
+`'WWAN'`과 `'UNKNOWN'`은 "연결은 됐지만 유형 파악 불가" 상태이므로 오프라인으로 간주하지 않는다. 네트워크 요청은 시도하되 대역폭 의존 처리(고화질 영상 스트리밍 등)는 피하는 것이 안전하다.
+
+## 관련 API
+
+- [`getNetworkStatus`](/api/environment/getNetworkStatus) — 현재 네트워크 연결 상태를 반환합니다.

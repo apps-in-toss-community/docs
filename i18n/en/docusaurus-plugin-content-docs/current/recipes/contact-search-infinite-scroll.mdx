@@ -1,0 +1,116 @@
+---
+id: contact-search-infinite-scroll
+title: Contact search with infinite scroll
+sidebar_label: Contact search + infinite scroll
+slug: /recipes/contact-search-infinite-scroll
+description: Combine fetchContacts offset/size pagination with an IntersectionObserver scroll trigger and a debounced search input to build an infinite-scroll contact search UI.
+---
+
+# Contact search with infinite scroll
+
+`fetchContacts` supports `offset`/`size` pagination and name filtering via `query.contains`. This pattern combines both to build an infinite-scroll contact search UI.
+
+## Debounced search + infinite scroll
+
+```tsx
+import { fetchContacts } from '@apps-in-toss/web-framework';
+import { useEffect, useRef, useState } from 'react';
+
+const PAGE_SIZE = 20;
+
+interface Contact {
+  name: string;
+  phoneNumber: string;
+}
+
+export function ContactSearch() {
+  const [query, setQuery] = useState('');
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [nextOffset, setNextOffset] = useState<number | null>(0);
+  const [done, setDone] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [message, setMessage] = useState('');
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Reset list when query changes (debounced)
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setContacts([]);
+      setNextOffset(0);
+      setDone(false);
+    }, 300);
+  }, [query]);
+
+  async function loadMore() {
+    if (done || pending || nextOffset === null) return;
+    setPending(true);
+    setMessage('');
+
+    const status = await fetchContacts.getPermission();
+    if (status === 'denied') {
+      setMessage('Please allow contact access in Settings.');
+      setPending(false);
+      return;
+    }
+    if (status === 'notDetermined') {
+      await fetchContacts.openPermissionDialog();
+    }
+
+    try {
+      const res = await fetchContacts({
+        size: PAGE_SIZE,
+        offset: nextOffset,
+        query: query.trim() ? { contains: query.trim() } : undefined,
+      });
+      setContacts((prev) => [...prev, ...res.result]);
+      setNextOffset(res.nextOffset);
+      setDone(res.done);
+    } catch {
+      setMessage('Could not load contacts. Please try again.');
+    } finally {
+      setPending(false);
+    }
+  }
+
+  // Trigger next page when bottom sentinel enters the viewport
+  useEffect(() => {
+    const el = bottomRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) loadMore(); },
+      { threshold: 0.1 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  });
+
+  return (
+    <div>
+      <input
+        type="search"
+        placeholder="Search by name"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      />
+      <ul>
+        {contacts.map((c, i) => (
+          <li key={i}>{c.name} — {c.phoneNumber}</li>
+        ))}
+      </ul>
+      {message && <p role="status">{message}</p>}
+      {!done && <div ref={bottomRef} style={{ height: 1 }} />}
+      {done && contacts.length > 0 && <p>All contacts loaded.</p>}
+    </div>
+  );
+}
+```
+
+- A 300 ms debounce resets the list whenever the query changes, preventing requests on every keystroke.
+- `IntersectionObserver` fires `loadMore` when the bottom sentinel div enters the viewport.
+- When `nextOffset` is `null`, the data is exhausted — no further requests are made.
+
+## Related APIs
+
+- [`fetchContacts`](/api/contacts/fetchContacts) — fetch contacts with offset/size pagination.

@@ -1,0 +1,79 @@
+---
+image: /og/recipes-deeplink-routing.png
+id: deeplink-routing
+title: 딥링크 파라미터 파싱 및 라우팅 패턴
+sidebar_label: 딥링크 파라미터 라우팅
+slug: /recipes/deeplink-routing
+description: getSchemeUri로 진입 URI를 읽고, URL 파싱으로 경로와 쿼리 파라미터를 추출해 앱 라우터로 이동하는 패턴.
+---
+
+# 딥링크 파라미터 파싱 및 라우팅 패턴
+
+`getSchemeUri()`는 미니앱 최초 진입 시 사용된 딥링크 URI를 문자열로 반환한다. 이 URI에서 경로와 쿼리 파라미터를 파싱해 해당 화면으로 라우팅하는 패턴이다.
+
+## useDeeplinkParams 훅
+
+```tsx
+import { getSchemeUri } from '@apps-in-toss/web-framework';
+import { useMemo } from 'react';
+
+interface DeeplinkInfo {
+  pathname: string;
+  params: Record<string, string>;
+}
+
+export function useDeeplinkParams(): DeeplinkInfo {
+  return useMemo(() => {
+    try {
+      const uri = getSchemeUri();
+      // 스킴 URI는 "toss://..." 형태이므로 URL 생성자가 직접 파싱하지 못할 수 있다.
+      // "https://" 로 대체해 pathname과 searchParams를 추출한다.
+      const normalized = uri.replace(/^[a-z][a-z0-9+\-.]*:\/\//i, 'https://placeholder/');
+      const url = new URL(normalized);
+      const params: Record<string, string> = {};
+      url.searchParams.forEach((value, key) => {
+        params[key] = value;
+      });
+      return { pathname: url.pathname, params };
+    } catch {
+      return { pathname: '/', params: {} };
+    }
+  }, []);
+}
+```
+
+`getSchemeUri()`는 **최초 진입 시 값만** 반환하며 이후 내비게이션에 따라 바뀌지 않는다. 앱 마운트 시점에 한 번 파싱하면 충분하므로 `useMemo`로 캐시한다.
+
+## 라우터로 이동
+
+```tsx
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom'; // 또는 앱의 라우터 API
+import { useDeeplinkParams } from './useDeeplinkParams';
+
+const ROUTES: Record<string, string> = {
+  '/invite':   '/invite-landing',
+  '/product':  '/product-detail',
+  '/promo':    '/promotion',
+};
+
+export function DeeplinkRouter() {
+  const navigate = useNavigate();
+  const { pathname, params } = useDeeplinkParams();
+
+  useEffect(() => {
+    const target = ROUTES[pathname];
+    if (!target) return;
+    // 쿼리 파라미터를 state 또는 search로 전달
+    navigate(target, { state: params, replace: true });
+  }, []); // 마운트 시 1회만
+
+  return null;
+}
+```
+
+알 수 없는 경로(`ROUTES`에 없는)는 무시한다 — 기본 진입 화면 그대로 표시한다. 경로 매핑을 집중 관리하면 딥링크 추가 시 이 테이블만 수정하면 된다.
+
+## 관련 API
+
+- [`getSchemeUri`](/api/environment/getSchemeUri) — 화면 최초 진입 시 사용된 스킴 URI를 반환합니다.

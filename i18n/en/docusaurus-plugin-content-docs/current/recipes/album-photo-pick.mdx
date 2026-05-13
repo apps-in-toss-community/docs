@@ -1,0 +1,109 @@
+---
+id: album-photo-pick
+title: Album photo picker UI patterns
+sidebar_label: Album photo picker
+slug: /recipes/album-photo-pick
+description: Open the album with fetchAlbumPhotos, render Base64 thumbnails in a grid, let the user pick, then upload the selected photos to a server.
+---
+
+# Album photo picker UI patterns
+
+Open the album → receive photos as Base64 → show a thumbnail grid → upload the selection to a server.
+
+## Photo grid with selection
+
+```tsx
+import { fetchAlbumPhotos } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+interface Photo {
+  id: string;
+  dataUri: string;
+}
+
+export function PhotoPicker() {
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [message, setMessage] = useState('');
+
+  async function openAlbum() {
+    setMessage('');
+    const status = await fetchAlbumPhotos.getPermission();
+    if (status === 'denied') {
+      setMessage('Please allow photo access in Settings.');
+      return;
+    }
+    if (status === 'notDetermined') {
+      await fetchAlbumPhotos.openPermissionDialog();
+    }
+
+    try {
+      const result = await fetchAlbumPhotos({ maxCount: 9, maxWidth: 360, base64: true });
+      setPhotos(result);
+      setSelected(new Set());
+    } catch {
+      setMessage('Could not load the album. Please try again.');
+    }
+  }
+
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  return (
+    <div>
+      <button type="button" onClick={openAlbum}>Open album</button>
+      {message && <p role="status">{message}</p>}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
+        {photos.map((photo) => (
+          <div
+            key={photo.id}
+            onClick={() => toggle(photo.id)}
+            style={{ outline: selected.has(photo.id) ? '3px solid #3182F6' : 'none', cursor: 'pointer' }}
+          >
+            <img
+              src={`data:image/jpeg;base64,${photo.dataUri}`}
+              alt=""
+              style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+When `base64: true` is set, the `dataUri` field contains a raw Base64 string — prepend `data:image/jpeg;base64,` to use it in an `<img src>`.
+
+## Upload selected photos
+
+```tsx
+async function uploadSelected(photos: Photo[], selected: Set<string>) {
+  const targets = photos.filter((p) => selected.has(p.id));
+  const form = new FormData();
+
+  for (const photo of targets) {
+    // Base64 → Blob
+    const res = await fetch(`data:image/jpeg;base64,${photo.dataUri}`);
+    const blob = await res.blob();
+    form.append('photos', blob, `${photo.id}.jpg`);
+  }
+
+  await fetch('/api/upload', { method: 'POST', body: form });
+}
+```
+
+`fetch('data:...')` converts Base64 to a Blob without any third-party library, then appends it to `FormData` for a standard multipart upload.
+
+## Related APIs
+
+- [`fetchAlbumPhotos`](/api/camera/fetchAlbumPhotos) — fetch photos from the device album.
+
+## Related guides
+
+- [Guides — Camera/album UX](/guides/camera-album-ux) — permission timing and the full camera/album UX flow.

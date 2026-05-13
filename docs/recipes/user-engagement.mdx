@@ -1,0 +1,69 @@
+---
+image: /og/recipes-user-engagement.png
+id: user-engagement
+title: 사용자 인게이지먼트 패턴
+sidebar_label: 사용자 인게이지먼트
+slug: /recipes/user-engagement
+description: requestReview를 긍정적 이벤트 직후에 호출하고, localStorage 빈도 제한으로 같은 세션에서 여러 번 뜨지 않게 하는 패턴.
+---
+
+# 사용자 인게이지먼트 패턴
+
+`requestReview()`는 호스트 앱의 스토어 리뷰 다이얼로그를 트리거한다. OS가 실제로 표시할지는 플랫폼이 결정하므로, 개발자가 할 수 있는 것은 **시점 선택**이다 — 사용자가 가장 만족한 순간에 호출해야 한다.
+
+## 언제 호출할 것인가
+
+| 좋은 시점 | 피해야 할 시점 |
+|---|---|
+| 주문/미션/목표 완료 직후 | 앱 진입 즉시 |
+| N번째 재방문 or N번째 완료 | 오류 발생 직후 |
+| 긍정적 인터랙션(보상 수령) 후 | 화면 전환 중 |
+
+## 빈도 제한을 적용한 호출
+
+```tsx
+import { requestReview } from '@apps-in-toss/web-framework';
+
+const REVIEW_COOLDOWN_KEY = 'review_last_requested_at';
+const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7일
+
+async function maybeRequestReview() {
+  try {
+    const raw = localStorage.getItem(REVIEW_COOLDOWN_KEY);
+    const lastAt = raw ? Number(raw) : 0;
+    if (Date.now() - lastAt < COOLDOWN_MS) return; // 쿨다운 중
+
+    await requestReview();
+    localStorage.setItem(REVIEW_COOLDOWN_KEY, String(Date.now()));
+  } catch {
+    // 리뷰 요청 실패는 무시 — 기능에 영향 없음
+  }
+}
+```
+
+7일 내에 이미 요청했다면 다시 트리거하지 않는다. OS 내부 제한(단기간 중복 차단)이 있더라도 앱 레벨에서도 한 번 더 방어하는 것이 좋다.
+
+## 긍정 이벤트에 연결
+
+```tsx
+async function onMissionComplete(completedCount: number) {
+  // 3번째, 10번째 완료 시점에 리뷰 요청
+  if (completedCount === 3 || completedCount === 10) {
+    await maybeRequestReview();
+  }
+}
+```
+
+특정 횟수 기준이 아니라 "긍정 상태가 유지되는 동안 딱 한 번"을 원한다면 localStorage 플래그 하나로도 충분하다:
+
+```tsx
+async function onFirstRewardReceived() {
+  if (localStorage.getItem('review_requested')) return;
+  await requestReview();
+  localStorage.setItem('review_requested', '1');
+}
+```
+
+## 관련 API
+
+- [`requestReview`](/api/navigation/requestReview) — 앱 스토어 리뷰 요청 다이얼로그를 트리거합니다.
