@@ -51,6 +51,17 @@ const sidebars: SidebarsConfig = {
         },
         {
           type: 'category',
+          label: 'contacts',
+          collapsed: false,
+          items: [
+            'api/contacts/contacts-overview',
+            'api/contacts/contactsViral',
+            'api/contacts/fetchAlbumPhotos',
+            'api/contacts/fetchContacts',
+          ],
+        },
+        {
+          type: 'category',
           label: 'environment',
           collapsed: false,
           items: [

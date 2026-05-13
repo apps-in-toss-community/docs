@@ -1,0 +1,58 @@
+---
+id: contacts-overview
+title: contacts
+sidebar_label: Overview
+slug: /api/contacts
+description: SDK namespace for fetching contacts, album photos, and viral sharing rewards.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `contacts`
+
+Namespace for paginated contact list retrieval, viral sharing rewards, and device album photo fetching. `fetchContacts` and `fetchAlbumPhotos` are Promise-based; `contactsViral` uses an event callback model.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Methods
+
+| Method | Return type | Purpose |
+| --- | --- | --- |
+| [`contactsViral`](/api/contacts/contactsViral) | `() => void` | Open the viral sharing reward module. Results arrive via event callbacks. |
+| [`fetchAlbumPhotos`](/api/contacts/fetchAlbumPhotos) | `Promise<ImageResponse[]>` | Fetch photo list from the device album. |
+| [`fetchContacts`](/api/contacts/fetchContacts) | `Promise<ContactResult>` | Retrieve the user's contact list in pages. |
+
+## Permission
+
+Each function in this namespace requires its own permission.
+
+| Method | PermissionName |
+| --- | --- |
+| `contactsViral` | `contacts` |
+| `fetchAlbumPhotos` | `photos` |
+| `fetchContacts` | `contacts` |
+
+`fetchContacts` and `contactsViral` share the same `contacts` permission, so a single permission check covers both. `fetchAlbumPhotos` requires the separate `photos` permission.
+
+- If the permission is **`denied`**, calls fail. Check with `getPermission()` first.
+- If not yet determined, prompt the system dialog with `openPermissionDialog()`.
+
+See [Guides — Permissions pattern](/guides/permissions-pattern) for the full flow.
+
+## UX guidance
+
+- **`fetchContacts` is paginated.** Start with `offset: 0`, then pass the returned `nextOffset` on each subsequent call. `done: true` means no more data.
+- **Control load with `fetchAlbumPhotos`'s `maxCount`.** Requesting too many photos at once can affect memory and performance.
+- **Always call the `contactsViral` cleanup function.** Invoke the returned cleanup when the component unmounts to release resources.
+
+## Try it live
+
+Run the methods on the Contacts page in sdk-example.
+
+<TryItLink group="contacts" />
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
