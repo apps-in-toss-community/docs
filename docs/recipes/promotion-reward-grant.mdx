@@ -1,0 +1,114 @@
+---
+image: /og/recipes-promotion-reward-grant.png
+id: promotion-reward-grant
+title: 프로모션 리워드 지급 패턴
+sidebar_label: 프로모션 리워드 지급
+slug: /recipes/promotion-reward-grant
+description: 서버가 "지급 준비됨" 신호를 보내면 클라이언트가 grantPromotionReward를 호출하고, 에러 코드별로 분기하는 짧은 스니펫.
+---
+
+# 프로모션 리워드 지급 패턴
+
+친구 초대 수락 같은 이벤트가 완료됐을 때, 서버가 클라이언트에 신호를 보내면 클라이언트는 `grantPromotionReward`를 호출합니다. 초대 공유 → 수락 → 지급에 이르는 전체 시퀀스는 [Guides — Viral 리워드 흐름](/guides/viral-reward-flow)을 참고하세요. 여기서는 지급 호출 부분만 다룹니다.
+
+## 기본 지급 함수
+
+```ts
+import { grantPromotionReward } from '@apps-in-toss/web-framework';
+
+async function claimReward({
+  promotionCode,
+  amount,
+}: {
+  promotionCode: string;
+  amount: number;
+}): Promise<{ key: string } | null> {
+  const result = await grantPromotionReward({ params: { promotionCode, amount } });
+
+  if (!result) {
+    // undefined: 앱 버전이 최소 지원 버전보다 낮음.
+    throw new Error('APP_VERSION_TOO_LOW');
+  }
+
+  if (result === 'ERROR') {
+    throw new Error('UNKNOWN_GRANT_ERROR');
+  }
+
+  if ('key' in result) {
+    // 지급 성공. key를 서버에 기록해 감사 로그로 활용하세요.
+    return result;
+  }
+
+  if (result.errorCode === '4113') {
+    // "이미 지급됨" — 서버 idempotency 정상 동작. 오류로 처리하지 마세요.
+    return null;
+  }
+
+  throw new Error(`GRANT_FAILED:${result.errorCode}`);
+}
+```
+
+`errorCode: "4113"`은 중복 지급을 서버가 막아준 것입니다. 진짜 오류가 아니라 idempotency가 정상 동작한 신호이므로 UI에서 에러로 표시하지 않습니다.
+
+## 서버 신호 수신 후 지급 트리거
+
+```tsx
+import { useEffect, useState } from 'react';
+
+function RewardClaimSection({
+  promotionCode,
+  amount,
+}: {
+  promotionCode: string;
+  amount: number;
+}) {
+  const [state, setState] = useState<'idle' | 'claiming' | 'done' | 'error'>('idle');
+
+  // 앱 진입 시 서버에서 지급 가능 여부를 조회합니다.
+  useEffect(() => {
+    fetch('/api/reward/pending')
+      .then((res) => res.json())
+      .then((data: { hasPending: boolean }) => {
+        if (data.hasPending) setState('idle');
+      })
+      .catch(console.warn);
+  }, []);
+
+  async function handleClaim() {
+    if (state === 'claiming' || state === 'done') return;
+    setState('claiming');
+    try {
+      const result = await claimReward({ promotionCode, amount });
+      if (result) {
+        // 서버에 지급 완료 기록
+        await fetch('/api/reward/mark-granted', {
+          method: 'POST',
+          body: JSON.stringify({ key: result.key }),
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      setState('done');
+    } catch {
+      setState('error');
+    }
+  }
+
+  if (state === 'done') return <p role="status">리워드가 지급되었습니다!</p>;
+  if (state === 'error') return <p role="alert">지급 중 오류가 발생했습니다. 다시 시도해 주세요.</p>;
+
+  return (
+    <button type="button" onClick={handleClaim} disabled={state === 'claiming'}>
+      {state === 'claiming' ? '지급 중…' : '리워드 받기'}
+    </button>
+  );
+}
+```
+
+## 관련 API
+
+- [`grantPromotionReward`](/api/game/grantPromotionReward) — 프로모션 코드로 리워드를 지급 (현재 권장).
+- [`grantPromotionRewardForGame`](/api/game/grantPromotionRewardForGame) — (Deprecated) 게임 카테고리 전용 이전 함수. 파라미터·반환 타입 동일.
+
+## 관련 가이드
+
+- [Viral 리워드 흐름](/guides/viral-reward-flow) — 초대 공유(`contactsViral`)부터 친구 수락 이벤트, `grantPromotionReward` 호출까지 전체 시퀀스와 중복 지급 방지 패턴.

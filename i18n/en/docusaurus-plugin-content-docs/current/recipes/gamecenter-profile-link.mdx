@@ -1,0 +1,105 @@
+---
+id: gamecenter-profile-link
+title: Game center profile link
+sidebar_label: Game center profile
+slug: /recipes/gamecenter-profile-link
+description: Short snippets for populating a profile slot at app entry with getGameCenterGameProfile, including a fallback when the profile is null.
+---
+
+# Game center profile link
+
+The shortest path to displaying a Game Center nickname and profile image in your game UI. Fetch the profile at app entry and show a creation prompt when it is missing.
+
+## Populating the profile slot
+
+```tsx
+import { getGameCenterGameProfile } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+type ProfileState =
+  | { status: 'loading' }
+  | { status: 'found'; nickname: string; profileImageUri: string }
+  | { status: 'not_found' }
+  | { status: 'unsupported' };
+
+function useGameCenterProfile() {
+  const [profile, setProfile] = useState<ProfileState>({ status: 'loading' });
+
+  useEffect(() => {
+    getGameCenterGameProfile().then((result) => {
+      if (!result) {
+        setProfile({ status: 'unsupported' });
+      } else if (result.statusCode === 'PROFILE_NOT_FOUND') {
+        setProfile({ status: 'not_found' });
+      } else {
+        setProfile({
+          status: 'found',
+          nickname: result.nickname,
+          profileImageUri: result.profileImageUri,
+        });
+      }
+    });
+  }, []);
+
+  return profile;
+}
+```
+
+## Profile slot component
+
+```tsx
+function ProfileSlot() {
+  const profile = useGameCenterProfile();
+
+  if (profile.status === 'loading') {
+    return <div className="profile-skeleton" aria-busy="true" />;
+  }
+
+  if (profile.status === 'unsupported') {
+    // App version too low — hide the slot or show an update prompt.
+    return null;
+  }
+
+  if (profile.status === 'not_found') {
+    // No profile — show a creation CTA.
+    return <button type="button">Create Game Center profile</button>;
+  }
+
+  return (
+    <div className="profile-slot">
+      <img src={profile.profileImageUri} alt="Profile" width={40} height={40} />
+      <span>{profile.nickname}</span>
+    </div>
+  );
+}
+```
+
+Keep `PROFILE_NOT_FOUND` and `unsupported` (i.e., `undefined`) separate. The former calls for a profile-creation CTA; the latter calls for an app-update prompt.
+
+## Profile guard before score submission
+
+Checking whether a profile exists before calling `submitGameCenterLeaderBoardScore` prevents the `PROFILE_NOT_FOUND` status code from surfacing mid-flow.
+
+```tsx
+import {
+  getGameCenterGameProfile,
+  submitGameCenterLeaderBoardScore,
+} from '@apps-in-toss/web-framework';
+
+async function submitIfProfileExists(score: number): Promise<boolean> {
+  const profile = await getGameCenterGameProfile();
+  if (!profile || profile.statusCode === 'PROFILE_NOT_FOUND') return false;
+
+  const result = await submitGameCenterLeaderBoardScore({ score: String(score) });
+  return result?.statusCode === 'SUCCESS';
+}
+```
+
+## Related APIs
+
+- [`getGameCenterGameProfile`](/api/game/getGameCenterGameProfile) — Fetch the Game Center nickname and profile image URL.
+- [`submitGameCenterLeaderBoardScore`](/api/game/submitGameCenterLeaderBoardScore) — Submit a score to the leaderboard.
+
+## Related guides
+
+- [Anonymous key game session](/guides/anonymous-key-game-session) — Identify game progress without login and trigger login at the leaderboard submission moment.

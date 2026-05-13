@@ -248,7 +248,10 @@ const sidebars: SidebarsConfig = {
       items: [
         'recipes/click-event-tracking',
         'recipes/copy-paste-ux',
+        'recipes/gamecenter-profile-link',
         'recipes/impression-tracking',
+        'recipes/post-game-leaderboard-link',
+        'recipes/promotion-reward-grant',
         'recipes/screen-entry-tracking',
         'recipes/user-settings-persistence',
       ],
