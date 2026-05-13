@@ -85,4 +85,4 @@ CI runs the default mode on every PR (job: `verify-crosslinks`). External fetch 
 
 ---
 
-토스와 제휴하지 않은 커뮤니티 프로젝트입니다.
+커뮤니티 오픈소스 프로젝트입니다.
