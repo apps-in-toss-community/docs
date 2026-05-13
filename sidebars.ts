@@ -16,6 +16,7 @@ const sidebars: SidebarsConfig = {
       label: 'Guides',
       collapsed: false,
       items: [
+        'guides/accessory-button-ux',
         'guides/ads-integration',
         'guides/auth-flow',
         'guides/event-subscription',
