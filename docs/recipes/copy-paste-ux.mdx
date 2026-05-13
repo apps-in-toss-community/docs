@@ -1,0 +1,70 @@
+---
+image: /og/recipes-copy-paste-ux.png
+id: copy-paste-ux
+title: 복사/붙여넣기 UX 패턴
+sidebar_label: 복사/붙여넣기 UX
+slug: /recipes/copy-paste-ux
+description: setClipboardText로 복사한 직후 사용자에게 토스트로 알리고, getClipboardText로 붙여넣은 텍스트는 trim과 길이 제한을 거치는 한 화면 안의 짧은 스니펫.
+---
+
+# 복사/붙여넣기 UX 패턴
+
+복사 직후 사용자에게 즉시 피드백을 주고, 붙여넣은 텍스트는 그대로 믿지 않는다. 짧은 스니펫 두 개.
+
+## 복사 후 피드백
+
+```tsx
+import { setClipboardText } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+function CopyButton({ value }: { value: string }) {
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  const onCopy = async () => {
+    try {
+      await setClipboardText({ text: value });
+      setFeedback('복사했어요');
+    } catch {
+      setFeedback('복사하지 못했어요');
+    }
+    setTimeout(() => setFeedback(null), 1500);
+  };
+
+  return (
+    <>
+      <button type="button" onClick={onCopy}>복사</button>
+      {feedback && <span role="status">{feedback}</span>}
+    </>
+  );
+}
+```
+
+`role="status"`로 스크린리더에도 노출. 토스트 라이브러리가 따로 있다면 거기로 보내도 OK — 핵심은 "복사 직후 1회 피드백 + 1–2초 후 자동 사라짐".
+
+## 붙여넣을 때 정제
+
+```tsx
+import { getClipboardText } from '@apps-in-toss/web-framework';
+
+const MAX_LEN = 200;
+
+async function pasteSanitized(): Promise<string | null> {
+  try {
+    const { text } = await getClipboardText();
+    const trimmed = text.trim();
+    if (trimmed.length === 0) return null;
+    return trimmed.slice(0, MAX_LEN);
+  } catch {
+    return null;
+  }
+}
+```
+
+- `trim()` — 앞뒤 공백·개행 제거. 사용자가 다른 앱에서 복사한 텍스트는 거의 항상 줄바꿈이 섞여 있다.
+- `slice(0, MAX_LEN)` — 입력 필드의 maxLength와 동일한 상한. 거대한 텍스트가 한 번에 붙는 사고 방지.
+- 빈 클립보드면 `null`. 호출 쪽에서 "붙여넣을 텍스트가 없어요" 인라인 메시지로.
+
+## 관련 API
+
+- [`setClipboardText`](/api/clipboard/setClipboardText) — 텍스트를 클립보드에 복사.
+- [`getClipboardText`](/api/clipboard/getClipboardText) — 클립보드에서 텍스트를 읽음.

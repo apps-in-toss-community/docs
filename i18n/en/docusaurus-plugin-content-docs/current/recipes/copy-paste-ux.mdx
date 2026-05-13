@@ -1,0 +1,69 @@
+---
+id: copy-paste-ux
+title: Copy/paste UX patterns
+sidebar_label: Copy/paste UX
+slug: /recipes/copy-paste-ux
+description: Two short snippets — setClipboardText with immediate user feedback after copy, and getClipboardText that trims and length-limits whatever was pasted before trusting it.
+---
+
+# Copy/paste UX patterns
+
+Give the user immediate feedback right after a copy, and don't trust pasted text verbatim. Two short snippets.
+
+## Feedback after copy
+
+```tsx
+import { setClipboardText } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+function CopyButton({ value }: { value: string }) {
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  const onCopy = async () => {
+    try {
+      await setClipboardText({ text: value });
+      setFeedback('Copied');
+    } catch {
+      setFeedback('Copy failed');
+    }
+    setTimeout(() => setFeedback(null), 1500);
+  };
+
+  return (
+    <>
+      <button type="button" onClick={onCopy}>Copy</button>
+      {feedback && <span role="status">{feedback}</span>}
+    </>
+  );
+}
+```
+
+`role="status"` makes it visible to screen readers. If you already have a toast library, route this through that — the point is "one feedback right after copy, auto-dismiss after 1–2s."
+
+## Sanitize on paste
+
+```tsx
+import { getClipboardText } from '@apps-in-toss/web-framework';
+
+const MAX_LEN = 200;
+
+async function pasteSanitized(): Promise<string | null> {
+  try {
+    const { text } = await getClipboardText();
+    const trimmed = text.trim();
+    if (trimmed.length === 0) return null;
+    return trimmed.slice(0, MAX_LEN);
+  } catch {
+    return null;
+  }
+}
+```
+
+- `trim()` — strip leading/trailing whitespace and newlines. Text copied from other apps almost always carries line breaks.
+- `slice(0, MAX_LEN)` — same ceiling as the input field's `maxLength`. Prevents a giant paste from landing in one shot.
+- Empty clipboard returns `null`. The caller surfaces an inline "Nothing to paste" message.
+
+## Related APIs
+
+- [`setClipboardText`](/api/clipboard/setClipboardText) — write text to the clipboard.
+- [`getClipboardText`](/api/clipboard/getClipboardText) — read text from the clipboard.

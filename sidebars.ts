@@ -243,6 +243,12 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
+      label: 'Recipes',
+      collapsed: false,
+      items: ['recipes/copy-paste-ux'],
+    },
+    {
+      type: 'category',
       label: 'Reference',
       collapsed: false,
       items: ['reference/glossary'],
