@@ -184,6 +184,22 @@ const NAME_JSX_PROP_REGEX = /name="([^"]+)"/g;
 // card component (ApiCard, PolyfillToggleCard, etc.) is used.
 const DOCS_LINK_REGEX = /docsLink\(\s*['"][^'"]+['"]\s*,\s*['"]([^'"]+)['"]\s*\)/g;
 
+// Matches the DocsLink helper component used in sdk-example pages where a
+// bespoke (non-ApiCard) card still wants to advertise its docs anchor:
+//   <DocsLink namespace="ads" method="loadAppsInTossAdMob" />
+// The helper itself calls `docsLink(namespace, method)` internally, but with
+// variables — so `DOCS_LINK_REGEX` above misses these call sites. The JSX
+// attribute form is the actual author declaration.
+const DOCS_LINK_JSX_REGEX = /<DocsLink\b[^>]*\bmethod=["']([^"']+)["']/g;
+
+// Matches the `docsSlug="..."` JSX prop form used by card components that
+// forward a docs slug to a nested `<DocsLink />` via a variable (e.g.
+// EventsPage's `EventSubscriberCard` passes `method={docsSlug}`). The prop
+// name is intentionally specific — author-declared, only used to tie a card
+// to a docs slug — so matching it as a literal is safer than trying to track
+// variable flow through the component.
+const DOCS_SLUG_JSX_REGEX = /\bdocsSlug=["']([^"']+)["']/g;
+
 // Matches PolyfillToggleCard's `sdk={{ name: '...' }}` JSX prop form.
 // PolyfillToggleCard receives an `sdk` object prop rather than a plain `name=""`
 // prop, so NAME_JSX_PROP_REGEX misses it.  We match the JSX attribute start
@@ -191,6 +207,20 @@ const DOCS_LINK_REGEX = /docsLink\(\s*['"][^'"]+['"]\s*,\s*['"]([^'"]+)['"]\s*\)
 // sdk.name field (it appears before `description:` and `params:`).
 // The regex is non-greedy and stops at the first single-quoted value.
 const POLYFILL_TOGGLE_SDK_NAME_REGEX = /sdk=\{\{\s*name:\s*'([^']+)'/g;
+
+// Looser pattern for *explicit* method declarations (`docsLink(...)` second
+// arg, `<DocsLink method="..." />`). Author wrote the slug verbatim — accept
+// the same shape that `<group>/<slug>.mdx` files use under `docs/api/`, which
+// is camelCase optionally containing hyphens for namespaced subjects like
+// `graniteEvent-addEventListener`. The narrower `NAME_PATTERN` rejects
+// hyphens because it has to defend against false positives from heuristic
+// `name="..."` JSX props (those can be free-form display strings).
+const EXPLICIT_SLUG_PATTERN = /^([a-z][A-Za-z0-9-]*)$/;
+
+function normalizeExplicitSlug(raw: string): string | null {
+  const m = EXPLICIT_SLUG_PATTERN.exec(raw);
+  return m ? (m[1] as string) : null;
+}
 
 function extractMethodsFromSource(source: string): string[] {
   const out: string[] = [];
@@ -203,7 +233,19 @@ function extractMethodsFromSource(source: string): string[] {
   for (const match of source.matchAll(DOCS_LINK_REGEX)) {
     const raw = match[1];
     if (raw === undefined) continue;
-    const norm = normalizeApiCardName(raw);
+    const norm = normalizeExplicitSlug(raw);
+    if (norm) out.push(norm);
+  }
+  for (const match of source.matchAll(DOCS_LINK_JSX_REGEX)) {
+    const raw = match[1];
+    if (raw === undefined) continue;
+    const norm = normalizeExplicitSlug(raw);
+    if (norm) out.push(norm);
+  }
+  for (const match of source.matchAll(DOCS_SLUG_JSX_REGEX)) {
+    const raw = match[1];
+    if (raw === undefined) continue;
+    const norm = normalizeExplicitSlug(raw);
     if (norm) out.push(norm);
   }
   for (const match of source.matchAll(POLYFILL_TOGGLE_SDK_NAME_REGEX)) {
