@@ -10,7 +10,9 @@ import TryItLink from '@site/src/components/TryItLink';
 
 # `game`
 
-Functions for Toss Game Center integration. Covers game profile lookup, leaderboard score submission and display, promotion reward grants, anonymous key issuance, and contacts-based viral sharing (`contactsViral`). Most return a `Promise` (exception: `contactsViral` returns a cleanup function). Only `contactsViral` requires the `contacts` permission.
+Functions for Toss Game Center integration. Covers game profile lookup, leaderboard score submission and display, promotion reward grants, and contacts-based viral sharing (`contactsViral`). Most return a `Promise` (exception: `contactsViral` returns a cleanup function). Only `contactsViral` requires the `contacts` permission.
+
+The anonymous game-session key lives in the `auth` namespace — use [`getUserKeyForGame`](/api/auth/getUserKeyForGame) (deprecated) or its recommended successor [`getAnonymousKey`](/api/auth/getAnonymousKey).
 
 ## Methods
 
@@ -18,7 +20,6 @@ Functions for Toss Game Center integration. Covers game profile lookup, leaderbo
 | --- | --- | --- |
 | [`contactsViral`](/api/game/contactsViral) | `() => void` | Open the contacts-based viral sharing reward module. Results arrive via the event callback. |
 | [`getGameCenterGameProfile`](/api/game/getGameCenterGameProfile) | `Promise<GameCenterGameProfileResponse \| undefined>` | Fetch the Toss Game Center profile (nickname, avatar). |
-| [`getUserKeyForGame`](/api/game/getUserKeyForGame) | `Promise<...>` | **Deprecated.** Issue an anonymous key for game sessions. Use `getAnonymousKey` instead. |
 | [`grantPromotionReward`](/api/game/grantPromotionReward) | `Promise<GrantPromotionRewardResult>` | Grant a promotion reward in any mini-app category. |
 | [`grantPromotionRewardForGame`](/api/game/grantPromotionRewardForGame) | `Promise<GrantPromotionRewardResult>` | **Deprecated.** Grant a promotion reward in game-category mini-apps. Use `grantPromotionReward` instead. |
 | [`openGameCenterLeaderboard`](/api/game/openGameCenterLeaderboard) | `Promise<void>` | Open the Game Center leaderboard web view. |
@@ -46,7 +47,7 @@ if (!isMinVersionSupported('5.221.0')) {
 
 | Old | New | Notes |
 | --- | --- | --- |
-| `getUserKeyForGame` | `getAnonymousKey` | Same type and behavior |
+| [`getUserKeyForGame`](/api/auth/getUserKeyForGame) | [`getAnonymousKey`](/api/auth/getAnonymousKey) | Same type and behavior. Both documented under `auth`. |
 | `grantPromotionRewardForGame` | `grantPromotionReward` | Expanded from game-only to all categories |
 
 ## UX guidance

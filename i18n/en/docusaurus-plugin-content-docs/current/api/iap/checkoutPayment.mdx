@@ -1,0 +1,155 @@
+---
+id: checkoutPayment
+title: checkoutPayment
+sidebar_label: checkoutPayment
+description: Open the TossPay checkout sheet for user authentication and return the success outcome.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `checkoutPayment`
+
+Open the TossPay checkout sheet so the user can authenticate the payment, then resolve with a success/failure result. **This function only handles the authentication step in the checkout sheet — the actual payment must be settled separately on your server after a successful authentication.**
+
+Distinct from the SKU-based flows in the `IAP` namespace (`IAP.createOneTimePurchaseOrder` / `IAP.createSubscriptionPurchaseOrder`): `checkoutPayment` is the TossPay general-purpose entry point — you mint a `payToken` server-side for an arbitrary amount or item set, then call this function to authenticate against it.
+
+## Signature
+
+```ts
+import { checkoutPayment } from '@apps-in-toss/web-framework';
+
+declare function checkoutPayment(options: {
+  params: CheckoutPaymentOptions;
+}): Promise<CheckoutPaymentResult>;
+
+interface CheckoutPaymentOptions {
+  /** Payment token issued by your server. */
+  payToken: string;
+}
+
+interface CheckoutPaymentResult {
+  /** Whether the user successfully authenticated. */
+  success: boolean;
+  /** Failure reason when `success` is `false`. */
+  reason?: string;
+}
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `options.params.payToken` | `string` | ✓ | Server-issued payment token. Passed to the TossPay checkout sheet to identify the payment context. |
+
+## Returns
+
+- `Promise<CheckoutPaymentResult>` — resolves once the user finishes authenticating in the checkout sheet.
+  - `success: true` — Authentication succeeded. Call your server-side payment-execute API to actually settle the payment.
+  - `success: false` + `reason` — Authentication failed. Show `reason` to the user or log it.
+
+:::caution Authentication is not settlement
+`success: true` means the user passed the authentication step in the checkout sheet — it does not mean the payment has been executed. You still need to call your server-side settlement API. Do not treat authentication success as a completed payment.
+:::
+
+## Permission
+
+No permission required. `checkoutPayment` is not bound to any `PermissionName`.
+
+## Examples
+
+### Minimal
+
+```tsx
+import { checkoutPayment } from '@apps-in-toss/web-framework';
+
+async function pay(payToken: string) {
+  const { success, reason } = await checkoutPayment({ params: { payToken } });
+
+  if (success) {
+    // Server-side payment-execute call
+    await fetch('/api/payment/execute', {
+      method: 'POST',
+      body: JSON.stringify({ payToken }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } else {
+    console.warn('Payment authentication failed:', reason);
+  }
+}
+```
+
+### Realistic — pay button
+
+```tsx
+import { checkoutPayment } from '@apps-in-toss/web-framework';
+import { useCallback, useState } from 'react';
+
+export function PayButton({ amount }: { amount: number }) {
+  const [status, setStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
+  const [message, setMessage] = useState('');
+
+  const handlePay = useCallback(async () => {
+    setStatus('pending');
+    setMessage('');
+    try {
+      // 1. Mint a payment token on the server.
+      const { payToken } = await fetch('/api/payment/create', {
+        method: 'POST',
+        body: JSON.stringify({ amount }),
+        headers: { 'Content-Type': 'application/json' },
+      }).then((res) => res.json());
+
+      // 2. Open the TossPay checkout sheet and authenticate.
+      const { success, reason } = await checkoutPayment({ params: { payToken } });
+
+      if (!success) {
+        setStatus('error');
+        setMessage(`Payment authentication failed: ${reason ?? 'unknown error'}`);
+        return;
+      }
+
+      // 3. Settle the payment server-side.
+      await fetch('/api/payment/execute', {
+        method: 'POST',
+        body: JSON.stringify({ payToken }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      setStatus('success');
+      setMessage('Payment complete.');
+    } catch (error) {
+      setStatus('error');
+      setMessage('Something went wrong while processing the payment.');
+      console.error(error);
+    }
+  }, [amount]);
+
+  return (
+    <div>
+      <button type="button" onClick={handlePay} disabled={status === 'pending'}>
+        {status === 'pending' ? 'Processing…' : `Pay ${amount.toLocaleString()}`}
+      </button>
+      {message && <p role="status">{message}</p>}
+    </div>
+  );
+}
+```
+
+## Try it live
+
+Run the `checkoutPayment` card on the IAP page in sdk-example.
+
+<TryItLink group="iap" method="checkoutPayment" />
+
+## Related APIs
+
+- [`IAP.createOneTimePurchaseOrder`](./createOneTimePurchaseOrder) — SKU-based one-time purchase flow.
+- [`IAP.createSubscriptionPurchaseOrder`](./createSubscriptionPurchaseOrder) — SKU-based subscription flow.
+
+## Related guides
+
+- _(coming soon)_ Guides — TossPay flow: from minting `payToken` to settling the payment
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

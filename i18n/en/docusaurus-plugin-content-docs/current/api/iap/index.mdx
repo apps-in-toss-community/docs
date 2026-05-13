@@ -10,12 +10,13 @@ import TryItLink from '@site/src/components/TryItLink';
 
 # `IAP`
 
-The `IAP` namespace groups all in-app purchase (IAP) functionality: one-time purchases, subscription purchases, product list retrieval, and order management. Payment authorization is handled inside the Toss app — no `PermissionName` approval is required.
+The `IAP` namespace groups all in-app purchase (IAP) functionality: one-time purchases, subscription purchases, product list retrieval, and order management. It also documents the TossPay general-purpose payment entry (`checkoutPayment`) on the same page. Payment authorization is handled inside the Toss app — no `PermissionName` approval is required.
 
 ## Methods
 
 | Method | Purpose |
 | --- | --- |
+| [`checkoutPayment`](/api/iap/checkoutPayment) | Open the TossPay checkout sheet to authenticate a `payToken`-based payment. Non-SKU general flow. |
 | [`IAP.completeProductGrant`](/api/iap/completeProductGrant) | Signal to the app that product fulfillment is complete. |
 | [`IAP.createOneTimePurchaseOrder`](/api/iap/createOneTimePurchaseOrder) | Navigate to a one-time purchase checkout page. |
 | [`IAP.createSubscriptionPurchaseOrder`](/api/iap/createSubscriptionPurchaseOrder) | Navigate to a subscription purchase checkout page. |
@@ -23,6 +24,8 @@ The `IAP` namespace groups all in-app purchase (IAP) functionality: one-time pur
 | [`IAP.getPendingOrders`](/api/iap/getPendingOrders) | Retrieve orders that are awaiting fulfillment. |
 | [`IAP.getProductItemList`](/api/iap/getProductItemList) | Fetch the list of purchasable products. |
 | [`IAP.getSubscriptionInfo`](/api/iap/getSubscriptionInfo) | Query the current status of a subscription order. |
+
+`checkoutPayment` is a flat top-level export — not an `IAP.*` namespace member — but lives on the same sdk-example page and shares the payment domain, so it is grouped here.
 
 ## Permission
 
