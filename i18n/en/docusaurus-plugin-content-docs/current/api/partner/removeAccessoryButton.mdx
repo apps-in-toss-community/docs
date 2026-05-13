@@ -1,0 +1,92 @@
+---
+id: removeAccessoryButton
+title: partner.removeAccessoryButton
+sidebar_label: partner.removeAccessoryButton
+description: Remove the accessory button from the top navigation bar.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `partner.removeAccessoryButton`
+
+Removes the accessory button added by `partner.addAccessoryButton` from the top navigation bar. Typically called as a cleanup step when the screen is unmounted.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+`removeAccessoryButton` is exposed as a member of the `partner` namespace object. It is not imported as a standalone function.
+
+```ts
+import { partner } from '@apps-in-toss/web-framework';
+
+declare const partner: {
+  removeAccessoryButton(): Promise<void>;
+};
+```
+
+## Parameters
+
+None.
+
+## Returns
+
+- `Promise<void>` — resolves once the button has been removed.
+
+## Permission
+
+No permission required — `partner.removeAccessoryButton` is not bound to any `PermissionName`. For how other namespaces handle permissions, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { partner } from '@apps-in-toss/web-framework';
+
+await partner.removeAccessoryButton();
+```
+
+### Realistic — cleanup in useEffect
+
+```tsx
+import { partner } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function ProductDetailPage() {
+  useEffect(() => {
+    partner.addAccessoryButton({
+      id: 'btn-share',
+      title: 'Share',
+      icon: { name: 'icon-share-mono' },
+    });
+
+    return () => {
+      // Remove the button when navigating away.
+      partner.removeAccessoryButton();
+    };
+  }, []);
+
+  return <main>{/* page content */}</main>;
+}
+```
+
+## Try it live
+
+Run `partner.removeAccessoryButton` in the Partner page of sdk-example.
+
+<TryItLink group="partner" method="removeAccessoryButton" />
+
+## Related APIs
+
+- [`partner.addAccessoryButton`](./addAccessoryButton) — add an accessory button to the top navigation bar.
+
+## Related guides
+
+- _(coming soon)_ Guides — navigation accessory button UX patterns
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
