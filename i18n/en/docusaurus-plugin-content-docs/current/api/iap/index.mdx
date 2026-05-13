@@ -1,0 +1,70 @@
+---
+id: iap-overview
+title: iap
+sidebar_label: Overview
+slug: /api/iap
+description: SDK namespace for in-app purchase (IAP) flows.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `IAP`
+
+The `IAP` namespace groups all in-app purchase (IAP) functionality: one-time purchases, subscription purchases, product list retrieval, and order management. Payment authorization is handled inside the Toss app — no `PermissionName` approval is required.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Methods
+
+| Method | Purpose |
+| --- | --- |
+| [`IAP.completeProductGrant`](/api/iap/completeProductGrant) | Signal to the app that product fulfillment is complete. |
+| [`IAP.createOneTimePurchaseOrder`](/api/iap/createOneTimePurchaseOrder) | Navigate to a one-time purchase checkout page. |
+| [`IAP.createSubscriptionPurchaseOrder`](/api/iap/createSubscriptionPurchaseOrder) | Navigate to a subscription purchase checkout page. |
+| [`IAP.getCompletedOrRefundedOrders`](/api/iap/getCompletedOrRefundedOrders) | Retrieve completed or refunded orders (paginated). |
+| [`IAP.getPendingOrders`](/api/iap/getPendingOrders) | Retrieve orders that are awaiting fulfillment. |
+| [`IAP.getProductItemList`](/api/iap/getProductItemList) | Fetch the list of purchasable products. |
+| [`IAP.getSubscriptionInfo`](/api/iap/getSubscriptionInfo) | Query the current status of a subscription order. |
+
+## Permission
+
+No permission required. The `IAP` namespace is not bound to a `PermissionName`; authorization for the payment flow is managed internally by the Toss app.
+
+## Typical purchase flow
+
+```
+getProductItemList()   ← fetch available products
+       ↓
+createOneTimePurchaseOrder / createSubscriptionPurchaseOrder
+       ↓ processProductGrant callback
+       ↓ fulfill on your server
+completeProductGrant() ← signal fulfillment complete
+```
+
+Both order methods (`createOneTimePurchaseOrder`, `createSubscriptionPurchaseOrder`) return a cleanup function. You **must** call it when the payment flow ends to release app-bridge resources.
+
+## Minimum supported versions
+
+| Method | Android | iOS |
+| --- | --- | --- |
+| `getProductItemList` | 5.219.0 | 5.219.0 |
+| `getCompletedOrRefundedOrders` | 5.231.0 | 5.231.0 |
+| `getPendingOrders` | 5.234.0 | 5.231.0 |
+| `completeProductGrant` | 5.233.0 | 5.233.0 |
+| `createOneTimePurchaseOrder` | — | — |
+| `createSubscriptionPurchaseOrder` | — | — |
+| `getSubscriptionInfo` | — | — |
+
+Methods may return `undefined` on app versions below the minimum. Guard with `isMinVersionSupported()` or a nullish check on the return value.
+
+## Try it live
+
+The IAP page in sdk-example walks through the full purchase workflow interactively.
+
+<TryItLink group="iap" />
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

@@ -1,0 +1,156 @@
+---
+id: createSubscriptionPurchaseOrder
+title: IAP.createSubscriptionPurchaseOrder
+sidebar_label: createSubscriptionPurchaseOrder
+description: Navigate to a subscription in-app purchase checkout page.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `IAP.createSubscriptionPurchaseOrder`
+
+Navigates to the in-app purchase checkout page for a subscription product. The flow mirrors `createOneTimePurchaseOrder`, with the addition of a `subscriptionId` field in the `processProductGrant` callback.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+`createSubscriptionPurchaseOrder` is a member of the `IAP` namespace object.
+
+```ts
+import { IAP } from '@apps-in-toss/web-framework';
+
+declare const IAP: {
+  createSubscriptionPurchaseOrder(params: {
+    options: {
+      sku: string;
+      offerId?: string | null;
+      processProductGrant: (params: {
+        orderId: string;
+        subscriptionId?: string;
+      }) => boolean | Promise<boolean>;
+    };
+    onEvent: (event: { type: 'success'; data: IapCreateSubscriptionPurchaseOrderResult }) => void | Promise<void>;
+    onError: (error: unknown) => void | Promise<void>;
+  }): () => void;
+  // ...see overview
+};
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `params.options.sku` | `string` | ✓ | Unique ID of the subscription product to purchase. |
+| `params.options.offerId` | `string \| null` | | Offer ID to apply. Defaults to base price when omitted. |
+| `params.options.processProductGrant` | `(params: { orderId: string; subscriptionId?: string }) => boolean \| Promise<boolean>` | ✓ | Callback invoked to activate the subscription on your server. Return `true` on success, `false` on failure. |
+| `params.onEvent` | `(event: SubscriptionSuccessEvent) => void \| Promise<void>` | ✓ | Called on payment success. |
+| `params.onError` | `(error: unknown) => void \| Promise<void>` | ✓ | Called when an error occurs during payment. |
+
+## Returns
+
+- `() => void` — app-bridge cleanup function. **Must be called** when the payment flow ends to release resources.
+
+## Permission
+
+No permission required — the `IAP` namespace is not bound to a `PermissionName`.
+
+## Examples
+
+### Minimal
+
+```tsx
+import { IAP } from '@apps-in-toss/web-framework';
+
+const cleanup = IAP.createSubscriptionPurchaseOrder({
+  options: {
+    sku: 'sub_monthly',
+    processProductGrant: async ({ orderId, subscriptionId }) => {
+      // Activate subscription on server, then return true
+      return true;
+    },
+  },
+  onEvent: (event) => {
+    console.log('Subscription active', event.data);
+    cleanup();
+  },
+  onError: (error) => {
+    console.error('Subscription error', error);
+    cleanup();
+  },
+});
+```
+
+### Realistic — with offer ID
+
+```tsx
+import { IAP } from '@apps-in-toss/web-framework';
+import { useCallback, useRef } from 'react';
+
+interface Props {
+  sku: string;
+  offerId?: string;
+}
+
+function SubscriptionButton({ sku, offerId }: Props) {
+  const cleanupRef = useRef<(() => void) | null>(null);
+
+  const handleClick = useCallback(() => {
+    cleanupRef.current = IAP.createSubscriptionPurchaseOrder({
+      options: {
+        sku,
+        offerId: offerId ?? null,
+        processProductGrant: async ({ orderId, subscriptionId }) => {
+          try {
+            await fetch('/api/subscribe', {
+              method: 'POST',
+              body: JSON.stringify({ orderId, subscriptionId }),
+              headers: { 'Content-Type': 'application/json' },
+            });
+            return true;
+          } catch {
+            return false;
+          }
+        },
+      },
+      onEvent: (event) => {
+        console.log('Subscription activated', event.data);
+        cleanupRef.current?.();
+      },
+      onError: (error) => {
+        console.error(error);
+        cleanupRef.current?.();
+      },
+    });
+  }, [sku, offerId]);
+
+  return (
+    <button type="button" onClick={handleClick}>
+      Subscribe
+    </button>
+  );
+}
+```
+
+## Try it live
+
+Run the subscription purchase flow on the IAP page in sdk-example.
+
+<TryItLink group="iap" method="createSubscriptionPurchaseOrder" />
+
+## Related APIs
+
+- [`IAP.createOneTimePurchaseOrder`](./createOneTimePurchaseOrder) — one-time purchase checkout.
+- [`IAP.getProductItemList`](./getProductItemList) — fetch the product list before purchasing.
+- [`IAP.getSubscriptionInfo`](./getSubscriptionInfo) — query subscription status.
+- [`IAP.completeProductGrant`](./completeProductGrant) — send the fulfillment-complete signal.
+
+## Related guides
+
+- _(coming soon)_ Guides — "IAP payment flow — processProductGrant and completeProductGrant"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

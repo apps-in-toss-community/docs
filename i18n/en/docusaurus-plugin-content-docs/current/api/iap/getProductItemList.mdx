@@ -1,0 +1,129 @@
+---
+id: getProductItemList
+title: IAP.getProductItemList
+sidebar_label: getProductItemList
+description: Fetch the list of products available for in-app purchase.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `IAP.getProductItemList`
+
+Fetches the list of products available for in-app purchase. Call this when the user enters your product list screen. Returns an array of `IapProductListItem` covering consumable, non-consumable, and subscription types.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+`getProductItemList` is a member of the `IAP` namespace object.
+
+```ts
+import { IAP } from '@apps-in-toss/web-framework';
+
+declare const IAP: {
+  getProductItemList(): Promise<{
+    products: IapProductListItem[];
+  }>;
+  // ...see overview
+};
+```
+
+## Parameters
+
+None.
+
+## Returns
+
+`Promise<{ products: IapProductListItem[] }>` — product list.
+
+`IapProductListItem` is the union type `ConsumableProductListItem | NonConsumableProductListItem | SubscriptionProductListItem`.
+
+**Shared fields (`BasicProductListItem`)**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `sku` | `string` | Unique product ID. |
+| `displayName` | `string` | Product name for display. |
+| `displayAmount` | `string` | Price with currency symbol (e.g. `₩1,000`). |
+| `iconUrl` | `string` | Product icon URL. |
+| `description` | `string` | Product description. |
+
+**Type-specific additional fields**
+
+| Type | Extra fields |
+| --- | --- |
+| `CONSUMABLE` | `type: 'CONSUMABLE'` |
+| `NON_CONSUMABLE` | `type: 'NON_CONSUMABLE'` |
+| `SUBSCRIPTION` | `type: 'SUBSCRIPTION'`, `renewalCycle: 'WEEKLY' \| 'MONTHLY' \| 'YEARLY'`, `offers?: Offer[]` |
+
+May return `undefined` on app versions below the minimum (Android 5.219.0 / iOS 5.219.0).
+
+## Permission
+
+No permission required — the `IAP` namespace is not bound to a `PermissionName`.
+
+## Examples
+
+### Minimal
+
+```tsx
+import { IAP } from '@apps-in-toss/web-framework';
+
+const result = await IAP.getProductItemList();
+const products = result?.products ?? [];
+console.log(products);
+```
+
+### Realistic — render by type
+
+```tsx
+import type { IapProductListItem } from '@apps-in-toss/web-framework';
+import { IAP } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+function ProductList() {
+  const [products, setProducts] = useState<IapProductListItem[]>([]);
+
+  useEffect(() => {
+    IAP.getProductItemList().then((result) => {
+      setProducts(result?.products ?? []);
+    });
+  }, []);
+
+  return (
+    <ul>
+      {products.map((product) => (
+        <li key={product.sku}>
+          <span>{product.displayName}</span>
+          <span>{product.displayAmount}</span>
+          {product.type === 'SUBSCRIPTION' && (
+            <span>Renews: {product.renewalCycle}</span>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+```
+
+## Try it live
+
+Run `getProductItemList` on the IAP page in sdk-example to inspect the product list.
+
+<TryItLink group="iap" method="getProductItemList" />
+
+## Related APIs
+
+- [`IAP.createOneTimePurchaseOrder`](./createOneTimePurchaseOrder) — one-time purchase after viewing the list.
+- [`IAP.createSubscriptionPurchaseOrder`](./createSubscriptionPurchaseOrder) — subscription purchase.
+- [`IAP.getCompletedOrRefundedOrders`](./getCompletedOrRefundedOrders) — completed and refunded order history.
+
+## Related guides
+
+- _(coming soon)_ Guides — "IAP product list screen pattern"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

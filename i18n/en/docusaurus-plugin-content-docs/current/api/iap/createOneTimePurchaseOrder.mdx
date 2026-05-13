@@ -1,0 +1,177 @@
+---
+id: createOneTimePurchaseOrder
+title: IAP.createOneTimePurchaseOrder
+sidebar_label: createOneTimePurchaseOrder
+description: Navigate to a one-time in-app purchase checkout page.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `IAP.createOneTimePurchaseOrder`
+
+Navigates to the in-app purchase checkout page for a specific SKU. Call this when the user taps a buy button. The payment itself is processed on the checkout page; if an error occurs, the SDK routes the user to an appropriate error page.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+`createOneTimePurchaseOrder` is a member of the `IAP` namespace object.
+
+```ts
+import { IAP } from '@apps-in-toss/web-framework';
+
+declare const IAP: {
+  createOneTimePurchaseOrder(params: {
+    options: {
+      sku: string;
+      processProductGrant: (params: { orderId: string }) => boolean | Promise<boolean>;
+    };
+    onEvent: (event: { type: 'success'; data: IapCreateOneTimePurchaseOrderResult }) => void | Promise<void>;
+    onError: (error: unknown) => void | Promise<void>;
+  }): () => void;
+  // ...see overview
+};
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `params.options.sku` | `string` | ✓ | Unique ID of the product to purchase. |
+| `params.options.processProductGrant` | `(params: { orderId: string }) => boolean \| Promise<boolean>` | ✓ | Callback invoked after the order is created to fulfill the product on your server. Return `true` on success, `false` on failure. |
+| `params.onEvent` | `(event: SuccessEvent) => void \| Promise<void>` | ✓ | Called on payment success. `event.data` contains `IapCreateOneTimePurchaseOrderResult`. |
+| `params.onError` | `(error: unknown) => void \| Promise<void>` | ✓ | Called when an error occurs during payment. |
+
+### `IapCreateOneTimePurchaseOrderResult`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `orderId` | `string` | Payment order ID. |
+| `displayName` | `string` | Product name for display. |
+| `displayAmount` | `string` | Price with currency (e.g. `₩1,000`). |
+| `amount` | `number` | Raw numeric price (e.g. `1000`). |
+| `currency` | `string` | ISO 4217 currency code (e.g. `KRW`). |
+| `fraction` | `number` | Decimal places for price display. |
+| `miniAppIconUrl` | `string \| null` | Mini-app icon URL, or `null` if unset. |
+
+## Returns
+
+- `() => void` — app-bridge cleanup function. **Must be called** when the payment flow ends to release resources.
+
+## Error codes
+
+| Code | Description |
+| --- | --- |
+| `INVALID_PRODUCT_ID` | Invalid product ID or product does not exist. |
+| `PAYMENT_PENDING` | A payment for this order is already awaiting approval. |
+| `NETWORK_ERROR` | Server error prevented request processing. |
+| `INVALID_USER_ENVIRONMENT` | Product cannot be purchased on this device/account/settings. |
+| `ITEM_ALREADY_OWNED` | User already owns this non-consumable product. |
+| `APP_MARKET_VERIFICATION_FAILED` | Payment completed but app store user verification failed. |
+| `TOSS_SERVER_VERIFICATION_FAILED` | Payment completed but server transmission failed. |
+| `INTERNAL_ERROR` | Internal server error. |
+| `KOREAN_ACCOUNT_ONLY` | iOS: account is not a Korean account. |
+| `USER_CANCELED` | User left the checkout page without completing payment. |
+| `PRODUCT_NOT_GRANTED_BY_PARTNER` | Partner's product fulfillment failed. |
+
+## Permission
+
+No permission required — the `IAP` namespace is not bound to a `PermissionName`.
+
+## Examples
+
+### Minimal
+
+```tsx
+import { IAP } from '@apps-in-toss/web-framework';
+
+const cleanup = IAP.createOneTimePurchaseOrder({
+  options: {
+    sku: 'item_coin_100',
+    processProductGrant: async ({ orderId }) => {
+      // Fulfill on server, then return true
+      return true;
+    },
+  },
+  onEvent: (event) => {
+    console.log('Purchase complete', event.data);
+    cleanup();
+  },
+  onError: (error) => {
+    console.error('Purchase error', error);
+    cleanup();
+  },
+});
+```
+
+### Realistic — React component
+
+```tsx
+import { IAP } from '@apps-in-toss/web-framework';
+import { useCallback, useRef } from 'react';
+
+interface Props {
+  sku: string;
+}
+
+function PurchaseButton({ sku }: Props) {
+  const cleanupRef = useRef<(() => void) | null>(null);
+
+  const handleClick = useCallback(() => {
+    cleanupRef.current = IAP.createOneTimePurchaseOrder({
+      options: {
+        sku,
+        processProductGrant: async ({ orderId }) => {
+          try {
+            await fetch('/api/grant', {
+              method: 'POST',
+              body: JSON.stringify({ orderId }),
+              headers: { 'Content-Type': 'application/json' },
+            });
+            return true;
+          } catch {
+            return false;
+          }
+        },
+      },
+      onEvent: (event) => {
+        console.log('Purchase complete', event.data);
+        cleanupRef.current?.();
+      },
+      onError: (error) => {
+        console.error(error);
+        cleanupRef.current?.();
+      },
+    });
+  }, [sku]);
+
+  return (
+    <button type="button" onClick={handleClick}>
+      Buy now
+    </button>
+  );
+}
+```
+
+## Try it live
+
+Run the one-time purchase flow on the IAP page in sdk-example.
+
+<TryItLink group="iap" method="createOneTimePurchaseOrder" />
+
+## Related APIs
+
+- [`IAP.createSubscriptionPurchaseOrder`](./createSubscriptionPurchaseOrder) — subscription checkout.
+- [`IAP.getProductItemList`](./getProductItemList) — fetch the product list before purchasing.
+- [`IAP.completeProductGrant`](./completeProductGrant) — send the fulfillment-complete signal.
+- [`IAP.getPendingOrders`](./getPendingOrders) — query pending orders.
+
+## Related guides
+
+- _(coming soon)_ Guides — "IAP payment flow — processProductGrant and completeProductGrant"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

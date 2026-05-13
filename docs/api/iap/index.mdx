@@ -1,0 +1,71 @@
+---
+image: /og/api-iap.png
+id: iap-overview
+title: iap
+sidebar_label: Overview
+slug: /api/iap
+description: 인앱결제(IAP) 관련 기능을 모은 SDK 네임스페이스입니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `IAP`
+
+인앱결제(In-App Purchase) 관련 기능을 모은 네임스페이스입니다. 단건 구매, 구독 구매, 상품 목록 조회, 주문 내역 조회 등 결제 흐름 전반을 다룹니다. 결제 처리는 토스 앱이 직접 담당하므로 별도의 `PermissionName` 인가가 필요하지 않습니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 메서드
+
+| 메서드 | 용도 |
+| --- | --- |
+| [`IAP.completeProductGrant`](/api/iap/completeProductGrant) | 상품 지급 완료 신호를 앱에 전달합니다. |
+| [`IAP.createOneTimePurchaseOrder`](/api/iap/createOneTimePurchaseOrder) | 단건 인앱결제 주문서 페이지로 이동합니다. |
+| [`IAP.createSubscriptionPurchaseOrder`](/api/iap/createSubscriptionPurchaseOrder) | 구독 인앱결제 주문서 페이지로 이동합니다. |
+| [`IAP.getCompletedOrRefundedOrders`](/api/iap/getCompletedOrRefundedOrders) | 완료·환불된 주문 목록을 조회합니다. |
+| [`IAP.getPendingOrders`](/api/iap/getPendingOrders) | 대기 중인 주문 목록을 조회합니다. |
+| [`IAP.getProductItemList`](/api/iap/getProductItemList) | 구매 가능한 상품 목록을 가져옵니다. |
+| [`IAP.getSubscriptionInfo`](/api/iap/getSubscriptionInfo) | 구독 주문의 현재 상태를 조회합니다. |
+
+## 권한
+
+권한이 필요하지 않습니다. `IAP` 네임스페이스는 별도의 `PermissionName`에 바인딩되지 않으며, 결제 흐름의 인가는 토스 앱 내부에서 처리됩니다.
+
+## 일반적인 구매 흐름
+
+```
+getProductItemList()   ← 상품 목록 조회
+       ↓
+createOneTimePurchaseOrder / createSubscriptionPurchaseOrder
+       ↓ processProductGrant 콜백
+       ↓ 서버에서 상품 지급
+completeProductGrant() ← 지급 완료 신호 전송
+```
+
+두 주문 메서드(`createOneTimePurchaseOrder`, `createSubscriptionPurchaseOrder`)는 cleanup 함수를 반환합니다. 결제 흐름이 끝나면 반드시 이 함수를 호출해 앱브릿지 리소스를 해제해야 합니다.
+
+## 최소 지원 버전
+
+| 메서드 | Android | iOS |
+| --- | --- | --- |
+| `getProductItemList` | 5.219.0 | 5.219.0 |
+| `getCompletedOrRefundedOrders` | 5.231.0 | 5.231.0 |
+| `getPendingOrders` | 5.234.0 | 5.231.0 |
+| `completeProductGrant` | 5.233.0 | 5.233.0 |
+| `createOneTimePurchaseOrder` | — | — |
+| `createSubscriptionPurchaseOrder` | — | — |
+| `getSubscriptionInfo` | — | — |
+
+지원 버전 미만의 앱에서는 일부 메서드가 `undefined`를 반환할 수 있습니다. 호출 전 `isMinVersionSupported()`로 확인하거나 반환값의 존재 여부를 체크하세요.
+
+## 직접 실행해 보기
+
+sdk-example의 IAP 페이지에서 전체 결제 워크플로를 실험해 볼 수 있습니다.
+
+<TryItLink group="iap" />
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.

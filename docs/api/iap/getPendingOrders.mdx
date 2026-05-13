@@ -1,0 +1,128 @@
+---
+image: /og/api-iap-getPendingOrders.png
+id: getPendingOrders
+title: IAP.getPendingOrders
+sidebar_label: getPendingOrders
+description: 결제가 아직 완료되지 않은 대기 중인 주문 목록을 조회합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `IAP.getPendingOrders`
+
+결제가 완료됐지만 상품 지급이 아직 처리되지 않은 대기 중인 주문 목록을 가져옵니다. 앱 시작 시 호출해 미처리 주문을 재처리하는 흐름에 사용합니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+`getPendingOrders`는 `IAP` 네임스페이스 객체의 멤버로 노출됩니다.
+
+```ts
+import { IAP } from '@apps-in-toss/web-framework';
+
+declare const IAP: {
+  getPendingOrders(): Promise<{
+    orders: {
+      orderId: string;
+      sku: string;
+      paymentCompletedDate: string;
+    }[];
+  }>;
+  // ...overview 참고
+};
+```
+
+## 파라미터
+
+없음.
+
+## 반환값
+
+`Promise<{ orders: PendingOrder[] }>` — 대기 중인 주문 목록.
+
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `orders` | `array` | 대기 중인 주문 배열. |
+| `orders[].orderId` | `string` | 주문 고유 ID. |
+| `orders[].sku` | `string` | 상품 고유 ID. |
+| `orders[].paymentCompletedDate` | `string` | 결제 완료 일시 (ISO 8601). |
+
+앱 버전이 최소 지원 버전(Android 5.234.0 / iOS 5.231.0)보다 낮으면 `undefined`를 반환할 수 있습니다.
+
+## 권한
+
+권한이 필요하지 않습니다 — `IAP` 네임스페이스는 별도의 `PermissionName`에 바인딩되지 않습니다.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { IAP } from '@apps-in-toss/web-framework';
+
+async function fetchOrders() {
+  try {
+    const result = await IAP.getPendingOrders();
+    console.log(result?.orders);
+  } catch (error) {
+    console.error(error);
+  }
+}
+```
+
+### 실전 예제 — 앱 초기화 시 미처리 주문 재처리
+
+```tsx
+import { IAP } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function App() {
+  useEffect(() => {
+    async function recoverPendingOrders() {
+      const result = await IAP.getPendingOrders();
+      if (!result || result.orders.length === 0) return;
+
+      for (const order of result.orders) {
+        try {
+          // 서버에서 상품 지급 재시도
+          await fetch('/api/grant', {
+            method: 'POST',
+            body: JSON.stringify({ orderId: order.orderId }),
+            headers: { 'Content-Type': 'application/json' },
+          });
+          await IAP.completeProductGrant({ params: { orderId: order.orderId } });
+        } catch (error) {
+          console.error('미처리 주문 재처리 실패', order.orderId, error);
+        }
+      }
+    }
+
+    recoverPendingOrders();
+  }, []);
+
+  return <main>{/* 앱 콘텐츠 */}</main>;
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 IAP 페이지 "주문 관리" 단계에서 이 API를 실행해 볼 수 있습니다.
+
+<TryItLink group="iap" method="getPendingOrders" />
+
+## 관련 API
+
+- [`IAP.getCompletedOrRefundedOrders`](./getCompletedOrRefundedOrders) — 완료·환불된 주문을 조회합니다.
+- [`IAP.completeProductGrant`](./completeProductGrant) — 상품 지급 완료 신호를 전송합니다.
+- [`IAP.getProductItemList`](./getProductItemList) — 상품 목록을 조회합니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Guides — "IAP 미처리 주문 복구 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.

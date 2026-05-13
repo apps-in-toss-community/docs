@@ -1,0 +1,126 @@
+---
+id: getPendingOrders
+title: IAP.getPendingOrders
+sidebar_label: getPendingOrders
+description: Retrieve in-app purchase orders that are awaiting fulfillment.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `IAP.getPendingOrders`
+
+Fetches orders for which payment was completed but product fulfillment has not yet been processed. Call this at app startup to detect and re-process any unhandled orders.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+`getPendingOrders` is a member of the `IAP` namespace object.
+
+```ts
+import { IAP } from '@apps-in-toss/web-framework';
+
+declare const IAP: {
+  getPendingOrders(): Promise<{
+    orders: {
+      orderId: string;
+      sku: string;
+      paymentCompletedDate: string;
+    }[];
+  }>;
+  // ...see overview
+};
+```
+
+## Parameters
+
+None.
+
+## Returns
+
+`Promise<{ orders: PendingOrder[] }>` — pending order list.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `orders` | `array` | Array of pending orders. |
+| `orders[].orderId` | `string` | Unique order ID. |
+| `orders[].sku` | `string` | Product SKU. |
+| `orders[].paymentCompletedDate` | `string` | ISO 8601 timestamp of when payment completed. |
+
+May return `undefined` on app versions below the minimum (Android 5.234.0 / iOS 5.231.0).
+
+## Permission
+
+No permission required — the `IAP` namespace is not bound to a `PermissionName`.
+
+## Examples
+
+### Minimal
+
+```tsx
+import { IAP } from '@apps-in-toss/web-framework';
+
+async function fetchOrders() {
+  try {
+    const result = await IAP.getPendingOrders();
+    console.log(result?.orders);
+  } catch (error) {
+    console.error(error);
+  }
+}
+```
+
+### Realistic — recover pending orders at app init
+
+```tsx
+import { IAP } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function App() {
+  useEffect(() => {
+    async function recoverPendingOrders() {
+      const result = await IAP.getPendingOrders();
+      if (!result || result.orders.length === 0) return;
+
+      for (const order of result.orders) {
+        try {
+          await fetch('/api/grant', {
+            method: 'POST',
+            body: JSON.stringify({ orderId: order.orderId }),
+            headers: { 'Content-Type': 'application/json' },
+          });
+          await IAP.completeProductGrant({ params: { orderId: order.orderId } });
+        } catch (error) {
+          console.error('Failed to recover order', order.orderId, error);
+        }
+      }
+    }
+
+    recoverPendingOrders();
+  }, []);
+
+  return <main>{/* app content */}</main>;
+}
+```
+
+## Try it live
+
+Run this API in the "Order management" step of the IAP page in sdk-example.
+
+<TryItLink group="iap" method="getPendingOrders" />
+
+## Related APIs
+
+- [`IAP.getCompletedOrRefundedOrders`](./getCompletedOrRefundedOrders) — completed and refunded orders.
+- [`IAP.completeProductGrant`](./completeProductGrant) — signal fulfillment complete.
+- [`IAP.getProductItemList`](./getProductItemList) — fetch the product list.
+
+## Related guides
+
+- _(coming soon)_ Guides — "IAP pending order recovery pattern"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
