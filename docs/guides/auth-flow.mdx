@@ -1,0 +1,195 @@
+---
+image: /og/guides-auth-flow.png
+id: auth-flow
+title: 토스 로그인 흐름
+sidebar_label: 토스 로그인 흐름
+slug: /guides/auth-flow
+description: 미니앱에서 토스 로그인을 통합하는 표준 흐름 — appLogin으로 authorization code를 받고 서버에서 토큰으로 교환하기까지.
+---
+
+# 토스 로그인 흐름
+
+`appLogin`은 미니앱이 토스 사용자의 신원을 확인하는 진입점입니다. **클라이언트에서 직접 사용자 정보를 받는 게 아니라**, 일회용 `authorizationCode`를 받아 서버에서 토큰으로 교환하는 OAuth-스타일 흐름입니다. 이 가이드는 그 흐름을 한 곳에 정리합니다 — 각 `auth` 메서드 페이지의 "시그니처"는 함수 단위 정보만 다루고, 흐름·서버 책임·실패 처리 같은 공통 규칙은 여기서 위임받습니다.
+
+## 흐름 한눈에 보기
+
+```
+[클라이언트]                        [서버]                       [토스]
+     │                                │                            │
+     │ 1. appLogin()                  │                            │
+     ├───────────────────────────────────────────────────────────► │
+     │                                │       사용자 인증 다이얼로그       │
+     │ ◄───────────────────────────────────────────────────────────┤
+     │   authorizationCode            │                            │
+     │                                │                            │
+     │ 2. POST /api/auth/exchange     │                            │
+     ├──────────────────────────────► │                            │
+     │                                │ 3. 토스 토큰 교환 API 호출           │
+     │                                ├─────────────────────────► │
+     │                                │ ◄─────────────────────────┤
+     │                                │    accessToken             │
+     │ ◄──────────────────────────────┤                            │
+     │   세션 쿠키 / JWT               │                            │
+```
+
+핵심 책임 분리:
+
+- **클라이언트**: `appLogin()` 호출 → `authorizationCode`를 서버에 즉시 넘김. 코드를 로컬 스토리지에 저장하거나 그대로 노출하지 않습니다.
+- **서버**: `authorizationCode`를 토스 API에 제출해 토큰을 받음. 미니앱의 세션은 서버에서 발급한 쿠키·JWT로 관리.
+- **토스**: 사용자 인증 다이얼로그 표시, 코드 발급, 코드 ↔ 토큰 교환.
+
+## 표준 클라이언트 코드
+
+```tsx
+import { appLogin } from '@apps-in-toss/web-framework';
+
+async function loginWithToss(): Promise<void> {
+  // 1. 토스 인증 다이얼로그를 띄우고 code를 받는다.
+  const { authorizationCode, referrer } = await appLogin();
+
+  // 2. 서버에 즉시 전달. code는 일회용이며 짧은 만료 시간을 가진다.
+  const res = await fetch('/api/auth/exchange', {
+    method: 'POST',
+    body: JSON.stringify({ authorizationCode, referrer }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  if (!res.ok) {
+    throw new Error('TOKEN_EXCHANGE_FAILED');
+  }
+
+  // 3. 서버가 Set-Cookie 또는 JSON 응답으로 세션을 발급.
+}
+```
+
+`referrer`는 `'DEFAULT' | 'SANDBOX'`로, 코드를 어느 환경의 토큰 교환 엔드포인트에 보내야 하는지 결정하는 단서입니다. 운영 환경에서는 `'DEFAULT'`, 토스 콘솔의 SANDBOX 워크스페이스에서는 `'SANDBOX'`. 서버는 이 값에 따라 다른 client credentials을 사용해야 합니다.
+
+## 서버측 책임
+
+`authorizationCode`는 **클라이언트에서 절대 토큰으로 교환하지 않습니다**. 다음 두 가지 이유 때문입니다.
+
+1. 토큰 교환에는 미니앱의 client secret이 필요한데, 이건 서버에만 존재해야 합니다.
+2. 토큰 자체가 클라이언트에 노출되면 만료 관리·재발급 로직을 모두 클라이언트로 떠넘기게 되어 안전한 세션 모델이 무너집니다.
+
+서버는 받은 `authorizationCode`로 토스 토큰 교환 API를 호출하고, 응답으로 받은 `accessToken`(과 `refreshToken`)을 다음과 같이 다룹니다.
+
+- 미니앱 자체 세션 식별자(쿠키·JWT)를 발급해 클라이언트에 돌려준다.
+- 토스 토큰은 서버 측 세션 저장소에 보관하거나, 필요할 때만 호출에 사용한다.
+- `refreshToken`을 안전한 저장소(예: 암호화된 DB 컬럼, KMS)에 보관한다.
+
+토큰 교환 엔드포인트의 정확한 호출 방식·필수 헤더·응답 스키마는 토스 콘솔 문서를 참조하세요. 이 가이드는 미니앱 클라이언트 측 통합에 한정합니다.
+
+## `referrer`로 환경 분기하기
+
+`referrer`는 같은 코드가 운영용 미니앱과 SANDBOX 미니앱 양쪽에서 발급될 수 있다는 점을 반영합니다.
+
+```ts
+import { appLogin } from '@apps-in-toss/web-framework';
+
+async function login() {
+  const { authorizationCode, referrer } = await appLogin();
+  const endpoint =
+    referrer === 'SANDBOX' ? '/api/auth/exchange/sandbox' : '/api/auth/exchange';
+
+  return fetch(endpoint, {
+    method: 'POST',
+    body: JSON.stringify({ authorizationCode }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+```
+
+대안으로 단일 엔드포인트가 `referrer` 필드를 보고 내부에서 분기해도 됩니다. **클라이언트가 환경을 임의로 결정하지 않는 게 핵심**입니다 — 항상 `appLogin` 응답을 그대로 따르세요.
+
+## 실패 처리
+
+`appLogin`은 사용자가 다이얼로그를 닫거나 인증을 거절하면 reject 합니다. 표준 에러 shape이 명시돼 있지 않으므로 메시지 매칭은 피하고, **호출 자체를 `try/catch`로 감싸 일반 실패로 처리**하세요.
+
+```tsx
+try {
+  await loginWithToss();
+} catch (error) {
+  // 사용자가 취소했거나 네트워크 오류 — 화면을 다시 로그인 진입 상태로 되돌린다.
+  console.warn('login cancelled or failed', error);
+}
+```
+
+서버 측 토큰 교환이 실패할 경우(잘못된 code, 만료, 환경 불일치 등)에는 클라이언트가 같은 `authorizationCode`로 재시도하면 안 됩니다 — code는 일회용입니다. 사용자에게 다시 로그인하라고 안내하고 `appLogin`을 새로 호출하세요.
+
+## 로그인 연동 여부 사전 확인
+
+[`getIsTossLoginIntegratedService`](/api/auth/getIsTossLoginIntegratedService)는 현재 미니앱이 토스 로그인 연동 자격을 갖췄는지 알려줍니다. 운영 콘솔에서 토스 로그인 연동을 켜지 않은 미니앱에서는 `appLogin` 자체가 의미가 없으므로, 로그인 UI를 띄우기 전 가드용으로 사용할 수 있습니다.
+
+```tsx
+import { getIsTossLoginIntegratedService } from '@apps-in-toss/web-framework';
+
+const isIntegrated = await getIsTossLoginIntegratedService();
+if (!isIntegrated) {
+  // 로그인 UI를 숨기거나 안내 메시지.
+  return;
+}
+```
+
+응답이 `undefined`이면 현재 환경(예: 외부 브라우저, 구버전 토스 앱)에서 판단 자체가 불가능하다는 뜻입니다. 안전하게 `false`로 간주하고 fallback UI로 빠지세요.
+
+## 로그인 후 추가 신원 호출
+
+로그인된 사용자에 한해 다음 두 가지 추가 호출이 자주 짝지어 사용됩니다.
+
+### 익명 키로 사용자 매핑
+
+[`getAnonymousKey`](/api/auth/getAnonymousKey)는 사용자별 안정 해시(`{ hash: string; type: 'HASH' }`)를 돌려줍니다. 미니앱이 서버 데이터를 사용자에 묶을 때 이 hash를 식별자로 쓸 수 있습니다. **`appLogin`을 통한 정식 로그인보다 가벼운 진입**이며, 익명 사용자에게도 동작합니다. 로그인을 띄우기 전 유저 활동을 임시 저장해 둘 때 유용합니다.
+
+```ts
+import { getAnonymousKey } from '@apps-in-toss/web-framework';
+
+const result = await getAnonymousKey();
+if (result === 'ERROR' || result === undefined) {
+  // 조회 실패 — 익명 ID 없이도 동작 가능한 경로로 fallback.
+  return;
+}
+const userId = result.hash;
+```
+
+`getUserKeyForGame`은 동일한 hash 모양을 돌려주는 게임 도메인의 deprecated 전신입니다. 신규 코드는 `getAnonymousKey`를 쓰세요.
+
+### 토스 인증서 서명
+
+[`appsInTossSignTossCert`](/api/auth/appsInTossSignTossCert)는 토스 인증서(Toss Cert)로 임의의 `txId`를 서명합니다. **반드시 `appLogin`이 끝난 뒤에 호출**해야 합니다. 결과 검증은 서버에서 토스 인증서 검증 API를 통해 이뤄지며, 클라이언트는 단순 트리거 역할만 합니다.
+
+```ts
+import { appsInTossSignTossCert } from '@apps-in-toss/web-framework';
+
+await appsInTossSignTossCert({ txId: 'order-1234' });
+// 이후 서버에 txId의 서명 검증을 요청.
+```
+
+## 자주 빠뜨리는 항목 체크리스트
+
+- `authorizationCode`를 로컬 스토리지·세션 스토리지·URL에 절대 저장하지 않았는가?
+- 같은 code로 재시도하고 있지는 않은가? (일회용이라 재시도 시 서버 측 교환이 실패합니다.)
+- `referrer`를 무시하고 운영/SANDBOX를 클라이언트가 임의 결정하고 있지는 않은가?
+- 토스 토큰 자체를 클라이언트로 내려보내고 있지는 않은가? (반드시 서버 측에서만 소유.)
+- `appLogin` 실패 시 사용자 흐름이 막혀 있지 않은가? (취소·실패는 정상 경로로 다뤄야 합니다.)
+
+## 환경별 차이
+
+- **실 토스 앱**: 인증 다이얼로그가 표준 시스템 UI로 뜹니다. 미니앱이 운영 콘솔에서 "토스 로그인 연동"을 활성화하지 않으면 `appLogin`이 reject 됩니다.
+- **devtools mock**: [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) mock은 `appLogin`을 가짜 `authorizationCode`로 즉시 resolve 합니다. 서버 측 토큰 교환은 별도 모킹이 필요합니다 — code 형식만 같을 뿐 실제 토스 토큰 교환은 동작하지 않습니다.
+- **외부 브라우저**: `appLogin` 자체가 throw 합니다. 미니앱 환경 외에서는 로그인 UI를 노출하지 마세요.
+
+## 관련 API
+
+- [`api/auth`](/api/auth) — `auth` 네임스페이스 overview.
+- [`appLogin`](/api/auth/appLogin) — 흐름의 진입 함수.
+- [`getIsTossLoginIntegratedService`](/api/auth/getIsTossLoginIntegratedService) — 연동 자격 사전 확인.
+- [`getAnonymousKey`](/api/auth/getAnonymousKey) — 가벼운 사용자 식별 hash.
+- [`appsInTossSignTossCert`](/api/auth/appsInTossSignTossCert) — 로그인 이후 인증서 서명.
+
+## 관련 가이드
+
+- [Guides — 권한 처리 패턴](/guides/permissions-pattern) — `auth` 네임스페이스에 권한은 없지만, 다른 네임스페이스의 권한 흐름을 함께 다룰 때 참고.
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지.
