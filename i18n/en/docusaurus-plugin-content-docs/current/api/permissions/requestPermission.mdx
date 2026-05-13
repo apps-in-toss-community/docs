@@ -11,10 +11,6 @@ import TryItLink from '@site/src/components/TryItLink';
 
 Internally checks the current permission status, then shows the OS-native dialog only if the status is `notDetermined`. Resolves with the final state — either `'allowed'` or `'denied'`. Convenience wrapper around [`getPermission`](./getPermission) + [`openPermissionDialog`](./openPermissionDialog).
 
-:::info Unofficial docs
-This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
-:::
-
 ## Signature
 
 ```ts
