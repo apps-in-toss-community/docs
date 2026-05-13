@@ -1,0 +1,210 @@
+---
+id: contactsViral
+title: contactsViral
+sidebar_label: contactsViral
+description: Open the contacts-based viral sharing reward module.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `contactsViral`
+
+Opens the contacts-based viral sharing reward module. When the user completes sharing with a friend, the reward info is delivered via the `onEvent` callback. A close event is fired when the module exits.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { contactsViral } from '@apps-in-toss/web-framework';
+
+declare function contactsViral(params: ContactsViralParams): () => void;
+
+interface ContactsViralParams {
+  options: ContactsViralOption;
+  onEvent: (event: ContactsViralEvent) => void;
+  onError: (error: unknown) => void;
+}
+
+interface ContactsViralOption {
+  /** UUID-format module ID from the Apps in Toss Console > Mini App > Share Reward menu */
+  moduleId: string;
+}
+
+type ContactsViralEvent = RewardFromContactsViralEvent | ContactsViralSuccessEvent;
+
+type RewardFromContactsViralEvent = {
+  type: 'sendViral';
+  data: {
+    rewardAmount: number;
+    rewardUnit: string;
+  };
+};
+
+type ContactsViralSuccessEvent = {
+  type: 'close';
+  data: {
+    closeReason: 'clickBackButton' | 'noReward';
+    sentRewardAmount?: number;
+    sendableRewardsCount?: number;
+    sentRewardsCount: number;
+    rewardUnit?: string;
+  };
+};
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `params.options.moduleId` | `string` | ✓ | UUID-format module ID from the Apps in Toss Console > Mini App > Share Reward menu. |
+| `params.onEvent` | `(event: ContactsViralEvent) => void` | ✓ | Event callback. `type: 'sendViral'` fires on share completion; `type: 'close'` fires when the module exits. |
+| `params.onError` | `(error: unknown) => void` | ✓ | Called on unexpected errors. |
+
+## Returns
+
+- `() => void` — App bridge cleanup function. **Must be called** when sharing is done or the component unmounts to release resources.
+
+## Event details
+
+### `type: 'sendViral'` — sharing completed
+
+Fires when the user successfully shares with a friend.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `data.rewardAmount` | `number` | Reward quantity granted (value configured in the Console) |
+| `data.rewardUnit` | `string` | Reward unit name (e.g. `'하트'`, `'보석'`) |
+
+### `type: 'close'` — module closed
+
+Fires when the sharing module is dismissed.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `data.closeReason` | `'clickBackButton' \| 'noReward'` | Why the module closed: back button press, or no rewards remaining. |
+| `data.sentRewardsCount` | `number` | Number of friends shared with |
+| `data.sentRewardAmount` | `number \| undefined` | Total rewards earned |
+| `data.sendableRewardsCount` | `number \| undefined` | Friends still available to share with |
+| `data.rewardUnit` | `string \| undefined` | Reward unit name |
+
+## Permission
+
+Requires the `contacts` permission. If the status is **explicitly `denied`**, the module may fail — handle this in the `onError` callback. See [Guides — Permissions pattern](/guides/permissions-pattern) for the full flow.
+
+`contactsViral` does not expose `getPermission` / `openPermissionDialog` directly on the function object. Use `fetchContacts.getPermission()`, which shares the same `contacts` permission:
+
+```ts
+import { fetchContacts, contactsViral } from '@apps-in-toss/web-framework';
+
+// fetchContacts and contactsViral share the same 'contacts' permission.
+const status = await fetchContacts.getPermission();
+if (status === 'denied') {
+  await fetchContacts.openPermissionDialog();
+}
+```
+
+## Examples
+
+### Minimal
+
+```tsx
+import { contactsViral } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function ViralButton({ moduleId }: { moduleId: string }) {
+  useEffect(() => {
+    const cleanup = contactsViral({
+      options: { moduleId },
+      onEvent: (event) => {
+        if (event.type === 'sendViral') {
+          console.log('Reward granted:', event.data.rewardAmount, event.data.rewardUnit);
+        } else if (event.type === 'close') {
+          console.log('Module closed:', event.data.closeReason);
+        }
+      },
+      onError: (error) => {
+        console.error('Error:', error);
+      },
+    });
+
+    return cleanup;
+  }, [moduleId]);
+
+  return <button type="button">Share with a friend and earn a reward</button>;
+}
+```
+
+### Realistic — display reward status after sharing
+
+```tsx
+import { contactsViral } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+interface RewardState {
+  totalEarned: number;
+  unit: string;
+}
+
+export function ContactsViralSection({ moduleId }: { moduleId: string }) {
+  const [reward, setReward] = useState<RewardState | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  function handleStart() {
+    const cleanup = contactsViral({
+      options: { moduleId },
+      onEvent: (event) => {
+        if (event.type === 'sendViral') {
+          setReward({
+            totalEarned: event.data.rewardAmount,
+            unit: event.data.rewardUnit,
+          });
+        } else if (event.type === 'close') {
+          console.log('Close reason:', event.data.closeReason, '/ shares sent:', event.data.sentRewardsCount);
+        }
+      },
+      onError: (error) => {
+        setErrorMessage('Something went wrong. Please try again.');
+        console.error(error);
+        cleanup?.();
+      },
+    });
+  }
+
+  return (
+    <div>
+      <button type="button" onClick={handleStart}>
+        Share with a friend and earn a reward
+      </button>
+      {reward && (
+        <p role="status">
+          Reward earned: {reward.totalEarned} {reward.unit}
+        </p>
+      )}
+      {errorMessage && <p role="alert">{errorMessage}</p>}
+    </div>
+  );
+}
+```
+
+## Try it live
+
+`contactsViral` cannot be run directly in sdk-example (it requires a `moduleId` issued from the Console).
+
+<TryItLink group="contacts" method="contactsViral" />
+
+## Related APIs
+
+- [`fetchContacts`](./fetchContacts) — Retrieve the contact list in pages.
+- [`fetchAlbumPhotos`](./fetchAlbumPhotos) — Fetch photos from the device album.
+
+## Related guides
+
+- _(coming soon)_ Guides — "Viral reward configuration and event handling"
+- [Guides — Permissions pattern](/guides/permissions-pattern)
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

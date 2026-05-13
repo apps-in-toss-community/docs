@@ -1,0 +1,183 @@
+---
+image: /og/api-contacts-fetchContacts.png
+id: fetchContacts
+title: fetchContacts
+sidebar_label: fetchContacts
+description: 사용자의 연락처 목록을 페이지 단위로 조회합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `fetchContacts`
+
+사용자의 연락처 목록을 페이지 단위로 가져옵니다. `size`와 `offset`으로 페이지네이션을 제어하고, `query.contains`로 이름 검색을 지원합니다. `done: true`가 될 때까지 반복 호출해 전체 연락처를 순회할 수 있습니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+```ts
+import { fetchContacts } from '@apps-in-toss/web-framework';
+
+declare const fetchContacts: PermissionFunctionWithDialog<
+  (options: FetchContactsOptions) => Promise<ContactResult>
+>;
+
+interface FetchContactsOptions {
+  /** 한 번에 가져올 연락처 개수 */
+  size: number;
+  /** 가져올 시작 지점. 첫 호출 시 0, 이후 nextOffset 값 사용. */
+  offset: number;
+  query?: {
+    /** 이름에 포함된 문자열로 필터링 */
+    contains?: string;
+  };
+}
+
+interface ContactEntity {
+  /** 연락처 이름 */
+  name: string;
+  /** 전화번호 (문자열) */
+  phoneNumber: string;
+}
+
+interface ContactResult {
+  result: ContactEntity[];
+  /** 다음 호출에 사용할 오프셋. 더 이상 데이터가 없으면 null. */
+  nextOffset: number | null;
+  /** 모든 연락처를 가져왔으면 true. */
+  done: boolean;
+}
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `options.size` | `number` | ✓ | 한 번에 가져올 연락처 개수입니다. 예를 들어 `10`이면 최대 10개를 가져옵니다. |
+| `options.offset` | `number` | ✓ | 가져올 시작 지점입니다. 첫 호출 시 `0`, 이후 이전 호출의 `nextOffset` 값을 사용합니다. |
+| `options.query.contains` | `string` | — | 이름에 특정 문자열이 포함된 연락처만 필터링합니다. 생략 시 전체 연락처를 반환합니다. |
+
+## 반환값
+
+- `Promise<ContactResult>` — 연락처 목록과 페이지네이션 정보를 포함한 객체.
+  - `result` — 가져온 연락처 배열. 각 항목은 `name`(이름)과 `phoneNumber`(전화번호).
+  - `nextOffset` — 다음 호출에 사용할 오프셋. 더 이상 데이터가 없으면 `null`.
+  - `done` — 모든 연락처를 다 가져왔으면 `true`.
+- 권한 `denied` 시 호출이 실패합니다. "권한" 섹션 참고.
+
+## 권한
+
+`contacts` 권한이 필요합니다. 권한이 **명시적으로 `denied`** 상태이면 호출이 실패하므로 `try/catch`로 감싸세요. `notDetermined` 상태에서는 호출이 그대로 진행될 수 있지만, 사용자 경험상 먼저 다이얼로그로 승격시키는 것이 안전합니다. 상세 처리 패턴은 [Guides — 권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
+
+함수 객체에 권한 유틸이 붙어있습니다:
+
+```ts
+const status = await fetchContacts.getPermission();
+// 'allowed' | 'denied' | 'notDetermined'
+
+if (status !== 'allowed') {
+  await fetchContacts.openPermissionDialog();
+}
+```
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { fetchContacts } from '@apps-in-toss/web-framework';
+
+async function loadFirstPage() {
+  const { result, nextOffset, done } = await fetchContacts({ size: 10, offset: 0 });
+  console.log(result.map((c) => `${c.name}: ${c.phoneNumber}`));
+  console.log('done:', done, 'nextOffset:', nextOffset);
+}
+```
+
+### 실전 예제 — "더 보기" 버튼으로 페이지네이션
+
+```tsx
+import { fetchContacts } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+interface ContactEntity {
+  name: string;
+  phoneNumber: string;
+}
+
+export function ContactsList() {
+  const [contacts, setContacts] = useState<ContactEntity[]>([]);
+  const [nextOffset, setNextOffset] = useState<number | null>(0);
+  const [done, setDone] = useState(false);
+  const [message, setMessage] = useState('');
+  const [pending, setPending] = useState(false);
+
+  async function loadMore() {
+    if (done || pending) return;
+    setPending(true);
+    setMessage('');
+    try {
+      const status = await fetchContacts.getPermission();
+      if (status === 'denied') {
+        setMessage('설정에서 연락처 접근 권한을 허용해 주세요.');
+        return;
+      }
+      if (status === 'notDetermined') {
+        await fetchContacts.openPermissionDialog();
+      }
+
+      const response = await fetchContacts({
+        size: 20,
+        offset: nextOffset ?? 0,
+      });
+      setContacts((prev) => [...prev, ...response.result]);
+      setNextOffset(response.nextOffset);
+      setDone(response.done);
+    } catch (error) {
+      setMessage('연락처를 불러오지 못했어요. 다시 시도해 주세요.');
+      console.error(error);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div>
+      <ul>
+        {contacts.map((contact, i) => (
+          <li key={i}>
+            {contact.name} — {contact.phoneNumber}
+          </li>
+        ))}
+      </ul>
+      {message && <p role="status">{message}</p>}
+      <button type="button" onClick={loadMore} disabled={done || pending}>
+        {done ? '모든 연락처를 가져왔어요' : pending ? '불러오는 중...' : '더 보기'}
+      </button>
+    </div>
+  );
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Contacts 페이지에서 `fetchContacts` 카드를 실행해 결과를 확인할 수 있습니다.
+
+<TryItLink group="contacts" method="fetchContacts" />
+
+## 관련 API
+
+- [`contactsViral`](./contactsViral) — 연락처 기반 친구 공유 리워드 모듈을 실행합니다.
+- [`fetchAlbumPhotos`](./fetchAlbumPhotos) — 기기 앨범에서 사진을 가져옵니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Recipes — "연락처 검색과 무한 스크롤 패턴"
+- [Guides — 권한 처리 패턴](/guides/permissions-pattern)
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.

@@ -1,0 +1,165 @@
+---
+id: fetchAlbumPhotos
+title: fetchAlbumPhotos
+sidebar_label: fetchAlbumPhotos
+description: Fetch a list of photos from the device album.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `fetchAlbumPhotos`
+
+Fetches a list of photos from the device album. You can limit the maximum number of photos and resolution, and optionally receive images as Base64-encoded data URIs. Useful for gallery previews and image-picker UIs.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { fetchAlbumPhotos } from '@apps-in-toss/web-framework';
+
+declare const fetchAlbumPhotos: PermissionFunctionWithDialog<
+  (options?: FetchAlbumPhotosOptions) => Promise<ImageResponse[]>
+>;
+
+interface FetchAlbumPhotosOptions {
+  /** Maximum number of photos to fetch. Default: 10. */
+  maxCount?: number;
+  /** Maximum photo width in pixels. Default: 1024. */
+  maxWidth?: number;
+  /** Return images as Base64 strings. Default: false. */
+  base64?: boolean;
+}
+
+interface ImageResponse {
+  /** Unique photo ID */
+  id: string;
+  /** Data URI of the photo. Base64 string if the base64 option is true. */
+  dataUri: string;
+}
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `options.maxCount` | `number` | — | Maximum number of photos to return. Default is `10`. |
+| `options.maxWidth` | `number` | — | Maximum photo width in pixels. Default is `1024`. |
+| `options.base64` | `boolean` | — | When `true`, `dataUri` is returned as a Base64 string. Default is `false`. |
+
+## Returns
+
+- `Promise<ImageResponse[]>` — array of objects containing photo ID and data URI.
+  - With `base64: false` (default), `dataUri` is a local device path or file URI.
+  - With `base64: true`, `dataUri` is a Base64 string. To display in an `<img>` tag, prepend `data:image/jpeg;base64,`.
+- Fails with a permission error if `denied`. See the "Permission" section.
+
+## Permission
+
+Requires the `photos` permission. The call fails when the status is **explicitly `denied`** — wrap in `try/catch`. `notDetermined` lets the call through, but prompting the dialog first is the safer flow. See [Guides — Permissions pattern](/guides/permissions-pattern) for the full flow.
+
+The callable exposes permission helpers:
+
+```ts
+const status = await fetchAlbumPhotos.getPermission();
+// 'allowed' | 'denied' | 'notDetermined'
+
+if (status !== 'allowed') {
+  await fetchAlbumPhotos.openPermissionDialog();
+}
+```
+
+## Examples
+
+### Minimal
+
+```tsx
+import { fetchAlbumPhotos } from '@apps-in-toss/web-framework';
+
+async function loadPhotos() {
+  const photos = await fetchAlbumPhotos({ maxCount: 5 });
+  console.log(photos.map((p) => p.id));
+}
+```
+
+### Realistic — Base64 photo grid
+
+```tsx
+import { fetchAlbumPhotos } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+interface Photo {
+  id: string;
+  dataUri: string;
+}
+
+export function AlbumPhotoGrid() {
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [message, setMessage] = useState('');
+  const [pending, setPending] = useState(false);
+
+  async function loadAlbum() {
+    setPending(true);
+    setMessage('');
+    try {
+      const status = await fetchAlbumPhotos.getPermission();
+      if (status === 'denied') {
+        setMessage('Please allow photo access in Settings.');
+        return;
+      }
+      if (status === 'notDetermined') {
+        await fetchAlbumPhotos.openPermissionDialog();
+      }
+
+      const result = await fetchAlbumPhotos({ maxCount: 9, maxWidth: 360, base64: true });
+      setPhotos(result);
+    } catch (error) {
+      setMessage('Could not load photos. Please try again.');
+      console.error(error);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div>
+      <button type="button" onClick={loadAlbum} disabled={pending}>
+        {pending ? 'Loading...' : 'Load album'}
+      </button>
+      {message && <p role="status">{message}</p>}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
+        {photos.map((photo) => (
+          <img
+            key={photo.id}
+            src={`data:image/jpeg;base64,${photo.dataUri}`}
+            alt=""
+            style={{ width: '100%', aspectRatio: '1', objectFit: 'cover' }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+## Try it live
+
+Run the `fetchAlbumPhotos` card on the Camera page in sdk-example.
+
+<TryItLink group="contacts" method="fetchAlbumPhotos" />
+
+## Related APIs
+
+- [`fetchContacts`](./fetchContacts) — Retrieve the contact list in pages.
+- [`contactsViral`](./contactsViral) — Open the viral sharing reward module.
+
+## Related guides
+
+- _(coming soon)_ Recipes — album photo picker patterns
+- [Guides — Permissions pattern](/guides/permissions-pattern)
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

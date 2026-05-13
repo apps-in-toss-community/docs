@@ -1,0 +1,211 @@
+---
+image: /og/api-contacts-contactsViral.png
+id: contactsViral
+title: contactsViral
+sidebar_label: contactsViral
+description: 연락처 기반 친구 공유 리워드 모듈을 실행합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `contactsViral`
+
+연락처 기반 친구 공유 리워드 모듈을 엽니다. 사용자가 친구에게 공유를 완료하면 이벤트 콜백을 통해 리워드 정보가 전달됩니다. 공유 모듈이 닫힐 때도 종료 이벤트가 전달됩니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+```ts
+import { contactsViral } from '@apps-in-toss/web-framework';
+
+declare function contactsViral(params: ContactsViralParams): () => void;
+
+interface ContactsViralParams {
+  options: ContactsViralOption;
+  onEvent: (event: ContactsViralEvent) => void;
+  onError: (error: unknown) => void;
+}
+
+interface ContactsViralOption {
+  /** 앱인토스 콘솔의 미니앱 > 공유 리워드 메뉴에서 확인할 수 있는 UUID 형식의 고유 ID */
+  moduleId: string;
+}
+
+type ContactsViralEvent = RewardFromContactsViralEvent | ContactsViralSuccessEvent;
+
+type RewardFromContactsViralEvent = {
+  type: 'sendViral';
+  data: {
+    rewardAmount: number;
+    rewardUnit: string;
+  };
+};
+
+type ContactsViralSuccessEvent = {
+  type: 'close';
+  data: {
+    closeReason: 'clickBackButton' | 'noReward';
+    sentRewardAmount?: number;
+    sendableRewardsCount?: number;
+    sentRewardsCount: number;
+    rewardUnit?: string;
+  };
+};
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `params.options.moduleId` | `string` | ✓ | 앱인토스 콘솔 > 미니앱 > 공유 리워드에서 발급받은 UUID 형식의 모듈 ID입니다. |
+| `params.onEvent` | `(event: ContactsViralEvent) => void` | ✓ | 공유 이벤트 콜백입니다. `type: 'sendViral'`은 공유 완료 시, `type: 'close'`는 모듈 종료 시 전달됩니다. |
+| `params.onError` | `(error: unknown) => void` | ✓ | 예기치 않은 에러 발생 시 실행되는 콜백입니다. |
+
+## 반환값
+
+- `() => void` — 앱브릿지 cleanup 함수입니다. 공유 모듈이 끝나거나 컴포넌트가 unmount될 때 반드시 호출해야 리소스가 해제됩니다.
+
+## 이벤트 상세
+
+### `type: 'sendViral'` — 공유 완료
+
+사용자가 친구에게 공유를 완료했을 때 발생합니다.
+
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `data.rewardAmount` | `number` | 지급된 리워드 수량 (콘솔에서 설정한 값) |
+| `data.rewardUnit` | `string` | 리워드 단위 (예: `'하트'`, `'보석'`) |
+
+### `type: 'close'` — 모듈 종료
+
+공유 모듈이 닫힐 때 발생합니다.
+
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `data.closeReason` | `'clickBackButton' \| 'noReward'` | 종료 이유. 뒤로 가기 버튼 또는 남은 리워드 없음. |
+| `data.sentRewardsCount` | `number` | 공유를 완료한 친구 수 |
+| `data.sentRewardAmount` | `number \| undefined` | 총 획득한 리워드 수량 |
+| `data.sendableRewardsCount` | `number \| undefined` | 아직 공유 가능한 친구 수 |
+| `data.rewardUnit` | `string \| undefined` | 리워드 단위 |
+
+## 권한
+
+`contacts` 권한이 필요합니다. 권한이 **명시적으로 `denied`** 상태이면 모듈 실행이 실패할 수 있으므로 `onError` 콜백에서 처리하세요. 상세 처리 패턴은 [Guides — 권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
+
+`contactsViral`에는 `getPermission` / `openPermissionDialog`가 함수 객체에 직접 붙어있지 않습니다. 권한 사전 확인이 필요하다면 같은 `contacts` 권한을 공유하는 `fetchContacts.getPermission()`을 활용하세요.
+
+```ts
+import { fetchContacts, contactsViral } from '@apps-in-toss/web-framework';
+
+// fetchContacts와 contactsViral은 동일한 'contacts' 권한을 공유합니다.
+const status = await fetchContacts.getPermission();
+if (status === 'denied') {
+  await fetchContacts.openPermissionDialog();
+}
+```
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { contactsViral } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function ViralButton({ moduleId }: { moduleId: string }) {
+  useEffect(() => {
+    const cleanup = contactsViral({
+      options: { moduleId },
+      onEvent: (event) => {
+        if (event.type === 'sendViral') {
+          console.log('리워드 지급:', event.data.rewardAmount, event.data.rewardUnit);
+        } else if (event.type === 'close') {
+          console.log('모듈 종료:', event.data.closeReason);
+        }
+      },
+      onError: (error) => {
+        console.error('에러 발생:', error);
+      },
+    });
+
+    return cleanup;
+  }, [moduleId]);
+
+  return <button type="button">친구에게 공유하고 리워드 받기</button>;
+}
+```
+
+### 실전 예제 — 공유 완료 시 리워드 상태 표시
+
+```tsx
+import { contactsViral } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+interface RewardState {
+  totalEarned: number;
+  unit: string;
+}
+
+export function ContactsViralSection({ moduleId }: { moduleId: string }) {
+  const [reward, setReward] = useState<RewardState | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  function handleStart() {
+    const cleanup = contactsViral({
+      options: { moduleId },
+      onEvent: (event) => {
+        if (event.type === 'sendViral') {
+          setReward({
+            totalEarned: event.data.rewardAmount,
+            unit: event.data.rewardUnit,
+          });
+        } else if (event.type === 'close') {
+          console.log('종료 사유:', event.data.closeReason, '/ 누적 공유:', event.data.sentRewardsCount);
+        }
+      },
+      onError: (error) => {
+        setErrorMessage('공유 중 문제가 발생했어요. 다시 시도해 주세요.');
+        console.error(error);
+        cleanup?.();
+      },
+    });
+  }
+
+  return (
+    <div>
+      <button type="button" onClick={handleStart}>
+        친구에게 공유하고 리워드 받기
+      </button>
+      {reward && (
+        <p role="status">
+          리워드 {reward.totalEarned} {reward.unit} 획득!
+        </p>
+      )}
+      {errorMessage && <p role="alert">{errorMessage}</p>}
+    </div>
+  );
+}
+```
+
+## 직접 실행해 보기
+
+`contactsViral`은 현재 sdk-example에서 직접 실행할 수 없습니다 (콘솔에서 발급한 `moduleId`가 필요합니다).
+
+<TryItLink group="contacts" method="contactsViral" />
+
+## 관련 API
+
+- [`fetchContacts`](./fetchContacts) — 연락처 목록을 페이지 단위로 조회합니다.
+- [`fetchAlbumPhotos`](./fetchAlbumPhotos) — 기기 앨범에서 사진을 가져옵니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Guides — "Viral 리워드 설정과 이벤트 처리 패턴"
+- [Guides — 권한 처리 패턴](/guides/permissions-pattern)
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.

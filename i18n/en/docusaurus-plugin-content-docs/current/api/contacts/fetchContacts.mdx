@@ -1,0 +1,182 @@
+---
+id: fetchContacts
+title: fetchContacts
+sidebar_label: fetchContacts
+description: Retrieve the user's contact list in pages.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `fetchContacts`
+
+Retrieves the user's contact list in pages. Use `size` and `offset` to control pagination, and `query.contains` for name search. Iterate by calling again with the returned `nextOffset` until `done` is `true`.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { fetchContacts } from '@apps-in-toss/web-framework';
+
+declare const fetchContacts: PermissionFunctionWithDialog<
+  (options: FetchContactsOptions) => Promise<ContactResult>
+>;
+
+interface FetchContactsOptions {
+  /** Number of contacts to fetch per page */
+  size: number;
+  /** Start offset. Use 0 on the first call, then pass the returned nextOffset. */
+  offset: number;
+  query?: {
+    /** Filter contacts whose name contains this string */
+    contains?: string;
+  };
+}
+
+interface ContactEntity {
+  /** Contact name */
+  name: string;
+  /** Phone number (string) */
+  phoneNumber: string;
+}
+
+interface ContactResult {
+  result: ContactEntity[];
+  /** Offset to use on the next call. null when no more data. */
+  nextOffset: number | null;
+  /** true when all contacts have been fetched. */
+  done: boolean;
+}
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `options.size` | `number` | ✓ | Number of contacts to retrieve per call. For example, `10` returns up to 10 contacts. |
+| `options.offset` | `number` | ✓ | Start offset. Pass `0` on the first call, then use `nextOffset` from the previous response. |
+| `options.query.contains` | `string` | — | Filter contacts whose name contains this string. Omit to return all contacts. |
+
+## Returns
+
+- `Promise<ContactResult>` — object containing the contact list and pagination metadata.
+  - `result` — array of contacts, each with `name` and `phoneNumber`.
+  - `nextOffset` — offset to use on the next call. `null` when there are no more contacts.
+  - `done` — `true` when all contacts have been fetched.
+- Fails with a permission error if `denied`. See the "Permission" section.
+
+## Permission
+
+Requires the `contacts` permission. The call fails when the status is **explicitly `denied`** — wrap in `try/catch`. `notDetermined` lets the call through, but prompting the dialog first is the safer flow. See [Guides — Permissions pattern](/guides/permissions-pattern) for the full flow.
+
+The callable exposes permission helpers:
+
+```ts
+const status = await fetchContacts.getPermission();
+// 'allowed' | 'denied' | 'notDetermined'
+
+if (status !== 'allowed') {
+  await fetchContacts.openPermissionDialog();
+}
+```
+
+## Examples
+
+### Minimal
+
+```tsx
+import { fetchContacts } from '@apps-in-toss/web-framework';
+
+async function loadFirstPage() {
+  const { result, nextOffset, done } = await fetchContacts({ size: 10, offset: 0 });
+  console.log(result.map((c) => `${c.name}: ${c.phoneNumber}`));
+  console.log('done:', done, 'nextOffset:', nextOffset);
+}
+```
+
+### Realistic — paginated contact list with "Load more" button
+
+```tsx
+import { fetchContacts } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+interface ContactEntity {
+  name: string;
+  phoneNumber: string;
+}
+
+export function ContactsList() {
+  const [contacts, setContacts] = useState<ContactEntity[]>([]);
+  const [nextOffset, setNextOffset] = useState<number | null>(0);
+  const [done, setDone] = useState(false);
+  const [message, setMessage] = useState('');
+  const [pending, setPending] = useState(false);
+
+  async function loadMore() {
+    if (done || pending) return;
+    setPending(true);
+    setMessage('');
+    try {
+      const status = await fetchContacts.getPermission();
+      if (status === 'denied') {
+        setMessage('Please allow contacts access in Settings.');
+        return;
+      }
+      if (status === 'notDetermined') {
+        await fetchContacts.openPermissionDialog();
+      }
+
+      const response = await fetchContacts({
+        size: 20,
+        offset: nextOffset ?? 0,
+      });
+      setContacts((prev) => [...prev, ...response.result]);
+      setNextOffset(response.nextOffset);
+      setDone(response.done);
+    } catch (error) {
+      setMessage('Could not load contacts. Please try again.');
+      console.error(error);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div>
+      <ul>
+        {contacts.map((contact, i) => (
+          <li key={i}>
+            {contact.name} — {contact.phoneNumber}
+          </li>
+        ))}
+      </ul>
+      {message && <p role="status">{message}</p>}
+      <button type="button" onClick={loadMore} disabled={done || pending}>
+        {done ? 'All contacts loaded' : pending ? 'Loading...' : 'Load more'}
+      </button>
+    </div>
+  );
+}
+```
+
+## Try it live
+
+Run the `fetchContacts` card on the Contacts page in sdk-example.
+
+<TryItLink group="contacts" method="fetchContacts" />
+
+## Related APIs
+
+- [`contactsViral`](./contactsViral) — Open the viral sharing reward module.
+- [`fetchAlbumPhotos`](./fetchAlbumPhotos) — Fetch photos from the device album.
+
+## Related guides
+
+- _(coming soon)_ Recipes — contact search and infinite scroll patterns
+- [Guides — Permissions pattern](/guides/permissions-pattern)
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
