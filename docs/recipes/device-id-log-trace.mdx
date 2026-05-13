@@ -1,0 +1,70 @@
+---
+image: /og/recipes-device-id-log-trace.png
+id: device-id-log-trace
+title: 기기 식별자를 활용한 로그 추적 패턴
+sidebar_label: 기기 ID 로그 추적
+slug: /recipes/device-id-log-trace
+description: getDeviceId로 기기 식별자를 읽어 서버 로그나 에러 리포트에 첨부하고, 같은 기기의 여러 세션을 묶어 추적하는 패턴.
+---
+
+# 기기 식별자를 활용한 로그 추적 패턴
+
+`getDeviceId()`는 기기 고유 식별자를 동기로 반환한다. 서버 로그에 기기 ID를 함께 보내면 같은 기기에서 발생한 이벤트를 묶어볼 수 있다.
+
+## 앱 초기화 시 기기 ID를 로그 컨텍스트에 등록하기
+
+```tsx
+import { getDeviceId } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+// 앱 최상단에서 한 번만 읽어 모듈 스코프에 캐싱합니다.
+const deviceId = getDeviceId();
+
+function App() {
+  useEffect(() => {
+    // 앱 시작을 서버에 알릴 때 기기 ID를 포함합니다.
+    fetch('/api/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deviceId }),
+    });
+  }, []);
+
+  return <main>{/* 앱 콘텐츠 */}</main>;
+}
+```
+
+기기 ID는 앱 수명 동안 바뀌지 않으므로 모듈 스코프에서 한 번 읽으면 충분하다.
+
+## 기기 ID를 기반으로 기기별 설정 키 생성하기
+
+```tsx
+import { getDeviceId } from '@apps-in-toss/web-framework';
+
+const DEVICE_ID = getDeviceId();
+
+function storageKey(name: string): string {
+  return `${DEVICE_ID}:${name}`;
+}
+
+// 사용 예: 기기마다 별도 localStorage 슬롯
+function saveDevicePreference(theme: 'light' | 'dark'): void {
+  localStorage.setItem(storageKey('theme'), theme);
+}
+
+function loadDevicePreference(): 'light' | 'dark' | null {
+  return localStorage.getItem(storageKey('theme')) as 'light' | 'dark' | null;
+}
+```
+
+같은 사용자가 여러 기기를 쓰는 경우, 기기 ID를 키 prefix로 쓰면 기기별 설정을 독립적으로 관리할 수 있다.
+
+:::caution 기기 ID는 변경될 수 있습니다
+팩토리 리셋이나 앱 재설치 후 기기 ID가 바뀔 수 있습니다. 영속적인 사용자 식별에는 서버 측 사용자 ID를 함께 사용하세요.
+:::
+
+## 관련 API
+
+- [`getDeviceId`](/api/environment/getDeviceId) — 기기 고유 식별자를 반환합니다.
+- [`getGroupId`](/api/environment/getGroupId) — 그룹 ID를 서버 컨텍스트에 함께 포함할 때 사용합니다.
+- [`env.getDeploymentId`](/api/environment/getDeploymentId) — 배포 ID를 에러 컨텍스트에 함께 포함할 때 사용합니다.

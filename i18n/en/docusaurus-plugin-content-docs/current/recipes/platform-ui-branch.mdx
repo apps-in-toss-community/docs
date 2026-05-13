@@ -1,0 +1,76 @@
+---
+id: platform-ui-branch
+title: Platform-based UI branching (iOS vs Android)
+sidebar_label: Platform UI branching
+slug: /recipes/platform-ui-branch
+description: Use getPlatformOS to distinguish iOS from Android and render components that follow each platform's design conventions.
+---
+
+# Platform-based UI branching (iOS vs Android)
+
+`getPlatformOS()` returns `'ios'` or `'android'` synchronously. When the two platforms call for different design languages, branch at the component level for a natural UX on each.
+
+## Branch styles by platform
+
+```tsx
+import { getPlatformOS } from '@apps-in-toss/web-framework';
+
+const isIos = getPlatformOS() === 'ios';
+
+function PrimaryButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        // iOS: pill shape; Android: Material 4 px radius
+        borderRadius: isIos ? 24 : 4,
+        // iOS system font; Android Roboto
+        fontFamily: isIos ? '-apple-system, BlinkMacSystemFont, sans-serif' : 'Roboto, sans-serif',
+        padding: '12px 24px',
+        fontSize: 16,
+        border: 'none',
+        cursor: 'pointer',
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+```
+
+`getPlatformOS()` is synchronous — read it once at module scope as an `isIos` flag and reuse it everywhere.
+
+## Swap entire components per platform
+
+```tsx
+import { getPlatformOS } from '@apps-in-toss/web-framework';
+
+const platform = getPlatformOS();
+
+function BackButton() {
+  if (platform === 'ios') {
+    // iOS: left-chevron style
+    return (
+      <button type="button" aria-label="Back">
+        ‹ Back
+      </button>
+    );
+  }
+
+  // Android: Material arrow style
+  return (
+    <button type="button" aria-label="Back">
+      ← Back
+    </button>
+  );
+}
+```
+
+Swapping the entire component rather than conditionally styling it keeps each branch simple and easy to read.
+
+## Related APIs
+
+- [`getPlatformOS`](/api/environment/getPlatformOS) — returns the current platform OS.
+- [`isMinVersionSupported`](/api/environment/isMinVersionSupported) — check per-platform minimum version requirements.
+- [`getSafeAreaInsets`](/api/environment/getSafeAreaInsets) — handle safe area differences that vary by platform.

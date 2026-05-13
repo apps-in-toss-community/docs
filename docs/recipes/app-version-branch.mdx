@@ -1,0 +1,70 @@
+---
+image: /og/recipes-app-version-branch.png
+id: app-version-branch
+title: 앱 버전 분기 및 업데이트 안내 패턴
+sidebar_label: 버전 분기·업데이트
+slug: /recipes/app-version-branch
+description: isMinVersionSupported로 플랫폼별 최소 버전 충족 여부를 확인하고, 미충족 시 업데이트 안내를 노출하는 패턴.
+---
+
+# 앱 버전 분기 및 업데이트 안내 패턴
+
+`isMinVersionSupported()`는 현재 토스 앱 버전이 플랫폼별 최소 버전 이상인지 동기로 확인한다. 새 기능이 특정 버전부터 지원될 때 사용자에게 업데이트를 안내하는 가장 간단한 방법이다.
+
+## 버전 미충족 시 업데이트 안내
+
+```tsx
+import { isMinVersionSupported } from '@apps-in-toss/web-framework';
+
+const MIN_VERSIONS = { android: '5.150.0', ios: '5.120.0' } as const;
+
+function NewFeaturePage() {
+  const isSupported = isMinVersionSupported(MIN_VERSIONS);
+
+  if (!isSupported) {
+    return (
+      <div style={{ padding: 24, textAlign: 'center' }}>
+        <h2>앱 업데이트가 필요합니다</h2>
+        <p>
+          이 기능은 최신 버전의 토스 앱에서만 사용할 수 있습니다.
+          <br />앱을 업데이트한 후 다시 시도해 주세요.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h2>새로운 기능</h2>
+      {/* 최신 버전 전용 콘텐츠 */}
+    </div>
+  );
+}
+```
+
+`MIN_VERSIONS`를 컴포넌트 밖 상수로 분리하면 최소 버전을 한 곳에서 관리할 수 있다.
+
+## iOS 전용 기능 분기
+
+```tsx
+import { isMinVersionSupported } from '@apps-in-toss/web-framework';
+
+// iOS에서만 제공되는 기능 — Android는 'never'로 항상 false
+const isIosFeatureSupported = isMinVersionSupported({
+  android: 'never',
+  ios: '5.100.0',
+});
+
+function IosOnlySection() {
+  if (!isIosFeatureSupported) return null;
+  return <p>iOS 전용 기능입니다.</p>;
+}
+```
+
+`'never'`를 사용하면 Android에서는 버전에 무관하게 항상 `false`를 반환한다. `'always'`는 반대로 버전 체크 없이 항상 `true`다.
+
+## 관련 API
+
+- [`isMinVersionSupported`](/api/environment/isMinVersionSupported) — 플랫폼별 최소 버전 충족 여부를 확인합니다.
+- [`getTossAppVersion`](/api/environment/getTossAppVersion) — 앱 버전 문자열이 필요할 때 사용합니다.
+- [`getPlatformOS`](/api/environment/getPlatformOS) — 플랫폼을 직접 확인해야 할 때 사용합니다.

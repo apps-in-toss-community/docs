@@ -1,0 +1,74 @@
+---
+id: app-version-logging
+title: App-version logging and version-gated features
+sidebar_label: Version logging
+slug: /recipes/app-version-logging
+description: Read the app version string with getTossAppVersion, attach it to error logs, and combine it with isMinVersionSupported for version-gated feature branching.
+---
+
+# App-version logging and version-gated features
+
+`getTossAppVersion()` returns the current Toss app version as a string (e.g. `'5.206.0'`) synchronously. Include it in error logs for build context, or pair it with `isMinVersionSupported()` to gate features by version.
+
+:::caution Avoid direct string comparison
+Comparing version strings with `>` or `<` uses lexicographic ordering and can give wrong results. Use [`isMinVersionSupported`](/api/environment/isMinVersionSupported) for version-based branching.
+:::
+
+## Include the app version in error reports
+
+```tsx
+import { getTossAppVersion, getPlatformOS } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+const appVersion = getTossAppVersion();
+const platform = getPlatformOS();
+
+function App() {
+  useEffect(() => {
+    const handler = (event: PromiseRejectionEvent) => {
+      console.error('[unhandled]', {
+        appVersion,
+        platform,
+        reason: event.reason,
+      });
+    };
+
+    window.addEventListener('unhandledrejection', handler);
+    return () => window.removeEventListener('unhandledrejection', handler);
+  }, []);
+
+  return <main>{/* app content */}</main>;
+}
+```
+
+Reading `appVersion` and `platform` at module scope means the event handler never calls these functions repeatedly.
+
+## Bundle version into a shared log context
+
+```tsx
+import { getTossAppVersion, env } from '@apps-in-toss/web-framework';
+
+const appVersion = getTossAppVersion();
+const deploymentId = env.getDeploymentId();
+
+function createLogContext() {
+  return { appVersion, deploymentId };
+}
+
+// Usage
+async function trackAction(action: string): Promise<void> {
+  await fetch('/api/logs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, ...createLogContext() }),
+  });
+}
+```
+
+Grouping version and deployment ID into a shared context object makes it trivial to attach build-level metadata to any log event.
+
+## Related APIs
+
+- [`getTossAppVersion`](/api/environment/getTossAppVersion) — returns the app version string.
+- [`isMinVersionSupported`](/api/environment/isMinVersionSupported) — use for version-based feature gating.
+- [`env.getDeploymentId`](/api/environment/getDeploymentId) — include alongside version for richer log context.

@@ -1,0 +1,77 @@
+---
+image: /og/recipes-platform-ui-branch.png
+id: platform-ui-branch
+title: 플랫폼별 UI 분기 패턴 (iOS vs Android)
+sidebar_label: 플랫폼 UI 분기
+slug: /recipes/platform-ui-branch
+description: getPlatformOS로 iOS / Android를 구분해 각 플랫폼의 디자인 관습에 맞게 컴포넌트를 분기하는 패턴.
+---
+
+# 플랫폼별 UI 분기 패턴 (iOS vs Android)
+
+`getPlatformOS()`는 `'ios'` 또는 `'android'`를 동기로 반환한다. 두 플랫폼의 디자인 언어가 다를 때 컴포넌트 수준에서 분기해 자연스러운 UX를 제공할 수 있다.
+
+## 플랫폼별 스타일 분기
+
+```tsx
+import { getPlatformOS } from '@apps-in-toss/web-framework';
+
+const isIos = getPlatformOS() === 'ios';
+
+function PrimaryButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        // iOS는 충분히 둥근 pill 모양, Android는 Material 규격 4 px
+        borderRadius: isIos ? 24 : 4,
+        // iOS 시스템 폰트, Android는 Roboto
+        fontFamily: isIos ? '-apple-system, BlinkMacSystemFont, sans-serif' : 'Roboto, sans-serif',
+        padding: '12px 24px',
+        fontSize: 16,
+        border: 'none',
+        cursor: 'pointer',
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+```
+
+`getPlatformOS()`는 동기이므로 모듈 스코프에서 한 번만 읽어 `isIos` 플래그로 사용하면 충분하다.
+
+## 플랫폼별 컴포넌트 교체
+
+```tsx
+import { getPlatformOS } from '@apps-in-toss/web-framework';
+
+const platform = getPlatformOS();
+
+function BackButton() {
+  if (platform === 'ios') {
+    // iOS: 왼쪽 상단 쉐브론 아이콘
+    return (
+      <button type="button" aria-label="뒤로">
+        ‹ 뒤로
+      </button>
+    );
+  }
+
+  // Android: Material 화살표 아이콘
+  return (
+    <button type="button" aria-label="뒤로">
+      ← 뒤로
+    </button>
+  );
+}
+```
+
+컴포넌트 자체를 바꾸는 패턴은 스타일 조건 분기보다 렌더 로직을 단순하게 유지할 수 있다.
+
+## 관련 API
+
+- [`getPlatformOS`](/api/environment/getPlatformOS) — 현재 플랫폼 OS를 반환합니다.
+- [`isMinVersionSupported`](/api/environment/isMinVersionSupported) — 플랫폼별 최소 버전 충족 여부를 확인합니다.
+- [`getSafeAreaInsets`](/api/environment/getSafeAreaInsets) — Safe Area 인셋을 플랫폼에 맞게 처리할 때 함께 사용합니다.

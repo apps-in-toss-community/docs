@@ -1,0 +1,75 @@
+---
+id: sandbox-prod-branch
+title: Sandbox vs production branching
+sidebar_label: Sandbox/prod branching
+slug: /recipes/sandbox-prod-branch
+description: Use getOperationalEnvironment to distinguish toss / sandbox and switch API endpoints or expose debug UI only in sandbox.
+---
+
+# Sandbox vs production branching
+
+`getOperationalEnvironment()` returns `'toss'` (production/QA) or `'sandbox'` synchronously. Use it to swap API endpoints between environments or to show debugging tools only in sandbox.
+
+## Switch the API base URL by environment
+
+```tsx
+import { getOperationalEnvironment } from '@apps-in-toss/web-framework';
+
+const env = getOperationalEnvironment();
+
+const BASE_URL =
+  env === 'toss'
+    ? 'https://api.example.com'
+    : 'https://sandbox-api.example.com';
+
+async function fetchProducts() {
+  const res = await fetch(`${BASE_URL}/products`);
+  return res.json();
+}
+```
+
+Declaring `BASE_URL` as a module-scope constant ensures the entire app uses a consistent endpoint.
+
+## Show a debug banner in sandbox only
+
+```tsx
+import { getOperationalEnvironment } from '@apps-in-toss/web-framework';
+
+const isSandbox = getOperationalEnvironment() === 'sandbox';
+
+function DebugBanner() {
+  if (!isSandbox) return null;
+
+  return (
+    <div
+      role="banner"
+      style={{
+        background: '#ff6b6b',
+        color: '#fff',
+        padding: '4px 12px',
+        fontSize: 12,
+        textAlign: 'center',
+      }}
+    >
+      Sandbox environment — changes do not affect real data
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <>
+      <DebugBanner />
+      <main>{/* app content */}</main>
+    </>
+  );
+}
+```
+
+Computing `isSandbox` once outside the component avoids re-evaluation on every render.
+
+## Related APIs
+
+- [`getOperationalEnvironment`](/api/environment/getOperationalEnvironment) — returns the current execution environment.
+- [`env.getDeploymentId`](/api/environment/getDeploymentId) — include the deployment ID alongside environment in logs.
+- [`getTossAppVersion`](/api/environment/getTossAppVersion) — log the app version together with the environment.

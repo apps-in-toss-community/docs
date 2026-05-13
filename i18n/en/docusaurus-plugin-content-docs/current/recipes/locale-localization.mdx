@@ -1,0 +1,66 @@
+---
+id: locale-localization
+title: Locale-based localization (date / currency / language)
+sidebar_label: Locale localization
+slug: /recipes/locale-localization
+description: Read the BCP 47 locale tag with getLocale and use it with the Intl API to format dates and currency, and to branch UI language without a third-party library.
+---
+
+# Locale-based localization (date / currency / language)
+
+`getLocale()` returns a BCP 47 locale tag synchronously (e.g. `'ko-KR'`, `'en-US'`). Combined with the standard `Intl` API, you can localize dates, currency, and numbers without an extra library.
+
+## Format dates and currency
+
+```tsx
+import { getLocale } from '@apps-in-toss/web-framework';
+
+const locale = getLocale(); // e.g. 'ko-KR'
+
+function formatDate(date: Date): string {
+  return new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  }).format(date);
+}
+
+function formatCurrency(amount: number, currency = 'KRW'): string {
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency,
+  }).format(amount);
+}
+
+// 'ko-KR' → '2024년 1월 14일', '₩1,000'
+// 'en-US' → 'January 14, 2024', 'KRW 1,000'
+```
+
+`Intl.DateTimeFormat` and `Intl.NumberFormat` instances are reusable. Wrap them in `useMemo` if you have many renders.
+
+## Extract the language code and branch UI text
+
+```tsx
+import { getLocale } from '@apps-in-toss/web-framework';
+
+const locale = getLocale();
+const lang = locale.split('-')[0]; // 'ko', 'en', 'ja', …
+
+const messages: Record<string, { greeting: string }> = {
+  ko: { greeting: '안녕하세요' },
+  en: { greeting: 'Hello' },
+  ja: { greeting: 'こんにちは' },
+};
+
+function Greeting() {
+  const { greeting } = messages[lang] ?? messages.ko;
+  return <h1>{greeting}</h1>;
+}
+```
+
+Extracting just the two-letter language prefix (`lang`) lets you branch by language independently of the region code (`KR`, `US`). Fall back to `'ko'` for unsupported languages.
+
+## Related APIs
+
+- [`getLocale`](/api/environment/getLocale) — returns the BCP 47 locale tag.
+- [`getPlatformOS`](/api/environment/getPlatformOS) — use alongside locale when date display conventions differ by platform.

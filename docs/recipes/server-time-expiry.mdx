@@ -1,0 +1,85 @@
+---
+image: /og/recipes-server-time-expiry.png
+id: server-time-expiry
+title: 서버 시간 기반 만료·보상 판단 패턴
+sidebar_label: 서버 시간 만료 판단
+slug: /recipes/server-time-expiry
+description: getServerTime으로 서버 기준 현재 시간을 가져와 이벤트 만료 여부와 보상 수령 가능 여부를 안전하게 판단하는 패턴.
+---
+
+# 서버 시간 기반 만료·보상 판단 패턴
+
+`getServerTime()`은 서버 기준 Unix timestamp(ms)를 비동기로 반환한다. 클라이언트 기기 시간은 사용자가 임의로 바꿀 수 있으므로, 만료 판단·보상 수령 같은 신뢰가 필요한 시간 비교에는 `getServerTime()`을 사용한다.
+
+## 이벤트 만료 여부 확인
+
+```tsx
+import { getServerTime } from '@apps-in-toss/web-framework';
+import { useState, useEffect } from 'react';
+
+const EVENT_END_MS = 1_720_000_000_000; // 이벤트 종료 시각 (Unix ms)
+
+type Status = 'loading' | 'active' | 'expired' | 'unsupported';
+
+function EventPage() {
+  const [status, setStatus] = useState<Status>('loading');
+
+  useEffect(() => {
+    async function check() {
+      if (!getServerTime.isSupported()) {
+        setStatus('unsupported');
+        return;
+      }
+
+      const serverTime = await getServerTime();
+      if (serverTime === undefined) {
+        setStatus('unsupported');
+        return;
+      }
+
+      setStatus(serverTime <= EVENT_END_MS ? 'active' : 'expired');
+    }
+
+    check();
+  }, []);
+
+  const label: Record<Status, string> = {
+    loading: '확인 중...',
+    active: '이벤트 참여 가능합니다.',
+    expired: '이벤트가 종료되었습니다.',
+    unsupported: '현재 앱 버전에서는 이 기능을 지원하지 않습니다.',
+  };
+
+  return <p>{label[status]}</p>;
+}
+```
+
+`getServerTime.isSupported()` 체크를 먼저 수행하고, 반환값 `undefined` 처리도 함께 진행한다.
+
+## 보상 수령 쿨다운 검사
+
+```tsx
+import { getServerTime } from '@apps-in-toss/web-framework';
+
+const COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24시간
+
+async function canClaimReward(lastClaimedAt: number): Promise<boolean> {
+  if (!getServerTime.isSupported()) {
+    // 지원하지 않으면 보수적으로 false 반환
+    return false;
+  }
+
+  const serverTime = await getServerTime();
+  if (serverTime === undefined) return false;
+
+  return serverTime - lastClaimedAt >= COOLDOWN_MS;
+}
+```
+
+`lastClaimedAt`은 서버에서 내려받은 타임스탬프를 사용한다. 클라이언트 `Date.now()`와 비교하면 기기 시간 조작에 취약해진다.
+
+## 관련 API
+
+- [`getServerTime`](/api/environment/getServerTime) — 서버 기준 Unix timestamp(ms)를 반환합니다.
+- [`isMinVersionSupported`](/api/environment/isMinVersionSupported) — `getServerTime`이 지원되지 않는 버전에서의 업데이트 안내에 사용합니다.
+- [`getOperationalEnvironment`](/api/environment/getOperationalEnvironment) — 샌드박스에서는 테스트용 타임스탬프를 사용하도록 분기할 때 사용합니다.

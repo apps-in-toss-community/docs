@@ -1,0 +1,67 @@
+---
+image: /og/recipes-locale-localization.png
+id: locale-localization
+title: 로케일 기반 현지화 패턴 (날짜·통화·언어 분기)
+sidebar_label: 로케일 현지화
+slug: /recipes/locale-localization
+description: getLocale로 BCP 47 로케일 태그를 읽어 날짜·통화 포맷과 UI 언어를 사용자 환경에 맞게 분기하는 패턴.
+---
+
+# 로케일 기반 현지화 패턴 (날짜·통화·언어 분기)
+
+`getLocale()`은 BCP 47 형식의 로케일 태그(예: `'ko-KR'`, `'en-US'`)를 동기로 반환한다. `Intl` API와 조합하면 별도 라이브러리 없이 날짜·통화·숫자를 현지화할 수 있다.
+
+## 날짜·통화 포맷 현지화
+
+```tsx
+import { getLocale } from '@apps-in-toss/web-framework';
+
+const locale = getLocale(); // 예: 'ko-KR'
+
+function formatDate(date: Date): string {
+  return new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  }).format(date);
+}
+
+function formatCurrency(amount: number, currency = 'KRW'): string {
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency,
+  }).format(amount);
+}
+
+// 'ko-KR' → '2024년 1월 14일', '₩1,000'
+// 'en-US' → 'January 14, 2024', 'KRW 1,000'
+```
+
+`Intl.DateTimeFormat`과 `Intl.NumberFormat` 인스턴스는 재사용이 가능하다. 반복 렌더가 잦다면 `useMemo`로 감싸는 것이 좋다.
+
+## 언어 코드 추출 후 UI 언어 분기
+
+```tsx
+import { getLocale } from '@apps-in-toss/web-framework';
+
+const locale = getLocale();
+const lang = locale.split('-')[0]; // 'ko', 'en', 'ja' 등
+
+const messages: Record<string, { greeting: string }> = {
+  ko: { greeting: '안녕하세요' },
+  en: { greeting: 'Hello' },
+  ja: { greeting: 'こんにちは' },
+};
+
+function Greeting() {
+  const { greeting } = messages[lang] ?? messages.ko;
+  return <h1>{greeting}</h1>;
+}
+```
+
+언어 태그의 앞 두 글자(`lang`)만 추출하면 지역 코드(`KR`, `US`)와 무관하게 언어별로 분기할 수 있다. 지원하지 않는 언어는 `'ko'`를 fallback으로 사용한다.
+
+## 관련 API
+
+- [`getLocale`](/api/environment/getLocale) — BCP 47 로케일 태그를 반환합니다.
+- [`getPlatformOS`](/api/environment/getPlatformOS) — 플랫폼별 날짜 표기 방식이 다를 때 함께 사용합니다.

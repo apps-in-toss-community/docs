@@ -1,0 +1,68 @@
+---
+id: deployment-id-error-tracking
+title: Deployment-ID-based error tracking
+sidebar_label: Deployment ID tracking
+slug: /recipes/deployment-id-error-tracking
+description: Attach the deployment ID from env.getDeploymentId to error reports so you can instantly narrow down which build caused a problem.
+---
+
+# Deployment-ID-based error tracking
+
+Attaching the deployment ID to error reports lets you immediately answer "which build triggered this?" The deployment ID is a unique string issued per mini-app build.
+
+## Include the deployment ID in error reports
+
+```tsx
+import { env } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function App() {
+  useEffect(() => {
+    const deploymentId = env.getDeploymentId();
+
+    const handler = (event: PromiseRejectionEvent) => {
+      // Include the deployment ID so you know which build triggered the error.
+      console.error('[unhandled]', {
+        deploymentId,
+        reason: event.reason,
+      });
+    };
+
+    window.addEventListener('unhandledrejection', handler);
+    return () => window.removeEventListener('unhandledrejection', handler);
+  }, []);
+
+  return <main>{/* app content */}</main>;
+}
+```
+
+`env.getDeploymentId()` is synchronous — read it once and cache it. No need to call it inside each event handler.
+
+## Send to an external error collection service
+
+```tsx
+import { env } from '@apps-in-toss/web-framework';
+
+const deploymentId = env.getDeploymentId();
+
+// If Sentry is installed, register as a tag on init:
+// Sentry.setTag('deploymentId', deploymentId);
+
+// Or send to a custom collection endpoint:
+async function reportError(error: unknown): Promise<void> {
+  await fetch('/api/errors', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ deploymentId, error: String(error) }),
+  });
+}
+```
+
+- Registering `deploymentId` as a context tag lets you group multiple errors from the same build.
+- Pair with `getOperationalEnvironment()` to separate production from sandbox issues.
+
+## Related APIs
+
+- [`env.getDeploymentId`](/api/environment/getDeploymentId) — returns the current deployment ID.
+- [`getOperationalEnvironment`](/api/environment/getOperationalEnvironment) — returns the execution environment (`toss` / `sandbox`).
+- [`getTossAppVersion`](/api/environment/getTossAppVersion) — include the app version alongside the deployment ID for richer context.
