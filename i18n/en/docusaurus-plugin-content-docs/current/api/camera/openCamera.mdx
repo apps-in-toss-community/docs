@@ -1,0 +1,159 @@
+---
+id: openCamera
+title: openCamera
+sidebar_label: openCamera
+description: Launch the device camera and return the captured image.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `openCamera`
+
+Launches the device camera so the user can take a photo, then returns the captured image. Suitable for single-shot image capture flows such as profile photo upload, receipt scanning, or identity verification.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { openCamera } from '@apps-in-toss/web-framework';
+
+declare function openCamera(options?: OpenCameraOptions): Promise<ImageResponse>;
+
+interface OpenCameraOptions {
+  /** Return the image as a Base64-encoded string. Default: `false`. */
+  base64?: boolean;
+  /** Maximum width of the returned image in pixels. Default: `1024`. */
+  maxWidth?: number;
+}
+
+interface ImageResponse {
+  /** Unique ID of the captured image. */
+  id: string;
+  /**
+   * Data URI of the image.
+   * When `base64: true`, contains a raw Base64-encoded string (no data URL prefix).
+   */
+  dataUri: string;
+}
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `options` | `OpenCameraOptions` | — | Optional configuration object. |
+| `options.base64` | `boolean` | — | When `true`, `dataUri` is a raw Base64-encoded JPEG string instead of a data URI. Default `false`. |
+| `options.maxWidth` | `number` | — | Maximum pixel width of the returned image. Default `1024`. |
+
+## Returns
+
+- `Promise<ImageResponse>` — resolves with the captured image's unique `id` and `dataUri`.
+- Permission-`denied` failures are covered in the "Permission" section. The promise can also reject if camera access fails or the user cancels the shot — always wrap in `try/catch`.
+
+:::caution `base64: true` — data URL prefix required
+When `base64: true`, the `dataUri` field contains only the raw Base64 string. To use it as an `<img src>`, prepend the data URL scheme yourself: `'data:image/jpeg;base64,' + response.dataUri`.
+:::
+
+## Permission
+
+Requires the `Camera` permission. The call fails only when the status is **explicitly `denied`** — wrap in `try/catch`. `notDetermined` lets the call through, but prompting the dialog first is the safer flow. See [Guides — Permissions pattern](/guides/permissions-pattern) for the full flow.
+
+The callable exposes permission helpers:
+
+```ts
+const status = await openCamera.getPermission();
+// 'allowed' | 'denied' | 'notDetermined'
+
+if (status !== 'allowed') {
+  await openCamera.openPermissionDialog();
+}
+```
+
+## Examples
+
+### Minimal
+
+```tsx
+import { openCamera } from '@apps-in-toss/web-framework';
+
+async function takePhoto() {
+  const response = await openCamera();
+  console.log('Image ID:', response.id);
+  console.log('Data URI:', response.dataUri);
+}
+```
+
+### Realistic — capture a profile photo with preview
+
+```tsx
+import { openCamera } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+export function ProfilePhotoCapture() {
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null);
+  const [message, setMessage] = useState('');
+  const [pending, setPending] = useState(false);
+
+  async function handleCapture() {
+    setPending(true);
+    setMessage('');
+    try {
+      const status = await openCamera.getPermission();
+      if (status === 'denied') {
+        setMessage('Please allow camera access in Settings.');
+        return;
+      }
+      if (status === 'notDetermined') {
+        await openCamera.openPermissionDialog();
+      }
+
+      // Request Base64 so we can display the image immediately.
+      const response = await openCamera({ base64: true, maxWidth: 512 });
+      // The Base64 string has no data URL prefix — add it manually.
+      setPreviewSrc('data:image/jpeg;base64,' + response.dataUri);
+    } catch (error) {
+      // Fires if permission was revoked between the check and the call,
+      // or if the user cancelled the camera UI.
+      setMessage('Could not capture photo — please try again.');
+      console.error(error);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div>
+      <button type="button" onClick={handleCapture} disabled={pending}>
+        {pending ? 'Opening camera…' : 'Take profile photo'}
+      </button>
+      {previewSrc && (
+        <img src={previewSrc} alt="Captured profile photo preview" width={200} height={200} />
+      )}
+      {message && <p role="status">{message}</p>}
+    </div>
+  );
+}
+```
+
+## Try it live
+
+Run the API in sdk-example and inspect the result.
+
+<TryItLink group="camera" method="openCamera" />
+
+## Related APIs
+
+- _(coming soon)_ `fetchAlbumPhotos` — pick images from the album without launching the camera.
+
+## Related guides
+
+- [Guides — Permissions pattern](/guides/permissions-pattern) — the shared `getPermission` / `openPermissionDialog` flow.
+- _(coming soon)_ Guides — "Camera & album UX patterns"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
+- Standard Web API equivalent: [`MediaDevices.getUserMedia`](https://developer.mozilla.org/docs/Web/API/MediaDevices/getUserMedia) — the browser-native camera access API.
