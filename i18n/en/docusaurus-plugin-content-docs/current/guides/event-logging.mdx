@@ -1,0 +1,300 @@
+---
+id: event-logging
+title: Event logging patterns — log_name conventions and log_type selection
+sidebar_label: Event logging
+slug: /guides/event-logging
+description: When and how to choose among the 9 log_type values for analytics.eventLog, log_name naming conventions, what must never go in params, and a consistent pattern for logging the four axes — user action, screen view, impression, and error — in one place.
+---
+
+# Event logging patterns — log_name conventions and log_type selection
+
+`analytics.eventLog` is the low-level logging function that supports all 9 `log_type` values. `Analytics.click`, `Analytics.screen`, and `Analytics.impression` are thin wrappers that fix `log_type` to `'click'`, `'screen'`, and `'impression'` respectively.
+
+**Which to use:**
+
+- For clicks, screen views, or component impressions, prefer `Analytics.click` / `Analytics.screen` / `Analytics.impression` first. The call site is simpler and the intent is clear from the function name.
+- Use `eventLog` directly when you need a `log_type` the wrappers don't cover (`'debug'`, `'warn'`, `'error'`, `'popup'`, `'event'`), or when you want a single helper to consolidate multiple types.
+
+## `log_type` decision table
+
+| `log_type` | When | Recommended `log_name` shape |
+| --- | --- | --- |
+| `'click'` | Explicit tap/click on a button, link, or card | `<domain>_<component>_click` |
+| `'screen'` | Screen (SPA route) entry | `<domain>_<screen>_view` |
+| `'impression'` | UI component enters the viewport | `<domain>_<component>_impression` |
+| `'event'` | General user action not covered by the three above | `<domain>_<noun>_<verb>` |
+| `'popup'` | Popup, bottom sheet, or modal appears | `<domain>_<popup_name>_popup` |
+| `'error'` | App-level error — fetch failure, parse error, etc. | `<domain>_<context>_error` |
+| `'warn'` | Warning — race conditions, unexpected paths | `<domain>_<context>_warn` |
+| `'info'` | Informational — state transitions, major flow checkpoints | `<domain>_<context>_info` |
+| `'debug'` | Development diagnostics — avoid in release builds | `debug_<detail>` |
+
+`'event'` is the most general value. When unsure which type fits, start with `'event'` and narrow it down later.
+
+## `log_name` conventions
+
+### Rules
+
+- **snake_case** — all lowercase, words separated by underscores.
+- **`<domain>_<noun>_<verb>` structure** — domain (screen or feature area), subject (noun), action (verb).
+- Two or more meaningful words is enough; the three-part structure is a guide, not a strict rule.
+
+```
+product_detail_view       ✅  (domain: product, noun: detail, verb: view)
+cta_signup_click          ✅  (domain: cta, noun: signup, verb: click)
+banner_promo_impression   ✅  (domain: banner, noun: promo, verb: impression)
+checkout_payment_error    ✅  (domain: checkout, noun: payment, verb: error)
+```
+
+### Anti-patterns
+
+```
+// ❌ Contains spaces
+"product detail view"
+
+// ❌ camelCase
+productDetailView
+
+// ❌ Dynamic ID embedded — names explode, dashboard aggregation breaks
+`product_${productId}_view`
+
+// ❌ Too generic — impossible to know which screen
+"click"
+"error"
+```
+
+Dynamic identifiers belong in **`params`**, not in `log_name`.
+
+```tsx
+// ✅
+eventLog({
+  log_name: 'product_detail_view',
+  log_type: 'screen',
+  params: { product_id: productId },
+});
+```
+
+## `params` rules
+
+### Allowed types
+
+`params` values must be **primitives only**: `string | number | boolean | null | undefined | symbol`. Do not nest objects or arrays.
+
+```tsx
+// ✅
+params: {
+  product_id: '12345',
+  price: 4900,
+  is_new: true,
+  category: null,
+}
+
+// ❌ Nested object — serialises to "[object Object]"
+params: {
+  product: { id: '12345', name: 'Product name' },
+}
+
+// ❌ Array — serialises to a concatenated string
+params: {
+  tags: ['sale', 'new'],
+}
+```
+
+### No PII
+
+Never put personally identifiable information — names, phone numbers, email addresses, national IDs — in `params`. If you need a user identifier, use an anonymous ID or a server-side hashed token.
+
+### Key naming
+
+Use **snake_case** consistently, matching the `log_name` convention.
+
+```tsx
+// ✅
+params: { product_id: id, screen_name: 'home' }
+
+// ❌ camelCase mix
+params: { productId: id, screenName: 'home' }
+```
+
+### Payload size
+
+Don't treat `params` as a general JSON store. Extract only the relevant context — aim for 5–10 keys at most. The logging system is optimised for flat key-value access.
+
+## Four-axis logging pattern
+
+User action, screen view, impression, and error — the four core logging axes — handled consistently via `eventLog`.
+
+### Shared helper (optional)
+
+If multiple components share the same parameter shape, a thin `track()` wrapper keeps call sites uniform.
+
+```tsx
+import { eventLog } from '@apps-in-toss/web-framework';
+
+type Primitive = string | number | boolean | null | undefined | symbol;
+
+interface TrackOptions {
+  log_name: string;
+  log_type: 'debug' | 'info' | 'warn' | 'error' | 'event' | 'screen' | 'impression' | 'click' | 'popup';
+  params?: Record<string, Primitive>;
+}
+
+/** Fire-and-forget — does not block the UI. */
+function track({ log_name, log_type, params = {} }: TrackOptions): void {
+  eventLog({ log_name, log_type, params });
+}
+```
+
+### User action (click)
+
+```tsx
+import { eventLog } from '@apps-in-toss/web-framework';
+
+function SignupButton({ source }: { source: string }) {
+  const handleClick = () => {
+    eventLog({
+      log_name: 'cta_signup_click',
+      log_type: 'click',
+      params: { source },
+    });
+    // proceed with the actual action (e.g. navigate to signup)
+  };
+
+  return (
+    <button type="button" onClick={handleClick}>
+      Get started
+    </button>
+  );
+}
+```
+
+### Screen view (screen)
+
+```tsx
+import { eventLog } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function ProductDetailPage({ productId, category }: { productId: string; category: string }) {
+  useEffect(() => {
+    eventLog({
+      log_name: 'product_detail_view',
+      log_type: 'screen',
+      params: { product_id: productId, category },
+    });
+  }, [productId, category]);
+
+  return <main>{/* product detail */}</main>;
+}
+```
+
+### Impression
+
+```tsx
+import { eventLog } from '@apps-in-toss/web-framework';
+import { useEffect, useRef } from 'react';
+
+function PromoBanner({ bannerId }: { bannerId: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          eventLog({
+            log_name: 'banner_promo_impression',
+            log_type: 'impression',
+            params: { banner_id: bannerId },
+          });
+          observer.unobserve(el);
+        }
+      },
+      { threshold: 0.5 },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [bannerId]);
+
+  return <div ref={ref}>Promotional banner</div>;
+}
+```
+
+### Error
+
+```tsx
+import { eventLog } from '@apps-in-toss/web-framework';
+
+async function fetchProductData(productId: string) {
+  try {
+    const res = await fetch(`/api/products/${productId}`);
+    return await res.json();
+  } catch (error) {
+    eventLog({
+      log_name: 'product_fetch_error',
+      log_type: 'error',
+      params: {
+        product_id: productId,
+        message: error instanceof Error ? error.message : String(error),
+      },
+    });
+    throw error;
+  }
+}
+```
+
+## Batching and async notes
+
+`eventLog` returns a fire-and-forget Promise. A few guidelines:
+
+- **Don't block UI rendering.** Awaiting `eventLog` before the next user action means a slow logging call makes the whole UX slow.
+- **Minimise calls in loops.** If you're iterating over an array and logging once per item, consider a single `'event'` log with a `count` param instead.
+- **Don't swallow errors in error-logging code.** If `eventLog` itself throws inside a catch block, let it pass silently — catching the catch leads to infinite regress.
+
+```tsx
+// ✅ fire-and-forget
+function handleAction() {
+  eventLog({ log_name: 'action_done', log_type: 'event', params: {} });
+  doNextThing(); // proceeds immediately without waiting for the log
+}
+
+// ❌ logging blocks the UI
+async function handleAction() {
+  await eventLog({ log_name: 'action_done', log_type: 'event', params: {} });
+  doNextThing();
+}
+```
+
+## Common mistakes
+
+- Is a dynamic ID embedded in `log_name`? Dashboard aggregation breaks. Move dynamic values to `params`.
+- Is `log_name` using camelCase or spaces? Use snake_case throughout.
+- Are `params` values nested objects or arrays? Flatten them into primitives.
+- Does `params` contain PII (email, name, phone number)?
+- Is `log_type: 'debug'` used in production builds? Wrap debug logs in an environment check.
+- Is `await eventLog(...)` blocking UI rendering or user interactions?
+- If `eventLog` throws inside an error handler, will it crash the outer call? Isolate with a nested try/catch.
+
+## Environment differences
+
+- **Real Apps-in-Toss app**: `eventLog` calls are forwarded to the logging system. Entries may be routed into different pipelines depending on `log_type`.
+- **Sandbox / devtools mock**: the mock injected by [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) prints `eventLog` calls to the **browser console**, letting you inspect `log_name`, `log_type`, and `params` without a real device.
+- **External browser (outside the mini-app environment)**: `eventLog` throws. Do not call it from utility code that runs outside a mini-app context.
+
+## Related APIs
+
+- [`api/analytics`](/api/analytics) — `analytics` namespace overview.
+- [`Analytics.click`](/api/analytics/click) — `log_type: 'click'` wrapper.
+- [`Analytics.impression`](/api/analytics/impression) — `log_type: 'impression'` wrapper.
+- [`Analytics.screen`](/api/analytics/screen) — `log_type: 'screen'` wrapper.
+- [`eventLog`](/api/analytics/eventLog) — low-level logging function with all 9 `log_type` values.
+
+## Related guides
+
+- [Guides — Event subscription patterns](/guides/event-subscription) — subscribing to Apps-in-Toss container events (back button, home button, etc.). Event *subscription*, not event *logging*.
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. `eventLog` is re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
