@@ -1,0 +1,184 @@
+---
+image: /og/guides-navigation-flow.png
+id: navigation-flow
+title: 미니앱 화면 흐름 패턴
+sidebar_label: 미니앱 화면 흐름 패턴
+slug: /guides/navigation-flow
+description: 토스 앱 안에서 미니앱 화면이 어떻게 들어오고 떠나는지 — 진입·종료, 외부 URL 열기, 방향/가독성 같은 화면 컨텍스트를 다루는 패턴.
+---
+
+# 미니앱 화면 흐름 패턴
+
+미니앱은 토스 앱이라는 컨테이너 안에서 동작합니다. 이 가이드는 그 컨테이너와 상호작용해 **화면을 어떻게 들어오고, 어떻게 떠나며, 어떻게 보여줄지** 결정하는 navigation API들을 한 곳에 모읍니다 — 각 메서드 페이지는 시그니처만 다루고, 시점·짝짓기·환경 차이 같은 공통 규칙은 이 가이드에 위임합니다.
+
+## 미니앱 화면 라이프사이클 한눈에 보기
+
+```
+[토스 앱 컨테이너]
+      │
+      │ 사용자가 미니앱 진입
+      ▼
+┌──────────────────────────────────┐
+│  미니앱 첫 화면 마운트              │
+│  └ setDeviceOrientation, setSecureScreen,
+│    setScreenAwakeMode를 첫 effect에서 1회 호출  │
+└──────────────────────────────────┘
+      │
+      │ 내부 라우팅 (history API · React Router 등)
+      ▼
+┌──────────────────────────────────┐
+│  미니앱 내 다른 화면들             │
+│  └ 화면 진입 시 컨텍스트 재설정         │
+└──────────────────────────────────┘
+      │
+      │ openURL(...) 또는 토스 앱 외부 이동
+      ▼
+[외부 브라우저 / 다른 앱]
+      │
+      │ 또는 사용자가 종료
+      ▼
+closeView() → 토스 앱 컨테이너로 복귀
+```
+
+핵심 사실:
+
+- **미니앱은 단일 webview** — 브라우저처럼 자체 라우팅을 가집니다. 화면 전환은 SDK가 아니라 SPA 라우터로 처리하고, SDK는 컨테이너와의 경계에서만 등장합니다.
+- **화면 컨텍스트는 webview 단위로 유지** — 한 번 `setDeviceOrientation('landscape')`을 호출하면 미니앱이 떠날 때까지 유지됩니다. 화면마다 재호출이 필요하다는 뜻이 아니라, 화면마다 **명시적 의도가 있을 때만** 다시 호출하라는 뜻입니다.
+- **종료의 주체는 사용자** — 미니앱이 강제로 닫을 일은 거의 없습니다. `closeView`는 "완료" 같은 명시적 종료 액션 직후에만 호출하고, 백그라운드 자동 호출은 피하세요.
+
+## 진입 시 한 번 설정하는 화면 컨텍스트
+
+세 가지 호출이 자주 짝지어 사용됩니다 — 모두 부울 토글이고, 모두 화면 단위가 아니라 **세션 단위로 한 번씩** 거는 게 맞습니다.
+
+| API | 무엇을 바꾸는가 | 언제 부르나 |
+| --- | --- | --- |
+| [`setDeviceOrientation`](/api/navigation/setDeviceOrientation) | `'portrait' \| 'landscape'`로 회전 잠금 | 가로 전용 화면(비디오 플레이어, 게임)이 마운트될 때 |
+| [`setScreenAwakeMode`](/api/navigation/setScreenAwakeMode) | 화면 자동 꺼짐 비활성 | 사용자가 화면을 길게 응시하는 경로(읽기, 시청, 운동) 진입 시 |
+| [`setSecureScreen`](/api/navigation/setSecureScreen) | OS 스크린샷·녹화 차단 | 결제·인증서 입력 같은 민감 화면 마운트 시 |
+
+```tsx
+import {
+  setDeviceOrientation,
+  setScreenAwakeMode,
+  setSecureScreen,
+} from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function VideoPlayerScreen() {
+  useEffect(() => {
+    setDeviceOrientation({ type: 'landscape' });
+    setScreenAwakeMode({ enabled: true });
+
+    return () => {
+      // 컴포넌트가 떠나면 다음 화면의 기본 컨텍스트로 되돌린다.
+      setDeviceOrientation({ type: 'portrait' });
+      setScreenAwakeMode({ enabled: false });
+    };
+  }, []);
+
+  return <video ... />;
+}
+```
+
+기본 화면(portrait, awake off, secure off)을 가정한다면 effect 클린업에서 반드시 복귀시키세요. 안 그러면 다음 화면이 회전·꺼짐 정책을 그대로 물려받습니다.
+
+`setScreenAwakeMode`와 `setSecureScreen`은 `{ enabled: boolean }` 결과를 돌려줍니다 — 호출 자체가 실패할 가능성보다 **요청이 거절될 수 있다**는 뜻입니다(예: OS 정책상 보안 화면을 강제할 수 없는 환경). 결과 값을 점검해 후속 UI를 조정하세요.
+
+```ts
+const { enabled } = await setSecureScreen({ enabled: true });
+if (!enabled) {
+  // 보안 화면이 활성화되지 않은 환경 — 사용자에게 캡처 위험을 안내하거나 입력 단계를 건너뛴다.
+}
+```
+
+## iOS 스와이프 제스처 비활성화
+
+[`setIosSwipeGestureEnabled`](/api/navigation/setIosSwipeGestureEnabled)는 iOS의 화면 가장자리 스와이프-back 제스처를 켜고 끕니다. 미니앱 자체의 라우팅이 SPA 단위로 동작하기 때문에, 시스템 제스처가 토스 컨테이너 단위로 뒤로 가버리면 사용자가 의도치 않게 미니앱을 빠져나갑니다.
+
+```tsx
+import { setIosSwipeGestureEnabled } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function MultiStepFormScreen() {
+  useEffect(() => {
+    setIosSwipeGestureEnabled({ isEnabled: false });
+    return () => {
+      setIosSwipeGestureEnabled({ isEnabled: true });
+    };
+  }, []);
+
+  return <Form ... />;
+}
+```
+
+**원칙**: 미니앱 첫 화면은 `isEnabled: true`(기본값)를 유지해 토스 컨테이너로의 자연스러운 복귀를 허용. 폼·결제·게임처럼 우발적 스와이프-back이 데이터 손실을 일으키는 화면에서만 `false`로 토글하세요.
+
+## 외부 URL 열기
+
+[`openURL`](/api/navigation/openURL)은 외부 브라우저나 다른 앱(URL 스킴 포함)을 띄웁니다. 미니앱 webview 자체를 다른 페이지로 옮기는 게 아니라, **현재 미니앱은 유지된 채 새 컨텍스트를 외부에 띄우는 것**이라는 점이 중요합니다.
+
+```tsx
+import { openURL } from '@apps-in-toss/web-framework';
+
+await openURL('https://example.com/help');
+// 미니앱은 계속 살아 있고, 사용자는 다시 미니앱으로 돌아올 수 있다.
+```
+
+남용 주의 사항:
+
+- **미니앱 내부 라우팅에 쓰지 마세요.** 같은 미니앱 안의 화면 이동은 SPA 라우터(React Router 등)로 처리합니다.
+- **`closeView`와 함께 묶지 마세요.** "외부로 보내고 미니앱 종료"라는 시나리오라도 컨테이너 상태가 어색해집니다 — 사용자가 외부에서 돌아왔을 때 빈 토스 화면을 보게 됩니다.
+- **사용자 액션 직후에만 호출.** 자동 redirect는 OS·브라우저에서 차단될 수 있고, UX적으로도 컨텍스트가 끊깁니다.
+
+## 미니앱 종료
+
+[`closeView`](/api/navigation/closeView)는 미니앱 webview를 닫고 사용자를 토스 앱 컨테이너로 되돌립니다.
+
+```tsx
+import { closeView } from '@apps-in-toss/web-framework';
+
+async function handleComplete() {
+  // 1. 사용자에게 완료 토스트.
+  showAppToast('주문이 완료됐어요');
+  // 2. 짧은 시각적 확인 후 종료.
+  await closeView();
+}
+```
+
+호출 시점 원칙:
+
+- **명시적 완료 액션 직후**에만 호출. "완료", "닫기", "취소 후 돌아가기" 같은 사용자 버튼에 묶기.
+- **에러 다이얼로그에서 자동 종료하지 않기.** 사용자가 에러 메시지를 읽기 전 webview가 사라지면 무슨 일이 일어났는지 모릅니다.
+- **저장되지 않은 상태가 있을 때 무조건 종료하지 않기.** 폼 중간 종료는 확인 다이얼로그 이후에만.
+
+## 자주 빠뜨리는 체크리스트
+
+- 화면 컨텍스트(`setDeviceOrientation` 등)를 effect 클린업에서 **되돌리고 있는가**? 안 되돌리면 다음 화면에 누수.
+- iOS 스와이프 제스처를 토글한 뒤 **반드시 복원**하고 있는가?
+- `setScreenAwakeMode`/`setSecureScreen`의 응답 `{ enabled }`를 **점검하고 있는가**? 무조건 성공 가정 금지.
+- `openURL`로 같은 미니앱 내부를 이동하고 있지는 않은가?
+- `closeView`를 자동 시점(타이머, 에러 콜백)에 부르고 있지는 않은가?
+
+## 환경별 차이
+
+- **실 토스 앱**: 모든 API가 정상 동작. `setSecureScreen`은 Android는 일반적으로 동작하지만 iOS는 OS 버전·정책에 따라 거절될 수 있어 응답 `enabled`를 반드시 확인.
+- **devtools mock**: [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) mock은 모든 호출을 no-op로 통과시키고 `{ enabled: 요청값 }`을 그대로 돌려줍니다. 실제 OS 동작은 디바이스에서 확인.
+- **외부 브라우저**: 컨테이너가 없으므로 호출이 throw 합니다. 미니앱 환경 외에서 라우팅을 시도하지 마세요.
+
+## 관련 API
+
+- [`api/navigation`](/api/navigation) — `navigation` 네임스페이스 overview.
+- [`closeView`](/api/navigation/closeView) — 미니앱 종료.
+- [`openURL`](/api/navigation/openURL) — 외부 URL/앱 열기.
+- [`setDeviceOrientation`](/api/navigation/setDeviceOrientation) — 화면 회전 잠금.
+- [`setIosSwipeGestureEnabled`](/api/navigation/setIosSwipeGestureEnabled) — iOS 스와이프-back 제스처 토글.
+- [`setScreenAwakeMode`](/api/navigation/setScreenAwakeMode) — 화면 자동 꺼짐 토글.
+- [`setSecureScreen`](/api/navigation/setSecureScreen) — 스크린샷·녹화 차단 토글.
+
+## 관련 가이드
+
+- [Guides — 권한 처리 패턴](/guides/permissions-pattern) — navigation 자체는 권한이 없지만, 결합되는 화면(예: 위치 활용)에서 함께 참고.
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지.
