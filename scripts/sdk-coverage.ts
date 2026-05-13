@@ -436,9 +436,13 @@ const NAMESPACE_MEMBERS: Record<string, string[]> = {
   GoogleAdMob: ['loadAppsInTossAdMob', 'showAppsInTossAdMob', 'isAppsInTossAdMobLoaded'],
   TossAds: ['initialize', 'attach', 'attachBanner', 'destroy', 'destroyAll'],
   partner: ['addAccessoryButton', 'removeAccessoryButton'],
-  appsInTossEvent: ['addEventListener'],
-  tdsEvent: ['addEventListener'],
-  graniteEvent: ['addEventListener'],
+  // Three event namespaces share the leaf `addEventListener`. To dodge the
+  // filename collision in `docs/api/events/`, each gets a `<container>-addEventListener.mdx`
+  // page (with frontmatter `slug: /api/events/<container>.addEventListener` to preserve
+  // the URL contract).
+  appsInTossEvent: ['appsInTossEvent-addEventListener'],
+  tdsEvent: ['tdsEvent-addEventListener'],
+  graniteEvent: ['graniteEvent-addEventListener'],
   Analytics: ['screen', 'impression', 'click'],
   // env namespace object — its one member is documented under
   // api/environment/getDeploymentId.mdx (matches sdk-example's
