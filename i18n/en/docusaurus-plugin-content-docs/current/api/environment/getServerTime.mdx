@@ -1,0 +1,131 @@
+---
+image: /og/api-environment-getServerTime.png
+id: getServerTime
+title: getServerTime
+sidebar_label: getServerTime
+description: Asynchronously returns the server-side current time as a Unix timestamp in milliseconds.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `getServerTime`
+
+Asynchronously returns the current server time from the Toss app server as a Unix timestamp in milliseconds. Because this is server time rather than device time, it is appropriate for reward eligibility checks and expiry logic where client-side time manipulation must be prevented. Returns `undefined` on unsupported app versions.
+
+This function exposes a static `getServerTime.isSupported()` method to check feature support before calling.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { getServerTime } from '@apps-in-toss/web-framework';
+
+declare function getServerTime(): Promise<number | undefined>;
+declare namespace getServerTime {
+  var isSupported: () => boolean;
+}
+```
+
+### `getServerTime.isSupported()`
+
+Checks whether the current app version supports `getServerTime`. On unsupported versions, calling `getServerTime()` returns `undefined` — checking `isSupported()` first is the recommended pattern.
+
+```ts
+declare function isSupported(): boolean;
+```
+
+## Parameters
+
+None.
+
+## Returns
+
+- `Promise<number | undefined>` — server time as a Unix timestamp in milliseconds (e.g. `1705123456789`). Returns `undefined` on unsupported app versions.
+
+:::caution Handle undefined
+`undefined` is returned on unsupported app versions. Always check the return value before using it, or call `getServerTime.isSupported()` upfront.
+:::
+
+## Permission
+
+No permission required — `getServerTime` is not bound to a `PermissionName`. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { getServerTime } from '@apps-in-toss/web-framework';
+
+if (getServerTime.isSupported()) {
+  const serverTime = await getServerTime();
+  console.log('Server time (ms):', serverTime);
+}
+```
+
+### Realistic — reward eligibility check
+
+```tsx
+import { getServerTime } from '@apps-in-toss/web-framework';
+import { useState, useEffect } from 'react';
+
+const REWARD_DEADLINE_MS = 1705200000000; // e.g. 2024-01-14 00:00:00 UTC
+
+function RewardPage() {
+  const [status, setStatus] = useState<'loading' | 'available' | 'expired' | 'unsupported'>('loading');
+
+  useEffect(() => {
+    async function checkDeadline() {
+      if (!getServerTime.isSupported()) {
+        setStatus('unsupported');
+        return;
+      }
+
+      const serverTime = await getServerTime();
+
+      if (serverTime === undefined) {
+        setStatus('unsupported');
+        return;
+      }
+
+      setStatus(serverTime <= REWARD_DEADLINE_MS ? 'available' : 'expired');
+    }
+
+    checkDeadline();
+  }, []);
+
+  const messages = {
+    loading: 'Checking...',
+    available: 'You are eligible to claim the reward.',
+    expired: 'The reward period has ended.',
+    unsupported: 'This feature is not supported on your current app version.',
+  };
+
+  return <p>{messages[status]}</p>;
+}
+```
+
+## Try it live
+
+Open the Environment page in sdk-example and run the `getServerTime` card to inspect the result.
+
+<TryItLink group="environment" method="getServerTime" />
+
+## Related APIs
+
+- [`isMinVersionSupported`](./isMinVersionSupported) — check whether the current app version meets a specific minimum.
+- [`getTossAppVersion`](./getTossAppVersion) — returns the current app version string.
+- [`getOperationalEnvironment`](./getOperationalEnvironment) — returns the current execution environment.
+
+## Related guides
+
+- [Guides — Permissions pattern](/guides/permissions-pattern) — permission flow used by other namespaces (reference only; `getServerTime` doesn't require a permission).
+- _(coming soon)_ Recipes — "Server-time-based expiry and reward eligibility pattern"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
+- Web standard counterpart: [`Date.now()`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Date/now) — returns client device time, which can be manipulated by the user. Use `getServerTime()` whenever tamper-resistance is required.

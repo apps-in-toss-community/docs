@@ -1,0 +1,132 @@
+---
+image: /og/api-environment-getNetworkStatus.png
+id: getNetworkStatus
+title: getNetworkStatus
+sidebar_label: getNetworkStatus
+description: 디바이스의 현재 네트워크 연결 상태를 비동기로 반환합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `getNetworkStatus`
+
+디바이스의 현재 네트워크 연결 상태를 비동기적으로 반환합니다. 인터넷 연결 여부와 연결 유형(Wi-Fi, 모바일 데이터 등)을 확인하는 데 사용합니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+```ts
+import { getNetworkStatus } from '@apps-in-toss/web-framework';
+
+export type NetworkStatus =
+  | 'OFFLINE'
+  | 'WIFI'
+  | '2G'
+  | '3G'
+  | '4G'
+  | '5G'
+  | 'WWAN'
+  | 'UNKNOWN';
+
+declare function getNetworkStatus(): Promise<NetworkStatus>;
+```
+
+## 파라미터
+
+없음.
+
+## 반환값
+
+`Promise<NetworkStatus>` — 아래 8개 값 중 하나를 resolve합니다.
+
+| 값 | 의미 | 플랫폼 |
+| --- | --- | --- |
+| `'OFFLINE'` | 인터넷에 연결되지 않은 상태 | iOS, Android |
+| `'WIFI'` | Wi-Fi에 연결된 상태 | iOS, Android |
+| `'2G'` | 2G 모바일 네트워크에 연결된 상태 | iOS, Android |
+| `'3G'` | 3G 모바일 네트워크에 연결된 상태 | iOS, Android |
+| `'4G'` | 4G 모바일 네트워크에 연결된 상태 | iOS, Android |
+| `'5G'` | 5G 모바일 네트워크에 연결된 상태 | iOS, Android |
+| `'WWAN'` | 인터넷에 연결됐지만 유형을 특정할 수 없는 상태 | iOS 전용 |
+| `'UNKNOWN'` | 인터넷 연결 상태를 알 수 없는 상태 | Android 전용 |
+
+:::caution 플랫폼별 차이
+`'WWAN'`은 iOS에서만 반환되며, `'UNKNOWN'`은 Android에서만 반환됩니다. 두 값 모두 "연결은 됐지만 유형 파악 불가"를 의미하므로 네트워크 요청은 시도해 볼 수 있지만 대역폭 가정은 하지 않는 것이 안전합니다.
+:::
+
+## 권한
+
+권한이 필요하지 않습니다 — `getNetworkStatus`는 별도의 `PermissionName`에 바인딩되지 않습니다. 권한이 필요한 다른 네임스페이스의 일반적인 처리 흐름은 [Guides — 권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { getNetworkStatus } from '@apps-in-toss/web-framework';
+
+const status = await getNetworkStatus();
+console.log('네트워크 상태:', status);
+```
+
+### 실전 예제 — 오프라인 여부에 따른 UI 분기
+
+```tsx
+import { getNetworkStatus } from '@apps-in-toss/web-framework';
+import { useState, useEffect } from 'react';
+
+function NetworkAwarePage() {
+  const [status, setStatus] = useState<string>('');
+  const [isOffline, setIsOffline] = useState(false);
+
+  useEffect(() => {
+    async function checkNetwork() {
+      const networkStatus = await getNetworkStatus();
+      setStatus(networkStatus);
+      setIsOffline(networkStatus === 'OFFLINE');
+    }
+
+    checkNetwork();
+  }, []);
+
+  if (isOffline) {
+    return (
+      <div>
+        <p>네트워크에 연결되지 않았습니다. 연결 후 다시 시도해 주세요.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <p>현재 네트워크 상태: <strong>{status}</strong></p>
+      {/* 네트워크 연결 상태에 따른 콘텐츠 */}
+    </div>
+  );
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Environment 페이지에서 `getNetworkStatus` 카드를 실행해 결과를 확인할 수 있습니다.
+
+<TryItLink group="environment" method="getNetworkStatus" />
+
+## 관련 API
+
+- [`getPlatformOS`](./getPlatformOS) — 현재 플랫폼 OS를 반환합니다.
+- [`getOperationalEnvironment`](./getOperationalEnvironment) — 현재 실행 환경을 반환합니다.
+- [`isMinVersionSupported`](./isMinVersionSupported) — 현재 앱 버전이 최소 버전 이상인지 확인합니다.
+
+## 관련 가이드
+
+- [Guides — 권한 처리 패턴](/guides/permissions-pattern) — 다른 네임스페이스의 권한 흐름 (참고용; `getNetworkStatus`는 권한이 필요하지 않습니다).
+- _(작성 예정)_ Recipes — "오프라인 대응 UI 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.
+- 표준 Web API 대응: [`navigator.onLine`](https://developer.mozilla.org/docs/Web/API/Navigator/onLine) — 단순 온/오프 여부만 반환하며, 연결 유형을 구분하지 않습니다. 연결 유형 상세 정보가 필요하다면 `getNetworkStatus()`가 더 적합합니다.

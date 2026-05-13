@@ -1,0 +1,97 @@
+---
+image: /og/api-environment-getPlatformOS.png
+id: getPlatformOS
+title: getPlatformOS
+sidebar_label: getPlatformOS
+description: Returns the current platform OS — 'ios' or 'android'.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `getPlatformOS`
+
+Synchronously returns the platform OS the mini-app is running on. Based on React Native's `Platform.OS`, it returns either `'ios'` or `'android'`.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { getPlatformOS } from '@apps-in-toss/web-framework';
+
+declare function getPlatformOS(): 'ios' | 'android';
+```
+
+## Parameters
+
+None.
+
+## Returns
+
+- `'ios'` — currently running on iOS.
+- `'android'` — currently running on Android.
+
+## Permission
+
+No permission required — `getPlatformOS` is not bound to a `PermissionName`. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { getPlatformOS } from '@apps-in-toss/web-framework';
+
+const platform = getPlatformOS();
+console.log('Platform:', platform); // 'ios' or 'android'
+```
+
+### Realistic — platform-specific styles
+
+```tsx
+import { getPlatformOS } from '@apps-in-toss/web-framework';
+
+function PlatformSpecificButton() {
+  const platform = getPlatformOS();
+  const isIos = platform === 'ios';
+
+  return (
+    <button
+      type="button"
+      style={{
+        // Rounded on iOS, Material style on Android
+        borderRadius: isIos ? 22 : 4,
+        fontFamily: isIos ? '-apple-system' : 'Roboto, sans-serif',
+        padding: '12px 24px',
+      }}
+    >
+      {isIos ? 'iOS-style button' : 'Android-style button'}
+    </button>
+  );
+}
+```
+
+## Try it live
+
+Open the Environment page in sdk-example and run the `getPlatformOS` card to inspect the result.
+
+<TryItLink group="environment" method="getPlatformOS" />
+
+## Related APIs
+
+- [`getOperationalEnvironment`](./getOperationalEnvironment) — returns the execution environment (`toss` / `sandbox`).
+- [`getTossAppVersion`](./getTossAppVersion) — returns the Toss app version.
+- [`isMinVersionSupported`](./isMinVersionSupported) — checks per-platform minimum version requirements.
+
+## Related guides
+
+- [Guides — Permissions pattern](/guides/permissions-pattern) — permission flow used by other namespaces (reference only; `getPlatformOS` doesn't require a permission).
+- _(coming soon)_ Recipes — "Platform-specific UI branching pattern (iOS vs Android)"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
+- React Native [`Platform.OS`](https://reactnative.dev/docs/platform#os) — this function internally wraps `Platform.OS`.
+- Web standard counterpart: [`navigator.userAgentData.platform`](https://developer.mozilla.org/docs/Web/API/NavigatorUAData/platform) — browser-based platform detection, but less reliable than `getPlatformOS()` in the mini-app runtime.

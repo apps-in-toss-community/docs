@@ -440,6 +440,9 @@ const NAMESPACE_MEMBERS: Record<string, string[]> = {
   tdsEvent: ['addEventListener'],
   graniteEvent: ['addEventListener'],
   Analytics: ['screen', 'impression', 'click'],
+  // env namespace object — its one member is documented under
+  // api/environment/getDeploymentId.mdx (matches sdk-example's
+  // ApiCard name="env.getDeploymentId" which normalizes to the leaf).
   env: ['getDeploymentId'],
 };
 

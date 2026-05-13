@@ -1,0 +1,103 @@
+---
+image: /og/api-environment-getGroupId.png
+id: getGroupId
+title: getGroupId
+sidebar_label: getGroupId
+description: 앱인토스에서 제공하는 그룹 ID를 반환합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `getGroupId`
+
+앱인토스 플랫폼에서 발급하는 그룹 ID를 동기적으로 반환합니다. 그룹 ID는 미니앱이 속한 비즈니스 또는 서비스 그룹을 식별하는 데 사용됩니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+```ts
+import { getGroupId } from '@apps-in-toss/web-framework';
+
+declare function getGroupId(): string;
+```
+
+## 파라미터
+
+없음.
+
+## 반환값
+
+- `string` — 앱인토스에서 제공하는 그룹 ID 문자열.
+
+## 권한
+
+권한이 필요하지 않습니다 — `getGroupId`는 별도의 `PermissionName`에 바인딩되지 않습니다. 권한이 필요한 다른 네임스페이스의 일반적인 처리 흐름은 [Guides — 권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { getGroupId } from '@apps-in-toss/web-framework';
+
+const groupId = getGroupId();
+console.log('Group ID:', groupId);
+```
+
+### 실전 예제 — 그룹 ID를 API 요청 헤더에 포함하기
+
+```tsx
+import { getGroupId } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+function GroupInfoPage() {
+  const [groupId, setGroupId] = useState('');
+
+  useEffect(() => {
+    const id = getGroupId();
+    setGroupId(id);
+  }, []);
+
+  async function fetchGroupData() {
+    const id = getGroupId();
+    const response = await fetch('/api/group-data', {
+      headers: {
+        'X-Group-Id': id,
+      },
+    });
+    return response.json();
+  }
+
+  return (
+    <div>
+      <p>그룹 ID: <code>{groupId || '불러오는 중...'}</code></p>
+      <button type="button" onClick={fetchGroupData}>그룹 데이터 조회</button>
+    </div>
+  );
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Environment 페이지에서 `getGroupId` 카드를 실행해 결과를 확인할 수 있습니다.
+
+<TryItLink group="environment" method="getGroupId" />
+
+## 관련 API
+
+- [`getDeviceId`](./getDeviceId) — 기기 고유 식별자를 반환합니다.
+- [`getAppsInTossGlobals`](./getAppsInTossGlobals) — 배포 ID·브랜드 정보를 반환합니다.
+- [`env.getDeploymentId`](./getDeploymentId) — 현재 배포의 고유 식별자를 반환합니다.
+
+## 관련 가이드
+
+- [Guides — 권한 처리 패턴](/guides/permissions-pattern) — 다른 네임스페이스의 권한 흐름 (참고용; `getGroupId`는 권한이 필요하지 않습니다).
+- _(작성 예정)_ Recipes — "그룹 ID를 활용한 서버 API 연동 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.
+- 표준 Web API 대응: 없음 — 그룹 ID는 미니앱 플랫폼 고유 개념입니다.

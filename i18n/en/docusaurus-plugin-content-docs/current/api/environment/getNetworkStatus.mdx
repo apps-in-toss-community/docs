@@ -1,0 +1,131 @@
+---
+image: /og/api-environment-getNetworkStatus.png
+id: getNetworkStatus
+title: getNetworkStatus
+sidebar_label: getNetworkStatus
+description: Asynchronously returns the device's current network connection state.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `getNetworkStatus`
+
+Asynchronously returns the device's current network connection state. Use it to determine whether the device has an internet connection and what type of connection it is (Wi-Fi, mobile data, etc.).
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { getNetworkStatus } from '@apps-in-toss/web-framework';
+
+export type NetworkStatus =
+  | 'OFFLINE'
+  | 'WIFI'
+  | '2G'
+  | '3G'
+  | '4G'
+  | '5G'
+  | 'WWAN'
+  | 'UNKNOWN';
+
+declare function getNetworkStatus(): Promise<NetworkStatus>;
+```
+
+## Parameters
+
+None.
+
+## Returns
+
+`Promise<NetworkStatus>` — resolves to one of the following eight values:
+
+| Value | Meaning | Platform |
+| --- | --- | --- |
+| `'OFFLINE'` | No internet connection. | iOS, Android |
+| `'WIFI'` | Connected via Wi-Fi. | iOS, Android |
+| `'2G'` | Connected via 2G mobile network. | iOS, Android |
+| `'3G'` | Connected via 3G mobile network. | iOS, Android |
+| `'4G'` | Connected via 4G mobile network. | iOS, Android |
+| `'5G'` | Connected via 5G mobile network. | iOS, Android |
+| `'WWAN'` | Connected but connection type cannot be determined. | iOS only |
+| `'UNKNOWN'` | Connection state cannot be determined. | Android only |
+
+:::caution Platform differences
+`'WWAN'` is returned only on iOS; `'UNKNOWN'` only on Android. Both mean "connected but type indeterminate" — network requests may succeed, but avoid bandwidth assumptions.
+:::
+
+## Permission
+
+No permission required — `getNetworkStatus` is not bound to a `PermissionName`. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { getNetworkStatus } from '@apps-in-toss/web-framework';
+
+const status = await getNetworkStatus();
+console.log('Network status:', status);
+```
+
+### Realistic — show offline banner
+
+```tsx
+import { getNetworkStatus } from '@apps-in-toss/web-framework';
+import { useState, useEffect } from 'react';
+
+function NetworkAwarePage() {
+  const [status, setStatus] = useState<string>('');
+  const [isOffline, setIsOffline] = useState(false);
+
+  useEffect(() => {
+    async function checkNetwork() {
+      const networkStatus = await getNetworkStatus();
+      setStatus(networkStatus);
+      setIsOffline(networkStatus === 'OFFLINE');
+    }
+
+    checkNetwork();
+  }, []);
+
+  if (isOffline) {
+    return (
+      <div>
+        <p>No internet connection. Please reconnect and try again.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <p>Current network status: <strong>{status}</strong></p>
+    </div>
+  );
+}
+```
+
+## Try it live
+
+Open the Environment page in sdk-example and run the `getNetworkStatus` card to inspect the result.
+
+<TryItLink group="environment" method="getNetworkStatus" />
+
+## Related APIs
+
+- [`getPlatformOS`](./getPlatformOS) — returns the current platform OS.
+- [`getOperationalEnvironment`](./getOperationalEnvironment) — returns the current execution environment.
+- [`isMinVersionSupported`](./isMinVersionSupported) — checks whether the current app version meets a minimum.
+
+## Related guides
+
+- [Guides — Permissions pattern](/guides/permissions-pattern) — permission flow used by other namespaces (reference only; `getNetworkStatus` doesn't require a permission).
+- _(coming soon)_ Recipes — "Offline-aware UI pattern"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
+- Web standard counterpart: [`navigator.onLine`](https://developer.mozilla.org/docs/Web/API/Navigator/onLine) — only reports a simple online/offline boolean and doesn't distinguish connection types. Use `getNetworkStatus()` when you need connection-type detail.

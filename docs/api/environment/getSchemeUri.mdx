@@ -1,0 +1,114 @@
+---
+image: /og/api-environment-getSchemeUri.png
+id: getSchemeUri
+title: getSchemeUri
+sidebar_label: getSchemeUri
+description: 화면 최초 진입 시 사용된 스킴 URI를 반환합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `getSchemeUri`
+
+화면에 처음 진입할 때 사용된 딥링크 스킴 URI를 동기적으로 반환합니다. 이후 페이지 이동으로 인한 URI 변경은 반영되지 않으며, **최초 진입 시 스킴 값**만 고정적으로 반환합니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+```ts
+import { getSchemeUri } from '@apps-in-toss/web-framework';
+
+declare function getSchemeUri(): string;
+```
+
+## 파라미터
+
+없음.
+
+## 반환값
+
+- `string` — 화면 최초 진입 시 스킴 URI 문자열. 페이지 내비게이션으로 인한 URI 변경은 반영되지 않습니다.
+
+:::caution 초기값 고정
+`getSchemeUri()`는 미니앱이 처음 열릴 때의 URI만 반환하며, 이후 미니앱 내에서 페이지를 이동하더라도 업데이트되지 않습니다. 현재 라우팅 정보가 필요하다면 앱의 라우터 상태를 활용하세요.
+:::
+
+## 권한
+
+권한이 필요하지 않습니다 — `getSchemeUri`는 별도의 `PermissionName`에 바인딩되지 않습니다. 권한이 필요한 다른 네임스페이스의 일반적인 처리 흐름은 [Guides — 권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { getSchemeUri } from '@apps-in-toss/web-framework';
+
+const schemeUri = getSchemeUri();
+console.log('진입 스킴 URI:', schemeUri);
+```
+
+### 실전 예제 — 딥링크 파라미터 파싱
+
+```tsx
+import { getSchemeUri } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+function DeepLinkPage() {
+  const [schemeUri, setSchemeUri] = useState('');
+  const [params, setParams] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const uri = getSchemeUri();
+    setSchemeUri(uri);
+
+    try {
+      // 스킴 URI에서 쿼리 파라미터를 파싱합니다.
+      const url = new URL(uri);
+      const parsed: Record<string, string> = {};
+      url.searchParams.forEach((value, key) => {
+        parsed[key] = value;
+      });
+      setParams(parsed);
+    } catch {
+      // 유효하지 않은 URI 포맷인 경우 무시합니다.
+    }
+  }, []);
+
+  return (
+    <div>
+      <p>진입 URI: <code>{schemeUri}</code></p>
+      <ul>
+        {Object.entries(params).map(([key, value]) => (
+          <li key={key}><strong>{key}</strong>: {value}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Environment 페이지에서 `getSchemeUri` 카드를 실행해 결과를 확인할 수 있습니다.
+
+<TryItLink group="environment" method="getSchemeUri" />
+
+## 관련 API
+
+- [`getOperationalEnvironment`](./getOperationalEnvironment) — 현재 실행 환경을 반환합니다.
+- [`getPlatformOS`](./getPlatformOS) — 현재 플랫폼 OS를 반환합니다.
+- [`getDeviceId`](./getDeviceId) — 기기 고유 식별자를 반환합니다.
+
+## 관련 가이드
+
+- [Guides — 권한 처리 패턴](/guides/permissions-pattern) — 다른 네임스페이스의 권한 흐름 (참고용; `getSchemeUri`는 권한이 필요하지 않습니다).
+- _(작성 예정)_ Recipes — "딥링크 파라미터 파싱 및 라우팅 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.
+- 표준 Web API 대응: [`window.location.href`](https://developer.mozilla.org/docs/Web/API/Location/href) — 브라우저에서 현재 URL을 읽는 표준 방식이지만, 미니앱 환경에서는 `getSchemeUri()`가 네이티브 딥링크 URI를 반환합니다.

@@ -1,0 +1,98 @@
+---
+image: /og/api-environment-getTossAppVersion.png
+id: getTossAppVersion
+title: getTossAppVersion
+sidebar_label: getTossAppVersion
+description: "Returns the Toss app version string, e.g. '5.206.0'."
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `getTossAppVersion`
+
+Synchronously returns the version of the currently running Toss app as a semver string (e.g. `'5.206.0'`). Useful for logging and for coarse version-based feature branching.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { getTossAppVersion } from '@apps-in-toss/web-framework';
+
+declare function getTossAppVersion(): string;
+```
+
+## Parameters
+
+None.
+
+## Returns
+
+- `string` — the Toss app version string in major.minor.patch format. Example: `'5.206.0'`.
+
+:::caution Use isMinVersionSupported for version comparisons
+Direct string comparison (`>`, `<`) uses lexicographic ordering and can produce wrong results. Use [`isMinVersionSupported`](./isMinVersionSupported) whenever you need to gate functionality on a minimum version.
+:::
+
+## Permission
+
+No permission required — `getTossAppVersion` is not bound to a `PermissionName`. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { getTossAppVersion } from '@apps-in-toss/web-framework';
+
+const version = getTossAppVersion();
+console.log('Toss app version:', version); // e.g. '5.206.0'
+```
+
+### Realistic — include version in error reports
+
+```tsx
+import { getTossAppVersion, getPlatformOS } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function App() {
+  useEffect(() => {
+    const appVersion = getTossAppVersion();
+    const platform = getPlatformOS();
+
+    window.addEventListener('unhandledrejection', (event) => {
+      console.error('[error]', {
+        appVersion,
+        platform,
+        reason: event.reason,
+      });
+    });
+  }, []);
+
+  return <main>{/* app content */}</main>;
+}
+```
+
+## Try it live
+
+Open the Environment page in sdk-example and run the `getTossAppVersion` card to inspect the result.
+
+<TryItLink group="environment" method="getTossAppVersion" />
+
+## Related APIs
+
+- [`isMinVersionSupported`](./isMinVersionSupported) — check whether the current app version meets a specified minimum.
+- [`getPlatformOS`](./getPlatformOS) — returns the current platform OS.
+- [`getOperationalEnvironment`](./getOperationalEnvironment) — returns the current execution environment.
+
+## Related guides
+
+- [Guides — Permissions pattern](/guides/permissions-pattern) — permission flow used by other namespaces (reference only; `getTossAppVersion` doesn't require a permission).
+- _(coming soon)_ Recipes — "App version logging and version-gated feature branching"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
+- Web standard counterpart: none — the host app (Toss) version is not accessible through the standard Web API.

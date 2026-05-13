@@ -1,0 +1,75 @@
+---
+image: /og/api-environment.png
+id: environment-overview
+title: environment
+sidebar_label: Overview
+slug: /api/environment
+description: SDK namespace for querying device, network, and app runtime environment information.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `environment`
+
+A collection of functions for querying the runtime environment of a mini-app: device identifier, network status, platform OS, app version, locale, and more. Most functions are synchronous; only `getNetworkStatus` and `getServerTime` return a `Promise`.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Methods
+
+| Method | Return type | Purpose |
+| --- | --- | --- |
+| [`env.getDeploymentId`](/api/environment/getDeploymentId) | `string` | Member of the `env` namespace. Returns the current deployment ID. |
+| [`getAppsInTossGlobals`](/api/environment/getAppsInTossGlobals) | `AppsInTossGlobals` | Returns deployment ID, brand name, icon, and primary color. |
+| [`getDeviceId`](/api/environment/getDeviceId) | `string` | Returns the device's unique identifier. |
+| [`getGroupId`](/api/environment/getGroupId) | `string` | Returns the group ID assigned by Apps in Toss. |
+| [`getLocale`](/api/environment/getLocale) | `string` | Returns the user's locale. Defaults to `'ko-KR'`. |
+| [`getNetworkStatus`](/api/environment/getNetworkStatus) | `Promise<NetworkStatus>` | Asynchronously returns the current network connection state. |
+| [`getOperationalEnvironment`](/api/environment/getOperationalEnvironment) | `'toss' \| 'sandbox'` | Returns the current execution environment (`toss` or `sandbox`). |
+| [`getPlatformOS`](/api/environment/getPlatformOS) | `'ios' \| 'android'` | Returns the current platform OS. |
+| [`getSafeAreaInsets`](/api/environment/getSafeAreaInsets) | `number` | **Deprecated.** Returns the safe area inset value. |
+| [`getSchemeUri`](/api/environment/getSchemeUri) | `string` | Returns the scheme URI used at initial entry. |
+| [`getServerTime`](/api/environment/getServerTime) | `Promise<number \| undefined>` | Asynchronously returns the server-side Unix timestamp (ms). |
+| [`getTossAppVersion`](/api/environment/getTossAppVersion) | `string` | Returns the Toss app version string. |
+| [`isMinVersionSupported`](/api/environment/isMinVersionSupported) | `boolean` | Checks whether the current app version meets the specified minimum. |
+
+## Permission
+
+No permission required. None of the functions in the `environment` namespace are bound to a `PermissionName`, and none expose `getPermission()` / `openPermissionDialog()` helpers — for the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Sync vs async
+
+| Function | Sync / Async |
+| --- | :-: |
+| `env.getDeploymentId` | Sync |
+| `getAppsInTossGlobals` | Sync |
+| `getDeviceId` | Sync |
+| `getGroupId` | Sync |
+| `getLocale` | Sync |
+| `getNetworkStatus` | Async (`Promise`) |
+| `getOperationalEnvironment` | Sync |
+| `getPlatformOS` | Sync |
+| `getSafeAreaInsets` | Sync (Deprecated) |
+| `getSchemeUri` | Sync |
+| `getServerTime` | Async (`Promise`) |
+| `getTossAppVersion` | Sync |
+| `isMinVersionSupported` | Sync |
+
+## UX guidance
+
+- **Use `isMinVersionSupported` for version gating.** If a feature only works on newer app versions, check first with `isMinVersionSupported` and prompt the user to update if not met.
+- **Use `getServerTime` for reward and expiry logic.** Device time can be manipulated by users — always use `getServerTime` for deadline and reward eligibility decisions.
+- **Don't use `getSafeAreaInsets`.** This function is deprecated — migrate to `SafeAreaInsets.get()`.
+- **Don't use `getDeviceId` as a security key.** Device IDs can change after a factory reset or OS upgrade. Use a server-side user ID for anything security-sensitive.
+
+## Try it live
+
+Try all methods on the Environment page in sdk-example.
+
+<TryItLink group="environment" />
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

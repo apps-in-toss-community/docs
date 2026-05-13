@@ -1,0 +1,104 @@
+---
+image: /og/api-environment-getAppsInTossGlobals.png
+id: getAppsInTossGlobals
+title: getAppsInTossGlobals
+sidebar_label: getAppsInTossGlobals
+description: Returns Apps in Toss global metadata including deployment ID, brand name, icon, and primary color.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `getAppsInTossGlobals`
+
+Synchronously returns global metadata associated with the current mini-app deployment: deployment ID, brand display name, brand icon, and primary brand color.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { getAppsInTossGlobals } from '@apps-in-toss/web-framework';
+
+interface AppsInTossGlobals {
+  deploymentId: string;
+  brandDisplayName: string;
+  brandIcon: string;
+  brandPrimaryColor: string;
+}
+
+declare function getAppsInTossGlobals(): AppsInTossGlobals;
+```
+
+## Parameters
+
+None.
+
+## Returns
+
+An `AppsInTossGlobals` object:
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deploymentId` | `string` | Unique identifier for the current deployment. Same value as `env.getDeploymentId()`. |
+| `brandDisplayName` | `string` | Brand display name string. |
+| `brandIcon` | `string` | Brand icon URL or identifier. |
+| `brandPrimaryColor` | `string` | Brand primary color value (e.g. `#3182F6`). |
+
+## Permission
+
+No permission required — `getAppsInTossGlobals` is not bound to a `PermissionName`. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { getAppsInTossGlobals } from '@apps-in-toss/web-framework';
+
+const globals = getAppsInTossGlobals();
+console.log(globals.brandDisplayName);
+console.log(globals.brandPrimaryColor);
+```
+
+### Realistic — apply brand color as a CSS custom property
+
+```tsx
+import { getAppsInTossGlobals } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function BrandThemeProvider({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    const { brandPrimaryColor, brandDisplayName } = getAppsInTossGlobals();
+
+    // Inject brand color as a CSS custom property.
+    document.documentElement.style.setProperty('--brand-primary', brandPrimaryColor);
+    document.title = brandDisplayName;
+  }, []);
+
+  return <>{children}</>;
+}
+```
+
+## Try it live
+
+Open the Environment page in sdk-example and run the `getAppsInTossGlobals` card to inspect the result.
+
+<TryItLink group="environment" method="getAppsInTossGlobals" />
+
+## Related APIs
+
+- [`env.getDeploymentId`](./getDeploymentId) — if you only need `deploymentId`, `env.getDeploymentId()` is more concise.
+- [`getOperationalEnvironment`](./getOperationalEnvironment) — returns the current execution environment (`toss` / `sandbox`).
+- [`getPlatformOS`](./getPlatformOS) — returns the current platform OS.
+
+## Related guides
+
+- [Guides — Permissions pattern](/guides/permissions-pattern) — permission flow used by other namespaces (reference only; `getAppsInTossGlobals` doesn't require a permission).
+- _(coming soon)_ Recipes — "Dynamic brand theme application pattern"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
+- Web standard counterpart: none — brand and deployment metadata are mini-app platform concepts.

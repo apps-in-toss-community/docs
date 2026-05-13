@@ -34,6 +34,27 @@ const sidebars: SidebarsConfig = {
         },
         {
           type: 'category',
+          label: 'environment',
+          collapsed: false,
+          items: [
+            'api/environment/environment-overview',
+            'api/environment/getAppsInTossGlobals',
+            'api/environment/getDeploymentId',
+            'api/environment/getDeviceId',
+            'api/environment/getGroupId',
+            'api/environment/getLocale',
+            'api/environment/getNetworkStatus',
+            'api/environment/getOperationalEnvironment',
+            'api/environment/getPlatformOS',
+            'api/environment/getSafeAreaInsets',
+            'api/environment/getSchemeUri',
+            'api/environment/getServerTime',
+            'api/environment/getTossAppVersion',
+            'api/environment/isMinVersionSupported',
+          ],
+        },
+        {
+          type: 'category',
           label: 'location',
           collapsed: false,
           items: [

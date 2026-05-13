@@ -1,0 +1,89 @@
+---
+image: /og/api-environment-getOperationalEnvironment.png
+id: getOperationalEnvironment
+title: getOperationalEnvironment
+sidebar_label: getOperationalEnvironment
+description: Returns the current execution environment — 'toss' or 'sandbox'.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `getOperationalEnvironment`
+
+Synchronously returns the operational environment in which the mini-app is running. Returns `'toss'` when running inside the Toss app, and `'sandbox'` in a sandbox environment. Use it to gate features or enable debugging tools based on the execution context.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { getOperationalEnvironment } from '@apps-in-toss/web-framework';
+
+declare function getOperationalEnvironment(): 'toss' | 'sandbox';
+```
+
+## Parameters
+
+None.
+
+## Returns
+
+- `'toss'` — running inside the Toss app (production or QA build).
+- `'sandbox'` — running in a sandbox environment.
+
+## Permission
+
+No permission required — `getOperationalEnvironment` is not bound to a `PermissionName`. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { getOperationalEnvironment } from '@apps-in-toss/web-framework';
+
+const env = getOperationalEnvironment();
+console.log('Operational environment:', env); // 'toss' or 'sandbox'
+```
+
+### Realistic — show debug banner in sandbox
+
+```tsx
+import { getOperationalEnvironment } from '@apps-in-toss/web-framework';
+
+function DebugBanner() {
+  const env = getOperationalEnvironment();
+
+  if (env !== 'sandbox') return null;
+
+  return (
+    <div style={{ background: '#ff6b6b', color: '#fff', padding: '4px 12px', fontSize: 12 }}>
+      Sandbox environment — changes do not affect real data
+    </div>
+  );
+}
+```
+
+## Try it live
+
+Open the Environment page in sdk-example and run the `getOperationalEnvironment` card to inspect the result.
+
+<TryItLink group="environment" method="getOperationalEnvironment" />
+
+## Related APIs
+
+- [`getPlatformOS`](./getPlatformOS) — returns the current platform OS.
+- [`getTossAppVersion`](./getTossAppVersion) — returns the Toss app version.
+- [`isMinVersionSupported`](./isMinVersionSupported) — checks whether the current app version meets a minimum.
+
+## Related guides
+
+- [Guides — Permissions pattern](/guides/permissions-pattern) — permission flow used by other namespaces (reference only; `getOperationalEnvironment` doesn't require a permission).
+- _(coming soon)_ Recipes — "Sandbox vs production environment branching pattern"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
+- Web standard counterpart: none — execution environment distinction is a mini-app platform concept.

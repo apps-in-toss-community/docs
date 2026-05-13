@@ -1,0 +1,97 @@
+---
+image: /og/api-environment-getDeviceId.png
+id: getDeviceId
+title: getDeviceId
+sidebar_label: getDeviceId
+description: Returns the current device's unique identifier as a string.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `getDeviceId`
+
+Synchronously returns the unique identifier for the current device. Useful for per-device settings storage, log analytics, and distinguishing multiple devices belonging to the same user.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { getDeviceId } from '@apps-in-toss/web-framework';
+
+declare function getDeviceId(): string;
+```
+
+## Parameters
+
+None.
+
+## Returns
+
+- `string` — the device's unique identifier. Format may differ between iOS and Android.
+
+:::caution Device ID can change
+The device ID can change after a factory reset, OS upgrade, or app reinstall. For persistent user identification, combine with a server-side user ID.
+:::
+
+## Permission
+
+No permission required — `getDeviceId` is not bound to a `PermissionName`. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { getDeviceId } from '@apps-in-toss/web-framework';
+
+const deviceId = getDeviceId();
+console.log('Device ID:', deviceId);
+```
+
+### Realistic — render device info on screen
+
+```tsx
+import { getDeviceId } from '@apps-in-toss/web-framework';
+import { useState, useEffect } from 'react';
+
+function DeviceSettingsPage() {
+  const [deviceId, setDeviceId] = useState('');
+
+  useEffect(() => {
+    const id = getDeviceId();
+    setDeviceId(id);
+  }, []);
+
+  return (
+    <div>
+      <h2>Device Info</h2>
+      <p>Device ID: <code>{deviceId || 'Loading...'}</code></p>
+    </div>
+  );
+}
+```
+
+## Try it live
+
+Open the Environment page in sdk-example and run the `getDeviceId` card to inspect the result.
+
+<TryItLink group="environment" method="getDeviceId" />
+
+## Related APIs
+
+- [`getPlatformOS`](./getPlatformOS) — returns the device's platform OS (`ios` / `android`).
+- [`getTossAppVersion`](./getTossAppVersion) — returns the Toss app version.
+- [`getGroupId`](./getGroupId) — returns the group ID assigned by Apps in Toss.
+
+## Related guides
+
+- [Guides — Permissions pattern](/guides/permissions-pattern) — permission flow used by other namespaces (reference only; `getDeviceId` doesn't require a permission).
+- _(coming soon)_ Recipes — "Device ID log tracking pattern"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
+- Web standard counterpart: none — the standard Web API does not expose a device-unique identifier. [`navigator.userAgent`](https://developer.mozilla.org/docs/Web/API/Navigator/userAgent) conveys device information but does not guarantee uniqueness per device.
