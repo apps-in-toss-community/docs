@@ -1,0 +1,184 @@
+---
+image: /og/guides-event-subscription.png
+id: event-subscription
+title: 이벤트 구독 패턴
+sidebar_label: 이벤트 구독 패턴
+slug: /guides/event-subscription
+description: 미니앱이 컨테이너에서 발생하는 이벤트를 구독하는 표준 패턴 — addEventListener 구조, cleanup 보장, 그리고 세 가지 이벤트 도메인의 비교.
+---
+
+# 이벤트 구독 패턴
+
+미니앱이 토스 앱 컨테이너에서 발생하는 이벤트(뒤로가기, 홈 버튼, 보조 버튼 클릭 등)를 받으려면 `events` 네임스페이스의 `addEventListener` API들을 구독합니다. 이 가이드는 그 구조를 한 곳에 정리합니다 — 각 메서드 페이지는 자기 이벤트 타입만 다루고, 공통 패턴(구독, cleanup, 도메인 비교, 안티 패턴)은 여기서 위임받습니다.
+
+## 한눈에 보기
+
+| 도메인 | API | 무엇을 듣는가 |
+| --- | --- | --- |
+| `appsInTossEvent` | [`appsInTossEvent.addEventListener`](/api/events/appsInTossEvent.addEventListener) | 앱인토스 플랫폼이 발행하는 이벤트(현재 타입 정의는 비어 있지만, 향후 추가 시 동일 패턴). |
+| `tdsEvent` | [`tdsEvent.addEventListener`](/api/events/tdsEvent.addEventListener) | 토스 디자인 시스템(TDS) 컴포넌트 이벤트. 현재는 `navigationAccessoryEvent`(네비게이션 보조 버튼 클릭). |
+| `graniteEvent` | [`graniteEvent.addEventListener`](/api/events/graniteEvent.addEventListener) | 컨테이너 네비게이션 이벤트. 현재는 `backEvent`, `homeEvent`. |
+| (1회성) | [`onVisibilityChangedByTransparentServiceWeb`](/api/events/onVisibilityChangedByTransparentServiceWeb) | 투명 서비스웹 가시성 변경. `addEventListener` 가족이 아닌 독립 함수지만 동일한 cleanup 패턴. |
+
+## 공통 호출 모양
+
+세 도메인(`appsInTossEvent`, `tdsEvent`, `graniteEvent`)은 동일한 시그니처를 공유합니다.
+
+```ts
+const removeListener = <domain>.addEventListener(eventName, {
+  onEvent: (data) => { /* ... */ },
+  onError?: (error) => { /* ... */ },
+  options?: { /* event-specific */ },
+});
+```
+
+핵심:
+
+- **반환값은 항상 cleanup 함수**(`() => void`)입니다. 보관해 뒀다가 효력을 끝낼 때 호출하세요.
+- **`onEvent`는 필수**, `onError`/`options`는 이벤트 타입에 따라 선택.
+- **이벤트 이름은 `K extends keyof <Domain>Event`로 type-narrowing**이 걸려 있어, 잘못된 이름은 컴파일 단계에서 잡힙니다.
+
+## React 표준 패턴
+
+`useEffect`에서 구독을 시작하고, 반환값을 그대로 cleanup으로 돌려주는 것이 정석입니다.
+
+```tsx
+import { graniteEvent } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function MultiStepForm() {
+  useEffect(() => {
+    const removeBack = graniteEvent.addEventListener('backEvent', {
+      onEvent: () => {
+        // 토스 컨테이너의 back을 미니앱에서 가로채 폼 단계 뒤로가기로 변환.
+        goPreviousStep();
+      },
+      onError: (error) => {
+        console.warn('backEvent failed', error);
+      },
+    });
+
+    return removeBack;
+  }, []);
+
+  return <FormSteps />;
+}
+```
+
+복수 이벤트를 한 effect에서 구독한다면 cleanup도 함께 모읍니다.
+
+```tsx
+useEffect(() => {
+  const removes = [
+    graniteEvent.addEventListener('backEvent', { onEvent: handleBack }),
+    graniteEvent.addEventListener('homeEvent', { onEvent: handleHome }),
+  ];
+
+  return () => {
+    for (const remove of removes) remove();
+  };
+}, []);
+```
+
+## 도메인별 언제 쓰는가
+
+### `graniteEvent` — 컨테이너 네비게이션
+
+`backEvent`/`homeEvent`는 사용자가 토스 컨테이너의 뒤로가기·홈 버튼을 누른 시점을 알려줍니다. 기본 동작(컨테이너로 복귀)을 그대로 두지 않고 **미니앱 내부에서 가로채야 할 때만** 구독하세요.
+
+- 다단계 폼: 컨테이너 뒤로가기 → 단계 뒤로가기로 변환.
+- 비디오 풀스크린: 홈 버튼 → 풀스크린 해제 우선.
+- 게임 진행 중: 종료 확인 다이얼로그 표시.
+
+가로채지 않을 화면에서 구독하면 자연스러운 컨테이너 복귀 흐름을 막게 됩니다.
+
+### `tdsEvent` — TDS 컴포넌트
+
+현재 정의된 이벤트는 `navigationAccessoryEvent` 하나로, [`addAccessoryButton`](/api/partner/addAccessoryButton)으로 추가한 버튼이 눌릴 때 발생합니다. 버튼을 추가한 화면에서만 구독하고, 화면을 떠나기 전 cleanup으로 리스너를 떼세요.
+
+### `appsInTossEvent` — 플랫폼 일반
+
+현재 타입 정의(`AppsInTossEvent = {}`)는 비어 있지만, 플랫폼이 새 이벤트를 추가하면 같은 시그니처로 사용 가능합니다. **현재 코드에서 `appsInTossEvent.addEventListener`를 호출할 일은 거의 없지만**, 향후 SDK 업데이트와의 호환성을 위해 API 자체는 존재합니다.
+
+## 1회성 함수 — `onVisibilityChangedByTransparentServiceWeb`
+
+[`onVisibilityChangedByTransparentServiceWeb`](/api/events/onVisibilityChangedByTransparentServiceWeb)는 `addEventListener` 가족이 아니지만 **동일한 cleanup 패턴**을 따릅니다.
+
+```tsx
+import { onVisibilityChangedByTransparentServiceWeb } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function TransparentServiceWidget({ callbackId }: { callbackId: string }) {
+  useEffect(() => {
+    const remove = onVisibilityChangedByTransparentServiceWeb({
+      options: { callbackId },
+      onEvent: (isVisible) => {
+        if (isVisible) startAnalytics();
+        else stopAnalytics();
+      },
+      onError: (error) => console.warn('visibility subscription failed', error),
+    });
+
+    return remove;
+  }, [callbackId]);
+
+  return <Widget />;
+}
+```
+
+`callbackId`는 토스가 발급한 식별자로, 잘못 넘기면 `onError`가 즉시 호출되거나 이벤트가 조용히 무시됩니다.
+
+## 자주 빠뜨리는 cleanup 체크리스트
+
+- `addEventListener`의 **반환값을 변수에 받지 않고 흘려보내고** 있지는 않은가? 받지 않으면 떼어 낼 방법이 없습니다.
+- `useEffect`의 **deps 배열이 비어 있는데 핸들러가 props/state를 캡처**하고 있지는 않은가? 핸들러를 `useRef`로 잡거나, 의존성을 추가해 effect를 재구독하세요.
+- **여러 effect에서 같은 이벤트를 중복 구독**하고 있지는 않은가? 같은 이벤트는 한 곳에서만.
+- 화면 전환 시 **cleanup이 실제로 호출되는지** 확인했는가? React 18 strict mode에서는 dev 환경에서 mount/unmount가 두 번 일어나므로 부수효과의 idempotency도 확인.
+
+## 안티 패턴
+
+### 컨테이너 기본 동작과 충돌하는 구독
+
+```tsx
+// ❌ 의미 없음: backEvent를 구독하고 아무것도 하지 않음
+useEffect(() => {
+  return graniteEvent.addEventListener('backEvent', { onEvent: () => {} });
+}, []);
+```
+
+빈 핸들러는 컨테이너의 기본 뒤로가기 흐름을 정지시키는 부작용만 남깁니다. 가로챌 필요가 없으면 **구독하지 마세요**.
+
+### 전역 모듈 스코프에서 구독
+
+```tsx
+// ❌ React 컴포넌트 바깥, 모듈 로드 시점에 구독 — cleanup 시점이 없음
+const remove = graniteEvent.addEventListener('homeEvent', { onEvent: handleHome });
+```
+
+이 리스너는 모듈이 알려진 cleanup 지점이 없어 미니앱이 종료될 때까지 살아 있고, hot-reload 환경에서는 중복 등록됩니다. **반드시 effect 라이프사이클 안**에서.
+
+### `onError` 무시
+
+`onError` 없이 구독하면 실패가 조용히 사라집니다. devtools에서는 그래도 동작하는 것처럼 보이다가 실 토스 앱에서 문제가 드러나는 전형적 경로입니다. **모든 구독에 최소 `console.warn` 수준의 `onError`를 두세요**.
+
+## 환경별 차이
+
+- **실 토스 앱**: 모든 이벤트가 정상 디스패치됩니다. `graniteEvent`의 뒤로가기/홈은 OS 제스처와 함께 작동.
+- **devtools mock**: [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools)의 mock은 패널에서 이벤트를 수동으로 트리거할 수 있습니다. 자동 디스패치는 없으므로, 시간 기반 케이스(예: 가시성 변경)는 실제 토스 앱에서 추가 검증하세요.
+- **외부 브라우저**: 컨테이너 자체가 없어 구독 호출이 throw 합니다. `addEventListener.isSupported()` 같은 가드는 제공되지 않으므로, 미니앱 환경 외에서는 단순히 호출하지 마세요.
+
+## 관련 API
+
+- [`api/events`](/api/events) — `events` 네임스페이스 overview.
+- [`appsInTossEvent.addEventListener`](/api/events/appsInTossEvent.addEventListener) — 플랫폼 이벤트.
+- [`tdsEvent.addEventListener`](/api/events/tdsEvent.addEventListener) — TDS 컴포넌트 이벤트(`navigationAccessoryEvent`).
+- [`graniteEvent.addEventListener`](/api/events/graniteEvent.addEventListener) — 컨테이너 네비게이션(`backEvent`, `homeEvent`).
+- [`onVisibilityChangedByTransparentServiceWeb`](/api/events/onVisibilityChangedByTransparentServiceWeb) — 투명 서비스웹 가시성.
+
+## 관련 가이드
+
+- [Guides — 미니앱 화면 흐름 패턴](/guides/navigation-flow) — `graniteEvent.backEvent`/`homeEvent`를 어떤 시점에 가로채면 좋은지 화면 흐름 맥락에서 함께 참고.
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지.
