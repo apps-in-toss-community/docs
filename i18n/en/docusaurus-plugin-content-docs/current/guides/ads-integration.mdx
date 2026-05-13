@@ -1,0 +1,198 @@
+---
+id: ads-integration
+title: Ads integration pattern
+sidebar_label: Ads integration pattern
+slug: /guides/ads-integration
+description: Lifecycle patterns for integrating banner and full-screen ads — initialize, attach/destroy, and load → show flows.
+---
+
+# Ads integration pattern
+
+The `ads` namespace exposes three kinds of ad — inline banners (`TossAds`), Google AdMob full-screen (`GoogleAdMob`), and a standalone full-screen pair (`loadFullScreenAd` / `showFullScreenAd`). Each method page documents its signature; this guide collects the shared lifecycle, cleanup, and environment-guard rules in one place.
+
+## Ad types at a glance
+
+| Type | Entry API | Lifecycle |
+| --- | --- | --- |
+| Banner (inline) | [`TossAds.initialize`](/api/ads/initialize) + [`TossAds.attachBanner`](/api/ads/attachBanner) | `initialize` once → `attachBanner` on mount → call the returned `destroy` on unmount |
+| Google AdMob full-screen | [`GoogleAdMob.loadAppsInTossAdMob`](/api/ads/loadAppsInTossAdMob) → [`GoogleAdMob.showAppsInTossAdMob`](/api/ads/showAppsInTossAdMob) | Wait for the `loaded` event, then call `show`. Both calls return cleanup functions |
+| Full-screen (standalone) | [`loadFullScreenAd`](/api/ads/loadFullScreenAd) → [`showFullScreenAd`](/api/ads/showFullScreenAd) | Same two-step pattern as AdMob. Separate namespace, top-level exports |
+
+[`TossAds.attach`](/api/ads/attach) is deprecated. New code should use `attachBanner` instead.
+
+## Always guard with `isSupported()` first
+
+Every function in the `ads` namespace exposes an `.isSupported()` member. Calling them in an environment where the ad SDK isn't injected (for example, an external browser) throws. **Guard first**:
+
+```ts
+import { TossAds } from '@apps-in-toss/web-framework';
+
+if (!TossAds.attachBanner.isSupported()) {
+  // Hide the ad slot or render a placeholder.
+  return;
+}
+```
+
+Catching the throw works too, but skipping the call entirely is safer for both UX and performance when ads aren't available.
+
+## Banners: initialize → attachBanner → destroy
+
+### Step 1 — Call `initialize` once at app entry
+
+`TossAds.initialize` should run **exactly once** when your app mounts. Don't call it per screen.
+
+```tsx
+import { TossAds } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+export function AdsBootstrap() {
+  useEffect(() => {
+    if (!TossAds.initialize.isSupported()) return;
+
+    TossAds.initialize({
+      callbacks: {
+        onInitialized: () => console.log('TossAds initialized'),
+        onInitializationFailed: (error) => console.error('TossAds init failed', error),
+      },
+    });
+  }, []);
+
+  return null;
+}
+```
+
+Mount this component once at the root, and every downstream screen can call `attachBanner` directly.
+
+### Step 2 — Attach a banner on the screen that needs one
+
+`attachBanner` returns `{ destroy }`. **The standard pattern is to return that `destroy` directly from a React `useEffect` cleanup.**
+
+```tsx
+import { TossAds } from '@apps-in-toss/web-framework';
+import { useEffect, useRef } from 'react';
+
+const AD_GROUP_ID = 'ad-group-id-here';
+
+export function AdBanner() {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    if (!TossAds.attachBanner.isSupported()) return;
+
+    const { destroy } = TossAds.attachBanner(AD_GROUP_ID, containerRef.current, {
+      theme: 'auto',
+      callbacks: {
+        onAdRendered: ({ slotId }) => console.log('rendered', slotId),
+        onAdFailedToRender: ({ error }) => console.error('render failed', error.message),
+      },
+    });
+
+    return destroy;
+  }, []);
+
+  return <div ref={containerRef} />;
+}
+```
+
+Skipping `destroy` on unmount leaves zombie slots and leaks memory. If a page wants to wipe every slot at once, call [`TossAds.destroyAll`](/api/ads/destroyAll) from a separate effect's cleanup.
+
+## Full-screen: load → show in two steps
+
+Both Google AdMob and the standalone full-screen pair follow the same shape — **pre-load, then show on a user action**.
+
+### Google AdMob
+
+```tsx
+import { GoogleAdMob } from '@apps-in-toss/web-framework';
+import { useEffect, useRef, useState } from 'react';
+
+const AD_GROUP_ID = 'admob-group-id';
+
+export function RewardedAdButton() {
+  const cleanupLoadRef = useRef<(() => void) | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  // 1. Pre-load when the component mounts.
+  useEffect(() => {
+    if (!GoogleAdMob.loadAppsInTossAdMob.isSupported()) return;
+
+    cleanupLoadRef.current = GoogleAdMob.loadAppsInTossAdMob({
+      options: { adGroupId: AD_GROUP_ID },
+      onEvent: (event) => {
+        if (event.type === 'loaded') setLoaded(true);
+      },
+      onError: (error) => console.error('AdMob load failed', error),
+    });
+
+    return () => {
+      cleanupLoadRef.current?.();
+    };
+  }, []);
+
+  // 2. Show on user click.
+  const handleShow = () => {
+    if (!loaded) return;
+    if (!GoogleAdMob.showAppsInTossAdMob.isSupported()) return;
+
+    const cleanupShow = GoogleAdMob.showAppsInTossAdMob({
+      options: { adGroupId: AD_GROUP_ID },
+      onEvent: (event) => {
+        if (event.type === 'dismissed') {
+          cleanupShow();
+          setLoaded(false);
+        }
+      },
+      onError: (error) => {
+        console.error('AdMob show failed', error);
+        cleanupShow();
+      },
+    });
+  };
+
+  return (
+    <button type="button" onClick={handleShow} disabled={!loaded}>
+      Watch ad
+    </button>
+  );
+}
+```
+
+Key points:
+
+- Both `load` and `show` **return cleanup functions**. Call both — that's what detaches the listeners and callbacks.
+- Calling `show` before the `loaded` event arrives will fail. You can also probe state explicitly with [`GoogleAdMob.isAppsInTossAdMobLoaded`](/api/ads/isAppsInTossAdMobLoaded).
+- Once `dismissed` (or `failedToShow`) fires, the ad is consumed — pre-load again before the next show.
+
+### Standalone full-screen (`loadFullScreenAd` / `showFullScreenAd`)
+
+The API shape mirrors AdMob, but the **import is different** — these are top-level exports rather than namespace members.
+
+```tsx
+import { loadFullScreenAd, showFullScreenAd } from '@apps-in-toss/web-framework';
+```
+
+The rest of the flow (load → loaded → show → dismissed → cleanup) is identical to the AdMob example above.
+
+## Common cleanup checklist
+
+- Banner: did you return the `destroy` from `attachBanner` as the `useEffect` cleanup?
+- Full-screen: did you call **both** the `load` cleanup and the `show` cleanup?
+- Any screen where component unmount isn't guaranteed (tab routers, etc.) that should call `destroyAll`?
+- Are you accidentally calling `initialize` more than once?
+
+## Environment differences
+
+- **Real Toss app**: every ad call works as documented. Verify your `adGroupId` is active in the console.
+- **External browser / devtools mock**: `isSupported()` returns `false` when the ad SDK isn't injected. The [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) mock treats ad calls as no-ops, so use it to verify screen flow and confirm real ads on-device.
+
+## Related APIs
+
+- [`api/ads`](/api/ads) — `ads` namespace overview.
+- [`TossAds.initialize`](/api/ads/initialize) · [`TossAds.attachBanner`](/api/ads/attachBanner) · [`TossAds.destroy`](/api/ads/destroy) · [`TossAds.destroyAll`](/api/ads/destroyAll)
+- [`GoogleAdMob.loadAppsInTossAdMob`](/api/ads/loadAppsInTossAdMob) · [`GoogleAdMob.showAppsInTossAdMob`](/api/ads/showAppsInTossAdMob) · [`GoogleAdMob.isAppsInTossAdMobLoaded`](/api/ads/isAppsInTossAdMobLoaded)
+- [`loadFullScreenAd`](/api/ads/loadFullScreenAd) · [`showFullScreenAd`](/api/ads/showFullScreenAd)
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — upstream SDK package.

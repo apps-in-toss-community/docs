@@ -15,7 +15,7 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Guides',
       collapsed: false,
-      items: ['guides/permissions-pattern'],
+      items: ['guides/ads-integration', 'guides/permissions-pattern'],
     },
     {
       type: 'category',
