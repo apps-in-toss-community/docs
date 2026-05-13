@@ -1,0 +1,46 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":semanticCommits", ":dependencyDashboard"],
+  "timezone": "Asia/Seoul",
+  "schedule": ["before 10am on Monday"],
+  "labels": ["dependencies"],
+  "rangeStrategy": "bump",
+  "prHourlyLimit": 4,
+  "prConcurrentLimit": 8,
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 10am on Monday"]
+  },
+  "packageRules": [
+    {
+      "description": "Group all @apps-in-toss/* bumps into one weekly PR. This is the surface that drives docs coverage drift — review them together.",
+      "matchPackagePatterns": ["^@apps-in-toss/"],
+      "groupName": "apps-in-toss SDK",
+      "schedule": ["before 10am on Monday"],
+      "automerge": false,
+      "labels": ["dependencies", "sdk-drift"]
+    },
+    {
+      "description": "Docusaurus 3 — pin to the 3.x line until we explicitly decide to migrate. Group all @docusaurus/* together.",
+      "matchPackagePatterns": ["^@docusaurus/"],
+      "groupName": "docusaurus",
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": false
+    },
+    {
+      "description": "Biome — group the formatter+linter together so version skew never happens.",
+      "matchPackageNames": ["@biomejs/biome"],
+      "groupName": "biome"
+    },
+    {
+      "description": "React 19 line — group react + react-dom + @types/react.",
+      "matchPackageNames": ["react", "react-dom", "@types/react"],
+      "groupName": "react"
+    },
+    {
+      "description": "Pin Node to .nvmrc — disable Renovate's Node updates, we manage that manually.",
+      "matchDepNames": ["node"],
+      "enabled": false
+    }
+  ]
+}
