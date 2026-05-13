@@ -440,7 +440,9 @@ const NAMESPACE_MEMBERS: Record<string, string[]> = {
   tdsEvent: ['addEventListener'],
   graniteEvent: ['addEventListener'],
   Analytics: ['screen', 'impression', 'click'],
-  env: ['getDeploymentId'],
+  // env exposes a single member (getDeploymentId) documented on the env.mdx
+  // namespace-object page rather than a dedicated getDeploymentId.mdx page.
+  env: ['env'],
 };
 
 function expectedDocsMethodsFor(name: string): string[] {

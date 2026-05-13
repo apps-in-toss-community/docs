@@ -1,0 +1,130 @@
+---
+image: /og/api-environment-isMinVersionSupported.png
+id: isMinVersionSupported
+title: isMinVersionSupported
+sidebar_label: isMinVersionSupported
+description: Checks whether the current Toss app version meets the specified per-platform minimum.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `isMinVersionSupported`
+
+Synchronously checks whether the currently running Toss app version satisfies the per-platform minimum version requirements passed as an argument. Use it to gate features that only work on newer app versions and prompt users to update when the requirement isn't met.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { isMinVersionSupported } from '@apps-in-toss/web-framework';
+
+declare function isMinVersionSupported(minVersions: {
+  android: `${number}.${number}.${number}` | 'always' | 'never';
+  ios: `${number}.${number}.${number}` | 'always' | 'never';
+}): boolean;
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `minVersions` | `object` | ✓ | Per-platform minimum version requirements. |
+| `minVersions.android` | `` `${number}.${number}.${number}` \| 'always' \| 'never' `` | ✓ | Android minimum version. `'always'` means supported on all versions; `'never'` means never supported. |
+| `minVersions.ios` | `` `${number}.${number}.${number}` \| 'always' \| 'never' `` | ✓ | iOS minimum version. `'always'` means supported on all versions; `'never'` means never supported. |
+
+## Returns
+
+- `boolean` — `true` if the current app version meets the per-platform minimum, `false` otherwise.
+
+## Permission
+
+No permission required — `isMinVersionSupported` is not bound to a `PermissionName`. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { isMinVersionSupported } from '@apps-in-toss/web-framework';
+
+const isSupported = isMinVersionSupported({
+  android: '5.100.0',
+  ios: '5.100.0',
+});
+
+if (!isSupported) {
+  console.log('Please update to the latest version of the Toss app.');
+}
+```
+
+### Realistic — show update prompt when version requirement isn't met
+
+```tsx
+import { isMinVersionSupported } from '@apps-in-toss/web-framework';
+
+function FeaturePage() {
+  const isSupported = isMinVersionSupported({
+    android: '5.150.0',
+    ios: '5.120.0',
+  });
+
+  if (!isSupported) {
+    return (
+      <div>
+        <h2>Update required</h2>
+        <p>This feature is only available on the latest version of the Toss app. Please update and try again.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h2>New feature</h2>
+      {/* Feature content only available on newer versions */}
+    </div>
+  );
+}
+```
+
+### Using `'always'` / `'never'` special values
+
+```tsx
+import { isMinVersionSupported } from '@apps-in-toss/web-framework';
+
+// iOS-only feature: Android is always unsupported
+const isIosOnlySupported = isMinVersionSupported({
+  android: 'never',
+  ios: '5.100.0',
+});
+
+// Universally supported: bypass version check entirely
+const isAlwaysSupported = isMinVersionSupported({
+  android: 'always',
+  ios: 'always',
+});
+```
+
+## Try it live
+
+Open the Environment page in sdk-example and run the `isMinVersionSupported` card to inspect the result.
+
+<TryItLink group="environment" method="isMinVersionSupported" />
+
+## Related APIs
+
+- [`getTossAppVersion`](./getTossAppVersion) — returns the current app version string.
+- [`getPlatformOS`](./getPlatformOS) — returns the current platform OS.
+- [`getServerTime`](./getServerTime) — see `getServerTime.isSupported()` for a similar per-function support check pattern.
+
+## Related guides
+
+- [Guides — Permissions pattern](/guides/permissions-pattern) — permission flow used by other namespaces (reference only; `isMinVersionSupported` doesn't require a permission).
+- _(coming soon)_ Recipes — "Version gating and update prompt pattern"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
+- Web standard counterpart: none — host app version checking is not available through the standard Web API.

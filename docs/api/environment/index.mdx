@@ -1,0 +1,75 @@
+---
+image: /og/api-environment.png
+id: environment-overview
+title: environment
+sidebar_label: Overview
+slug: /api/environment
+description: 기기·네트워크·앱 버전 등 실행 환경 정보를 조회하는 SDK 네임스페이스입니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `environment`
+
+기기 식별자, 네트워크 상태, 플랫폼 OS, 앱 버전, 로케일 등 미니앱이 실행되는 환경 정보를 조회하는 함수 모음입니다. 대부분은 동기 함수이며, `getNetworkStatus`와 `getServerTime`만 `Promise`를 반환합니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 메서드
+
+| 메서드 | 반환 타입 | 용도 |
+| --- | --- | --- |
+| [`env`](/api/environment/env) | `{ getDeploymentId: () => string }` | 배포 ID 등 런타임 환경 상수 객체입니다. |
+| [`getAppsInTossGlobals`](/api/environment/getAppsInTossGlobals) | `AppsInTossGlobals` | 배포 ID·브랜드 표시명·아이콘·색상을 반환합니다. |
+| [`getDeviceId`](/api/environment/getDeviceId) | `string` | 기기 고유 식별자를 반환합니다. |
+| [`getGroupId`](/api/environment/getGroupId) | `string` | 앱인토스에서 제공하는 그룹 ID를 반환합니다. |
+| [`getLocale`](/api/environment/getLocale) | `string` | 사용자 로케일을 반환합니다. 기본값: `'ko-KR'`. |
+| [`getNetworkStatus`](/api/environment/getNetworkStatus) | `Promise<NetworkStatus>` | 현재 네트워크 연결 상태를 비동기로 반환합니다. |
+| [`getOperationalEnvironment`](/api/environment/getOperationalEnvironment) | `'toss' \| 'sandbox'` | 현재 실행 환경(`toss` 또는 `sandbox`)을 반환합니다. |
+| [`getPlatformOS`](/api/environment/getPlatformOS) | `'ios' \| 'android'` | 현재 플랫폼 OS를 반환합니다. |
+| [`getSafeAreaInsets`](/api/environment/getSafeAreaInsets) | `number` | **Deprecated.** Safe Area 인셋 값을 반환합니다. |
+| [`getSchemeUri`](/api/environment/getSchemeUri) | `string` | 최초 진입 시 스킴 URI를 반환합니다. |
+| [`getServerTime`](/api/environment/getServerTime) | `Promise<number \| undefined>` | 서버 기준 Unix timestamp(ms)를 비동기로 반환합니다. |
+| [`getTossAppVersion`](/api/environment/getTossAppVersion) | `string` | 토스 앱 버전 문자열을 반환합니다. |
+| [`isMinVersionSupported`](/api/environment/isMinVersionSupported) | `boolean` | 현재 앱 버전이 지정한 최소 버전 이상인지 확인합니다. |
+
+## 권한
+
+권한이 필요하지 않습니다. `environment` 네임스페이스의 모든 함수는 별도의 `PermissionName`에 바인딩되지 않으며, `getPermission()` / `openPermissionDialog()` 유틸도 노출하지 않습니다 — 다른 네임스페이스에서 권한을 처리하는 방식은 [Guides — 권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
+
+## 동기 vs 비동기
+
+| 함수 | 동기/비동기 |
+| --- | :-: |
+| `env.getDeploymentId` | 동기 |
+| `getAppsInTossGlobals` | 동기 |
+| `getDeviceId` | 동기 |
+| `getGroupId` | 동기 |
+| `getLocale` | 동기 |
+| `getNetworkStatus` | 비동기 (`Promise`) |
+| `getOperationalEnvironment` | 동기 |
+| `getPlatformOS` | 동기 |
+| `getSafeAreaInsets` | 동기 (Deprecated) |
+| `getSchemeUri` | 동기 |
+| `getServerTime` | 비동기 (`Promise`) |
+| `getTossAppVersion` | 동기 |
+| `isMinVersionSupported` | 동기 |
+
+## UX 가이드
+
+- **버전 분기에는 `isMinVersionSupported`를 활용하세요.** 특정 기능이 최신 앱 버전에서만 동작한다면 `isMinVersionSupported`로 먼저 확인하고, 지원하지 않는 버전이라면 사용자에게 업데이트 안내를 표시하세요.
+- **`getServerTime`은 보상·만료 로직에 사용하세요.** 클라이언트 기기 시간은 사용자가 조작할 수 있으므로, 만료 기한·보상 지급 판단에는 반드시 `getServerTime`을 사용하세요.
+- **`getSafeAreaInsets`는 사용하지 마세요.** 이 함수는 deprecated 상태입니다 — `SafeAreaInsets.get()`으로 마이그레이션하세요.
+- **`getDeviceId`는 민감 데이터 저장 키로 쓰지 마세요.** 기기 ID는 기기마다 다르지만 변경될 수 있습니다. 보안이 필요한 식별자는 서버 세션을 사용하세요.
+
+## 직접 실행해 보기
+
+sdk-example의 Environment 페이지에서 메서드를 직접 실행해 볼 수 있습니다.
+
+<TryItLink group="environment" />
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.

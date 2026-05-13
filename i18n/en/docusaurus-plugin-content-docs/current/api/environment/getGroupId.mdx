@@ -1,0 +1,103 @@
+---
+image: /og/api-environment-getGroupId.png
+id: getGroupId
+title: getGroupId
+sidebar_label: getGroupId
+description: Returns the group ID provided by Apps in Toss.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `getGroupId`
+
+Synchronously returns the group ID assigned by the Apps in Toss platform. The group ID identifies the business or service group the mini-app belongs to.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { getGroupId } from '@apps-in-toss/web-framework';
+
+declare function getGroupId(): string;
+```
+
+## Parameters
+
+None.
+
+## Returns
+
+- `string` — the group ID string provided by Apps in Toss.
+
+## Permission
+
+No permission required — `getGroupId` is not bound to a `PermissionName`. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { getGroupId } from '@apps-in-toss/web-framework';
+
+const groupId = getGroupId();
+console.log('Group ID:', groupId);
+```
+
+### Realistic — include group ID in API request headers
+
+```tsx
+import { getGroupId } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+function GroupInfoPage() {
+  const [groupId, setGroupId] = useState('');
+
+  useEffect(() => {
+    const id = getGroupId();
+    setGroupId(id);
+  }, []);
+
+  async function fetchGroupData() {
+    const id = getGroupId();
+    const response = await fetch('/api/group-data', {
+      headers: {
+        'X-Group-Id': id,
+      },
+    });
+    return response.json();
+  }
+
+  return (
+    <div>
+      <p>Group ID: <code>{groupId || 'Loading...'}</code></p>
+      <button type="button" onClick={fetchGroupData}>Fetch group data</button>
+    </div>
+  );
+}
+```
+
+## Try it live
+
+Open the Environment page in sdk-example and run the `getGroupId` card to inspect the result.
+
+<TryItLink group="environment" method="getGroupId" />
+
+## Related APIs
+
+- [`getDeviceId`](./getDeviceId) — returns the device's unique identifier.
+- [`getAppsInTossGlobals`](./getAppsInTossGlobals) — returns deployment ID and brand globals.
+- [`env`](./env) — namespace object with `getDeploymentId()`.
+
+## Related guides
+
+- [Guides — Permissions pattern](/guides/permissions-pattern) — permission flow used by other namespaces (reference only; `getGroupId` doesn't require a permission).
+- _(coming soon)_ Recipes — "Server API integration with group ID"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
+- Web standard counterpart: none — group ID is a mini-app platform concept.

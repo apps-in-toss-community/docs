@@ -1,0 +1,100 @@
+---
+image: /og/api-environment-getLocale.png
+id: getLocale
+title: getLocale
+sidebar_label: getLocale
+description: Returns the user's locale. Defaults to 'ko-KR' when unavailable.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `getLocale`
+
+Synchronously returns the user's locale. Falls back to `'ko-KR'` when the locale cannot be read from the native module. Use it for app localization, date/currency formatting, and language branching logic.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { getLocale } from '@apps-in-toss/web-framework';
+
+declare function getLocale(): string;
+```
+
+## Parameters
+
+None.
+
+## Returns
+
+- `string` — a BCP 47 locale tag (e.g. `'ko-KR'`, `'en-US'`). Returns `'ko-KR'` if the native module cannot provide a value.
+
+## Permission
+
+No permission required — `getLocale` is not bound to a `PermissionName`. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { getLocale } from '@apps-in-toss/web-framework';
+
+const locale = getLocale();
+console.log('User locale:', locale); // e.g. 'ko-KR'
+```
+
+### Realistic — locale-aware date formatting
+
+```tsx
+import { getLocale } from '@apps-in-toss/web-framework';
+import { useState, useEffect } from 'react';
+
+function LocalizedDatePage() {
+  const [formattedDate, setFormattedDate] = useState('');
+
+  useEffect(() => {
+    const locale = getLocale();
+    const now = new Date();
+
+    const formatted = new Intl.DateTimeFormat(locale, {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }).format(now);
+
+    setFormattedDate(formatted);
+  }, []);
+
+  return (
+    <div>
+      <p>Today (locale format): {formattedDate}</p>
+    </div>
+  );
+}
+```
+
+## Try it live
+
+Open the Environment page in sdk-example and run the `getLocale` card to inspect the result.
+
+<TryItLink group="environment" method="getLocale" />
+
+## Related APIs
+
+- [`getPlatformOS`](./getPlatformOS) — returns the current platform OS.
+- [`getNetworkStatus`](./getNetworkStatus) — returns the current network status.
+- [`getOperationalEnvironment`](./getOperationalEnvironment) — returns the current execution environment.
+
+## Related guides
+
+- [Guides — Permissions pattern](/guides/permissions-pattern) — permission flow used by other namespaces (reference only; `getLocale` doesn't require a permission).
+- _(coming soon)_ Recipes — "Locale-based internationalization pattern (dates, currency, language branching)"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
+- Web standard counterpart: [`navigator.language`](https://developer.mozilla.org/docs/Web/API/Navigator/language) — returns the browser's language setting, which may differ from the native locale in a mini-app runtime. `getLocale()` provides a more reliable value in the mini-app context.

@@ -1,0 +1,114 @@
+---
+image: /og/api-environment-getSchemeUri.png
+id: getSchemeUri
+title: getSchemeUri
+sidebar_label: getSchemeUri
+description: Returns the deep-link scheme URI used at the screen's initial entry.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `getSchemeUri`
+
+Synchronously returns the deep-link scheme URI that was used when the screen was first entered. URI changes caused by subsequent in-app navigation are **not** reflected — only the initial entry URI is returned.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { getSchemeUri } from '@apps-in-toss/web-framework';
+
+declare function getSchemeUri(): string;
+```
+
+## Parameters
+
+None.
+
+## Returns
+
+- `string` — the scheme URI at initial entry. Does not update as the user navigates within the mini-app.
+
+:::caution Fixed at initial entry
+`getSchemeUri()` returns the URI from when the mini-app was first opened. Navigating within the app does not change the return value. If you need the current route, use your app's router state instead.
+:::
+
+## Permission
+
+No permission required — `getSchemeUri` is not bound to a `PermissionName`. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { getSchemeUri } from '@apps-in-toss/web-framework';
+
+const schemeUri = getSchemeUri();
+console.log('Entry scheme URI:', schemeUri);
+```
+
+### Realistic — parse deep-link query parameters
+
+```tsx
+import { getSchemeUri } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+function DeepLinkPage() {
+  const [schemeUri, setSchemeUri] = useState('');
+  const [params, setParams] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const uri = getSchemeUri();
+    setSchemeUri(uri);
+
+    try {
+      // Parse query parameters from the scheme URI.
+      const url = new URL(uri);
+      const parsed: Record<string, string> = {};
+      url.searchParams.forEach((value, key) => {
+        parsed[key] = value;
+      });
+      setParams(parsed);
+    } catch {
+      // Ignore if the URI format is not parseable.
+    }
+  }, []);
+
+  return (
+    <div>
+      <p>Entry URI: <code>{schemeUri}</code></p>
+      <ul>
+        {Object.entries(params).map(([key, value]) => (
+          <li key={key}><strong>{key}</strong>: {value}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```
+
+## Try it live
+
+Open the Environment page in sdk-example and run the `getSchemeUri` card to inspect the result.
+
+<TryItLink group="environment" method="getSchemeUri" />
+
+## Related APIs
+
+- [`getOperationalEnvironment`](./getOperationalEnvironment) — returns the current execution environment.
+- [`getPlatformOS`](./getPlatformOS) — returns the current platform OS.
+- [`getDeviceId`](./getDeviceId) — returns the device's unique identifier.
+
+## Related guides
+
+- [Guides — Permissions pattern](/guides/permissions-pattern) — permission flow used by other namespaces (reference only; `getSchemeUri` doesn't require a permission).
+- _(coming soon)_ Recipes — "Deep-link parameter parsing and routing pattern"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
+- Web standard counterpart: [`window.location.href`](https://developer.mozilla.org/docs/Web/API/Location/href) — reads the current URL in a browser context; `getSchemeUri()` exposes the native deep-link URI in the mini-app runtime.

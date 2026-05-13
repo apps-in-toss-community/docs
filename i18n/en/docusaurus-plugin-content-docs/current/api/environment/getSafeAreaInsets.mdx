@@ -1,0 +1,114 @@
+---
+image: /og/api-environment-getSafeAreaInsets.png
+id: getSafeAreaInsets
+title: getSafeAreaInsets
+sidebar_label: getSafeAreaInsets
+description: "Deprecated — Returns the safe area inset value. Use SafeAreaInsets.get() instead."
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `getSafeAreaInsets`
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+:::warning Deprecated
+This function is **deprecated** — explicitly marked as such in the SDK JSDoc. Use `SafeAreaInsets.get()` instead.
+
+```ts
+// Before (deprecated)
+import { getSafeAreaInsets } from '@apps-in-toss/web-framework';
+const inset = getSafeAreaInsets(); // number
+
+// Recommended
+import { SafeAreaInsets } from '@apps-in-toss/web-framework';
+const insets = SafeAreaInsets.get(); // { top, bottom, left, right }
+```
+:::
+
+Returns the safe area inset as a single number. `SafeAreaInsets.get()` returns a `{ top, bottom, left, right }` object, giving you per-edge control.
+
+## Signature
+
+```ts
+import { getSafeAreaInsets } from '@apps-in-toss/web-framework';
+
+/** @deprecated Use SafeAreaInsets.get() instead. */
+declare function getSafeAreaInsets(): number;
+```
+
+## Parameters
+
+None.
+
+## Returns
+
+- `number` — the safe area inset value in pixels. Does not distinguish between edges.
+
+## Permission
+
+No permission required — `getSafeAreaInsets` is not bound to a `PermissionName`. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Migration guide
+
+How to migrate from `getSafeAreaInsets` to `SafeAreaInsets.get()`:
+
+```tsx
+// Before
+import { getSafeAreaInsets } from '@apps-in-toss/web-framework';
+
+function Page() {
+  const inset = getSafeAreaInsets();
+  return <div style={{ paddingBottom: inset }}>...</div>;
+}
+```
+
+```tsx
+// After
+import { SafeAreaInsets } from '@apps-in-toss/web-framework';
+import { useState, useEffect } from 'react';
+
+function Page() {
+  const [insets, setInsets] = useState(() => SafeAreaInsets.get());
+
+  useEffect(() => {
+    // Subscribe to safe area updates when screen mode changes.
+    const cleanup = SafeAreaInsets.subscribe({
+      onEvent: (newInsets) => setInsets(newInsets),
+    });
+    return cleanup;
+  }, []);
+
+  return (
+    <div style={{
+      paddingTop: insets.top,
+      paddingBottom: insets.bottom,
+      paddingLeft: insets.left,
+      paddingRight: insets.right,
+    }}>
+      ...
+    </div>
+  );
+}
+```
+
+## Try it live
+
+<TryItLink group="environment" method="getSafeAreaInsets" />
+
+## Related APIs
+
+- [`getPlatformOS`](./getPlatformOS) — returns the current platform OS.
+- [`getOperationalEnvironment`](./getOperationalEnvironment) — returns the current execution environment.
+
+## Related guides
+
+- [Guides — Permissions pattern](/guides/permissions-pattern) — permission flow used by other namespaces (reference only; `getSafeAreaInsets` doesn't require a permission).
+- _(coming soon)_ Recipes — "Safe area layout pattern"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
+- CSS environment variable counterpart: [`env(safe-area-inset-*)`](https://developer.mozilla.org/docs/Web/CSS/env) — the CSS standard approach to safe area, but SDK APIs provide more accurate values in the mini-app runtime.
