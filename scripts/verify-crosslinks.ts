@@ -192,6 +192,14 @@ const DOCS_LINK_REGEX = /docsLink\(\s*['"][^'"]+['"]\s*,\s*['"]([^'"]+)['"]\s*\)
 // attribute form is the actual author declaration.
 const DOCS_LINK_JSX_REGEX = /<DocsLink\b[^>]*\bmethod=["']([^"']+)["']/g;
 
+// Matches the `docsSlug="..."` JSX prop form used by card components that
+// forward a docs slug to a nested `<DocsLink />` via a variable (e.g.
+// EventsPage's `EventSubscriberCard` passes `method={docsSlug}`). The prop
+// name is intentionally specific — author-declared, only used to tie a card
+// to a docs slug — so matching it as a literal is safer than trying to track
+// variable flow through the component.
+const DOCS_SLUG_JSX_REGEX = /\bdocsSlug=["']([^"']+)["']/g;
+
 // Matches PolyfillToggleCard's `sdk={{ name: '...' }}` JSX prop form.
 // PolyfillToggleCard receives an `sdk` object prop rather than a plain `name=""`
 // prop, so NAME_JSX_PROP_REGEX misses it.  We match the JSX attribute start
@@ -229,6 +237,12 @@ function extractMethodsFromSource(source: string): string[] {
     if (norm) out.push(norm);
   }
   for (const match of source.matchAll(DOCS_LINK_JSX_REGEX)) {
+    const raw = match[1];
+    if (raw === undefined) continue;
+    const norm = normalizeExplicitSlug(raw);
+    if (norm) out.push(norm);
+  }
+  for (const match of source.matchAll(DOCS_SLUG_JSX_REGEX)) {
     const raw = match[1];
     if (raw === undefined) continue;
     const norm = normalizeExplicitSlug(raw);
