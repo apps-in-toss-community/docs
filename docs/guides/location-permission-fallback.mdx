@@ -1,0 +1,232 @@
+---
+image: /og/guides-location-permission-fallback.png
+id: location-permission-fallback
+title: 위치 권한 요청과 fallback 패턴
+sidebar_label: 위치 권한 요청과 fallback
+slug: /guides/location-permission-fallback
+description: getCurrentLocation·startUpdateLocation 호출 전후의 권한 단계 — notDetermined·denied 분기, FINE/COARSE 정확도 차이, 그리고 권한 없이도 동작하는 fallback UX를 한 곳에 정리.
+---
+
+# 위치 권한 요청과 fallback 패턴
+
+`getCurrentLocation`과 `startUpdateLocation`은 둘 다 `geolocation` 권한을 공유합니다. 호출 자체는 단순하지만 — 사용자 권한 상태(`allowed` / `denied` / `notDetermined`), 정확도 단계(`FINE` / `COARSE`), 신호 부재(GPS 미수신, 실내) — 세 가지 축이 곱해지면서 실제 미니앱에서 "위치 기능이 가끔 비어 있어요" 류의 버그가 잘 생깁니다. 이 가이드는 두 메서드를 호출하기 전·도중·이후에 끼워 넣어야 할 권한·fallback 로직을 한 곳에 모읍니다.
+
+## 결정 흐름
+
+```
+                        getPermission()
+                              │
+        ┌─────────────────────┼─────────────────────┐
+        │                     │                     │
+   'allowed'           'notDetermined'           'denied'
+        │                     │                     │
+        │            openPermissionDialog()         │
+        │                     │                     │
+        │           ┌─────────┴────────┐            │
+        │       allowed             denied          │
+        │           │                  │            │
+        ▼           ▼                  ▼            ▼
+    measure()    measure()       fallback UI    fallback UI
+                                  + "설정 열기"   + "설정 열기"
+```
+
+핵심:
+
+- **`notDetermined`이면 다이얼로그로 승격** — 이 상태에서 직접 측정 호출이 가능한 경우도 있지만, 시스템 다이얼로그가 화면 위에 떠 있는 동안 측정이 진행돼 UX가 어색해집니다. **항상 먼저 권한 다이얼로그**.
+- **`denied`는 막다른 길이 아니라 fallback의 진입점** — 사용자가 "설정에서 다시 켜기" 외엔 회복할 길이 없으므로, 그 동선을 만들어 줍니다.
+- **권한 상태와 정확도는 별개** — `Accuracy.Highest`를 요청해도 사용자가 "대략적인 위치"만 허용했다면 `accessLocation === 'COARSE'`가 돌아오고 좌표 오차가 수백 미터로 벌어집니다. 권한이 통과했다고 자료가 정확하다는 뜻은 아닙니다.
+
+## 표준 호출 시퀀스
+
+`getCurrentLocation` 1회 호출 예. `startUpdateLocation` 도 동일한 권한 가드를 앞에 둡니다.
+
+```tsx
+import { getCurrentLocation, Accuracy } from '@apps-in-toss/web-framework';
+
+async function safelyGetLocation() {
+  const status = await getCurrentLocation.getPermission();
+
+  if (status === 'denied') {
+    return { kind: 'denied' as const };
+  }
+  if (status === 'notDetermined') {
+    await getCurrentLocation.openPermissionDialog();
+    // 다이얼로그 결과는 별도로 돌려주지 않습니다 — 다음 호출이 자연스럽게 분기됩니다.
+  }
+
+  try {
+    const { coords } = await getCurrentLocation({ accuracy: Accuracy.Balanced });
+    return { kind: 'ok' as const, coords };
+  } catch (error) {
+    // 이 사이에 권한이 회수됐거나, GPS 신호가 없거나, 시스템 오류.
+    return { kind: 'error' as const, error };
+  }
+}
+```
+
+이 함수의 반환값은 3개 (`'denied'` / `'ok'` / `'error'`) — 호출부는 이 세 갈래에 각자 다른 UI를 매핑합니다.
+
+## `getPermission` 결과별 UX 매트릭스
+
+| 상태 | 의미 | 권장 UX |
+| --- | --- | --- |
+| `allowed` | 사용자가 이미 허용 | 바로 측정 호출. |
+| `notDetermined` | 한 번도 묻지 않았음 | **사용자 액션 직후**(예: "내 주변 매장 보기" 버튼 클릭) `openPermissionDialog` → 호출. 화면 진입과 동시에 묻지 않습니다. |
+| `denied` | 명시적으로 거부 | 측정 호출 금지 (`UnknownError`로 실패). 회복 동선: "설정에서 위치 권한을 켜 주세요" 안내 + 의미 있는 fallback. |
+
+`notDetermined` 상태에서 화면 진입과 동시에 다이얼로그를 띄우는 건 **공통적인 안티패턴**입니다 — 사용자가 왜 권한이 필요한지 모르는 채로 거절 → 그 화면은 그 사용자에겐 영영 `denied`가 됩니다. **권한은 사용자가 그 기능을 원하는 순간에만 요청**.
+
+## `denied` 상태의 fallback UX
+
+위치 권한 없이도 의미 있는 화면을 유지하는 패턴 세 가지.
+
+### 1. 수동 주소 입력으로 폴백
+
+배달 주소·매장 검색 같은 케이스. 위치 없이도 같은 결과 화면에 도달할 수 있는 입력 폼을 함께 제공합니다.
+
+```tsx
+function NearbyStores() {
+  const [state, setState] = useState<'idle' | 'denied' | 'ok'>('idle');
+  const [stores, setStores] = useState<Store[]>([]);
+
+  async function locateMe() {
+    const result = await safelyGetLocation();
+    if (result.kind === 'denied') {
+      setState('denied');
+      return;
+    }
+    if (result.kind === 'ok') {
+      setStores(await fetchStoresByCoords(result.coords));
+      setState('ok');
+    }
+  }
+
+  if (state === 'denied') {
+    return (
+      <AddressSearch
+        onSubmit={async (address) => {
+          setStores(await fetchStoresByAddress(address));
+          setState('ok');
+        }}
+      />
+    );
+  }
+
+  return (
+    <>
+      <button type="button" onClick={locateMe}>
+        내 주변 매장 보기
+      </button>
+      <StoreList stores={stores} />
+    </>
+  );
+}
+```
+
+### 2. 기본 지역으로 폴백
+
+지역 콘텐츠 추천처럼 "정확하지 않아도 화면을 비우진 않는" 케이스. 마지막으로 알려진 지역, 사용자 프로필의 주소, 또는 인기 지역으로 기본값을 채워 화면을 항상 채웁니다.
+
+```tsx
+const [region, setRegion] = useState(profile.region ?? '서울');
+
+useEffect(() => {
+  (async () => {
+    const result = await safelyGetLocation();
+    if (result.kind === 'ok') {
+      setRegion(coordsToRegion(result.coords));
+    }
+    // denied/error는 기본값 유지 — 화면은 비지 않습니다.
+  })();
+}, []);
+```
+
+### 3. 명시적인 "설정 열기" 동선
+
+위 둘이 적용 안 되는 케이스(라이딩 기록처럼 위치가 필수인 화면). 거부 상태를 명확히 알리고, 시스템 설정으로 보내는 안내를 남깁니다. `openURL`로 OS 설정 페이지를 직접 여는 API는 없으니, 토스트·배너로 "기기 설정 → 앱 → 위치"를 안내합니다.
+
+```tsx
+if (state === 'denied') {
+  return (
+    <Notice>
+      위치 권한이 꺼져 있어 기록을 시작할 수 없어요.
+      기기 설정 → 앱 → 위치에서 권한을 켜 주세요.
+    </Notice>
+  );
+}
+```
+
+## 권한 회수가 호출 사이에 일어나는 경우
+
+`getPermission`이 `allowed`를 돌려준 뒤 측정 호출까지 사이에 사용자가 다른 앱에서 권한을 회수할 수 있습니다. 흔하진 않지만 가능합니다. **측정 호출은 항상 `try/catch`로 감싸고**, 에러 상태도 fallback에 흡수합니다 — 위 `safelyGetLocation`의 `'error'` 분기가 그 역할입니다.
+
+`startUpdateLocation`은 구독 중에도 권한이 회수되면 `onError`가 발생합니다. `onError`에서 구독을 정지하고 fallback으로 전환하세요.
+
+```tsx
+stop = startUpdateLocation({
+  onEvent: ({ coords }) => setCoords(coords),
+  onError: (err) => {
+    stop?.();
+    setState('denied'); // 같은 fallback 경로 재사용
+  },
+  options: { accuracy: Accuracy.High, timeInterval: 1000, distanceInterval: 5 },
+});
+```
+
+## 정확도(`Accuracy`)와 `accessLocation`
+
+`accuracy`는 미터 단위 측정 오차, `accessLocation`은 시스템 권한 등급. 둘은 독립적입니다.
+
+| 권한 (`accessLocation`) | 의미 | 일반적 `accuracy` 범위 |
+| --- | --- | --- |
+| `FINE` | "정확한 위치" 허용 | 5–30m (실외), 30–100m (실내) |
+| `COARSE` | "대략적인 위치"만 허용 | 100–수 km (블록·도시 단위) |
+
+`Accuracy.Highest`로 요청해도 사용자가 `COARSE`만 줬다면 `accessLocation === 'COARSE'`가 돌아오고, 결과로 오는 `accuracy`는 큰 값입니다. 그래서 **권한이 통과해도 결과 사용 직전에 `accuracy` 임계값을 한 번 더 확인**합니다.
+
+```ts
+const { coords } = await getCurrentLocation({ accuracy: Accuracy.Balanced });
+if (coords.accuracy > 500) {
+  setMessage('위치 신호가 약해요. 야외에서 다시 시도해 주세요.');
+}
+```
+
+내비게이션·라이딩 추적처럼 `FINE`이 사실상 필수인 화면은, `accessLocation === 'COARSE'`라면 fallback으로 전환하거나 사용자에게 "정확한 위치" 권한을 안내합니다.
+
+## 화면 진입 시 자동 측정 vs 사용자 액션 이후
+
+| 케이스 | 권장 |
+| --- | --- |
+| 사용자가 "현재 위치" 버튼을 눌렀다 | 그 클릭 핸들러 안에서 권한 확인 + 측정. **이 순간이 사용자가 위치 사용을 동의한 시점**. |
+| 화면이 위치 기반으로 자동 그려진다(예: 지도) | `notDetermined`이면 다이얼로그 띄우지 말고 기본 지역/마지막 위치로 채움. 사용자가 명시적 액션(검색·"내 위치" 버튼)을 누를 때 권한 요청. |
+| 백그라운드 추적이 필요하다 | 미니앱 환경에서는 사실상 어려움. 포그라운드를 벗어나면 콜백이 멈추거나 throttle 됨. 백그라운드가 필수면 별도 안내. |
+
+## 흔한 실수 체크리스트
+
+- 화면 진입과 동시에 `openPermissionDialog`를 호출하고 있지 않나요? 사용자가 의도를 모른 상태에서 거절하면 그 화면은 영영 잠깁니다.
+- `denied` 상태에서도 측정 호출이 들어가도록 코드가 되어 있나요? `UnknownError`로 실패해 try/catch로 처리해야 합니다.
+- 권한 통과 후 `accuracy` 값을 한 번 더 확인하고 있나요? 사용자는 `COARSE`만 허용했을 수 있습니다.
+- `startUpdateLocation`의 cleanup을 `useEffect` 정리 함수에서 호출하나요? 빠뜨리면 배터리가 빠르게 닳습니다.
+- 권한 거부 상태에서도 화면이 무언가를 보여주나요? 빈 화면 + 토스트 한 줄은 fallback이 아닙니다.
+
+## 환경별 차이
+
+- **실 토스 앱**: `geolocation` 권한은 OS 권한과 토스 자체 권한 두 단계를 거칩니다. 시스템 다이얼로그 → 토스 권한 다이얼로그 순으로 뜰 수 있으므로 한 번의 `openPermissionDialog` 호출이 두 단계 모두를 커버합니다.
+- **devtools mock**: [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) 패널에서 `allowed`/`denied`/`notDetermined`를 직접 전환할 수 있습니다. 실제 좌표는 고정값이라 거리·정확도 변화는 실기에서만 검증.
+- **외부 브라우저**: 표준 `navigator.geolocation`이 떠 있지 않으면 호출이 throw. polyfill 적용 시에도 권한 모델이 달라 실 미니앱 환경에서 다시 검증.
+
+## 관련 API
+
+- [`api/location`](/api/location) — `location` 네임스페이스 개요.
+- [`getCurrentLocation`](/api/location/getCurrentLocation) — 단발성 위치 조회.
+- [`startUpdateLocation`](/api/location/startUpdateLocation) — 위치 변화 구독.
+- [`api/permissions`](/api/permissions) — 권한 네임스페이스.
+
+## 관련 가이드
+
+- [Guides — 권한 처리 패턴](/guides/permissions-pattern) — `geolocation`을 포함한 모든 권한 타입에 공통 적용되는 base 패턴. 이 가이드는 위치에 특화된 fallback에 집중.
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지.
+- [`navigator.geolocation`](https://developer.mozilla.org/docs/Web/API/Geolocation) — 표준 Web API 대응.

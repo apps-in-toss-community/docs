@@ -20,6 +20,7 @@ const sidebars: SidebarsConfig = {
         'guides/auth-flow',
         'guides/event-subscription',
         'guides/iap-payment-flow',
+        'guides/location-permission-fallback',
         'guides/navigation-flow',
         'guides/permissions-pattern',
       ],
