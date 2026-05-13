@@ -1,0 +1,81 @@
+---
+id: post-game-leaderboard-link
+title: Post-game leaderboard link
+sidebar_label: Post-game leaderboard
+slug: /recipes/post-game-leaderboard-link
+description: Short snippets for submitting a score with submitGameCenterLeaderBoardScore and then opening the leaderboard with openGameCenterLeaderboard right after a game session ends.
+---
+
+# Post-game leaderboard link
+
+When a game ends you need to do two things quickly: submit the score, then show the rankings. There are two approaches — await-then-show (submit first, open leaderboard on success) and optimistic (start both concurrently).
+
+## Await-then-show
+
+Simplest approach. Submit the score and open the leaderboard only if submission succeeds.
+
+```tsx
+import {
+  getGameCenterGameProfile,
+  submitGameCenterLeaderBoardScore,
+  openGameCenterLeaderboard,
+} from '@apps-in-toss/web-framework';
+
+async function onGameOver(finalScore: number): Promise<void> {
+  // Guard: PROFILE_NOT_FOUND will be returned if the profile is missing.
+  const profile = await getGameCenterGameProfile();
+  if (!profile || profile.statusCode === 'PROFILE_NOT_FOUND') {
+    // Show a profile creation prompt.
+    return;
+  }
+
+  const result = await submitGameCenterLeaderBoardScore({
+    score: String(finalScore),
+  });
+
+  if (result?.statusCode === 'SUCCESS') {
+    await openGameCenterLeaderboard();
+  } else {
+    // LEADERBOARD_NOT_FOUND, UNPARSABLE_SCORE, etc. — surface an inline message.
+    console.error('Score submission failed:', result?.statusCode);
+  }
+}
+```
+
+`score` must be a string. Use `String(finalScore)` or `finalScore.toString()`.
+
+## Optimistic — concurrent submit and open
+
+When submission latency is noticeable, you can open the leaderboard immediately while submitting in the background. Handle submission failure with a banner or toast inside the leaderboard screen.
+
+```tsx
+import {
+  submitGameCenterLeaderBoardScore,
+  openGameCenterLeaderboard,
+} from '@apps-in-toss/web-framework';
+
+async function onGameOverOptimistic(finalScore: number): Promise<void> {
+  // Kick off both concurrently.
+  const [result] = await Promise.all([
+    submitGameCenterLeaderBoardScore({ score: String(finalScore) }),
+    openGameCenterLeaderboard(),
+  ]);
+
+  if (result?.statusCode !== 'SUCCESS') {
+    // Leaderboard is already open — notify the user via a banner or toast.
+    console.error('Score submission failed:', result?.statusCode);
+  }
+}
+```
+
+Choose between the two based on network conditions and UX priorities. If score accuracy matters more, use await-then-show; if perceived speed matters more, use optimistic.
+
+## Related APIs
+
+- [`submitGameCenterLeaderBoardScore`](/api/game/submitGameCenterLeaderBoardScore) — Submit the game score to the leaderboard.
+- [`openGameCenterLeaderboard`](/api/game/openGameCenterLeaderboard) — Open the Game Center leaderboard web view.
+- [`getGameCenterGameProfile`](/api/game/getGameCenterGameProfile) — Verify the user has a profile first.
+
+## Related guides
+
+- [Anonymous key game session](/guides/anonymous-key-game-session) — Identify game progress without login, then trigger login at the leaderboard submission moment.

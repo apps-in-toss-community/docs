@@ -1,0 +1,106 @@
+---
+image: /og/recipes-gamecenter-profile-link.png
+id: gamecenter-profile-link
+title: 게임센터 프로필 연동 패턴
+sidebar_label: 게임센터 프로필 연동
+slug: /recipes/gamecenter-profile-link
+description: 앱 진입 시 getGameCenterGameProfile로 프로필 슬롯을 채우고, 프로필이 없을 때 폴백 UI를 보여주는 짧은 스니펫.
+---
+
+# 게임센터 프로필 연동 패턴
+
+게임 UI에 게임센터 닉네임·프로필 이미지를 표시하는 가장 짧은 경로. 앱 진입 시 프로필을 조회하고, 없으면 생성 유도 UI를 보여줍니다.
+
+## 프로필 슬롯 채우기
+
+```tsx
+import { getGameCenterGameProfile } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+type ProfileState =
+  | { status: 'loading' }
+  | { status: 'found'; nickname: string; profileImageUri: string }
+  | { status: 'not_found' }
+  | { status: 'unsupported' };
+
+function useGameCenterProfile() {
+  const [profile, setProfile] = useState<ProfileState>({ status: 'loading' });
+
+  useEffect(() => {
+    getGameCenterGameProfile().then((result) => {
+      if (!result) {
+        setProfile({ status: 'unsupported' });
+      } else if (result.statusCode === 'PROFILE_NOT_FOUND') {
+        setProfile({ status: 'not_found' });
+      } else {
+        setProfile({
+          status: 'found',
+          nickname: result.nickname,
+          profileImageUri: result.profileImageUri,
+        });
+      }
+    });
+  }, []);
+
+  return profile;
+}
+```
+
+## 프로필 슬롯 컴포넌트
+
+```tsx
+function ProfileSlot() {
+  const profile = useGameCenterProfile();
+
+  if (profile.status === 'loading') {
+    return <div className="profile-skeleton" aria-busy="true" />;
+  }
+
+  if (profile.status === 'unsupported') {
+    // 앱 버전이 낮음 — 프로필 슬롯을 비우거나 업데이트 안내.
+    return null;
+  }
+
+  if (profile.status === 'not_found') {
+    // 프로필 없음 — 생성 유도 CTA.
+    return <button type="button">게임센터 프로필 만들기</button>;
+  }
+
+  return (
+    <div className="profile-slot">
+      <img src={profile.profileImageUri} alt="프로필 이미지" width={40} height={40} />
+      <span>{profile.nickname}</span>
+    </div>
+  );
+}
+```
+
+`PROFILE_NOT_FOUND`와 `unsupported(undefined)` 두 케이스를 구분하세요. 전자는 프로필 생성 CTA가 답이고, 후자는 앱 업데이트 안내가 답입니다.
+
+## 점수 제출 전 프로필 가드
+
+`submitGameCenterLeaderBoardScore` 호출 전에 프로필 여부를 미리 확인하면 `PROFILE_NOT_FOUND` 에러를 방지할 수 있습니다.
+
+```tsx
+import {
+  getGameCenterGameProfile,
+  submitGameCenterLeaderBoardScore,
+} from '@apps-in-toss/web-framework';
+
+async function submitIfProfileExists(score: number): Promise<boolean> {
+  const profile = await getGameCenterGameProfile();
+  if (!profile || profile.statusCode === 'PROFILE_NOT_FOUND') return false;
+
+  const result = await submitGameCenterLeaderBoardScore({ score: String(score) });
+  return result?.statusCode === 'SUCCESS';
+}
+```
+
+## 관련 API
+
+- [`getGameCenterGameProfile`](/api/game/getGameCenterGameProfile) — 게임센터 닉네임·프로필 이미지 URL 조회.
+- [`submitGameCenterLeaderBoardScore`](/api/game/submitGameCenterLeaderBoardScore) — 리더보드에 점수를 제출.
+
+## 관련 가이드
+
+- [익명 키 게임 세션](/guides/anonymous-key-game-session) — 로그인 없이 진행도를 식별하고 리더보드 등록 시점에 로그인을 트리거하는 패턴.

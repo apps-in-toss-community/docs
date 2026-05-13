@@ -1,0 +1,113 @@
+---
+id: promotion-reward-grant
+title: Promotion reward grant
+sidebar_label: Promotion reward grant
+slug: /recipes/promotion-reward-grant
+description: Short snippets for calling grantPromotionReward after the server emits a "ready to grant" signal, with per-error-code branching.
+---
+
+# Promotion reward grant
+
+When an event like a friend-invite acceptance completes, the server signals the client, and the client calls `grantPromotionReward`. For the full sequence — share invite → acceptance → grant — see the [Guides — Viral reward flow](/guides/viral-reward-flow). This recipe covers only the grant call itself.
+
+## Core grant function
+
+```ts
+import { grantPromotionReward } from '@apps-in-toss/web-framework';
+
+async function claimReward({
+  promotionCode,
+  amount,
+}: {
+  promotionCode: string;
+  amount: number;
+}): Promise<{ key: string } | null> {
+  const result = await grantPromotionReward({ params: { promotionCode, amount } });
+
+  if (!result) {
+    // undefined: app version below minimum supported.
+    throw new Error('APP_VERSION_TOO_LOW');
+  }
+
+  if (result === 'ERROR') {
+    throw new Error('UNKNOWN_GRANT_ERROR');
+  }
+
+  if ('key' in result) {
+    // Grant succeeded. Record the key server-side for audit purposes.
+    return result;
+  }
+
+  if (result.errorCode === '4113') {
+    // "Already granted" — server idempotency working as intended. Not a real error.
+    return null;
+  }
+
+  throw new Error(`GRANT_FAILED:${result.errorCode}`);
+}
+```
+
+`errorCode: "4113"` means the server prevented a duplicate grant. Treat it as a no-op rather than an error — do not surface it as a failure in the UI.
+
+## Triggering the grant after a server signal
+
+```tsx
+import { useEffect, useState } from 'react';
+
+function RewardClaimSection({
+  promotionCode,
+  amount,
+}: {
+  promotionCode: string;
+  amount: number;
+}) {
+  const [state, setState] = useState<'idle' | 'claiming' | 'done' | 'error'>('idle');
+
+  // On app entry, check with the server whether a reward is pending.
+  useEffect(() => {
+    fetch('/api/reward/pending')
+      .then((res) => res.json())
+      .then((data: { hasPending: boolean }) => {
+        if (data.hasPending) setState('idle');
+      })
+      .catch(console.warn);
+  }, []);
+
+  async function handleClaim() {
+    if (state === 'claiming' || state === 'done') return;
+    setState('claiming');
+    try {
+      const result = await claimReward({ promotionCode, amount });
+      if (result) {
+        // Record the grant server-side.
+        await fetch('/api/reward/mark-granted', {
+          method: 'POST',
+          body: JSON.stringify({ key: result.key }),
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      setState('done');
+    } catch {
+      setState('error');
+    }
+  }
+
+  if (state === 'done') return <p role="status">Reward granted!</p>;
+  if (state === 'error') return <p role="alert">Something went wrong. Please try again.</p>;
+
+  return (
+    <button type="button" onClick={handleClaim} disabled={state === 'claiming'}>
+      {state === 'claiming' ? 'Claiming…' : 'Claim reward'}
+    </button>
+  );
+}
+```
+
+## Related APIs
+
+- [`grantPromotionReward`](/api/game/grantPromotionReward) — Grant a reward using a promotion code (recommended).
+- [`grantPromotionRewardForGame`](/api/game/grantPromotionRewardForGame) — (Deprecated) Game-category-only predecessor. Same parameters and return type.
+
+## Related guides
+
+- [Viral reward flow](/guides/viral-reward-flow) — Full sequence from `contactsViral` share invite through friend acceptance to `grantPromotionReward`, including duplicate-grant prevention.
