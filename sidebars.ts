@@ -19,6 +19,7 @@ const sidebars: SidebarsConfig = {
         'guides/ads-integration',
         'guides/auth-flow',
         'guides/event-subscription',
+        'guides/iap-payment-flow',
         'guides/navigation-flow',
         'guides/permissions-pattern',
       ],

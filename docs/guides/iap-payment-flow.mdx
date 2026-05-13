@@ -1,0 +1,244 @@
+---
+image: /og/guides-iap-payment-flow.png
+id: iap-payment-flow
+title: IAP 결제 흐름 — processProductGrant와 completeProductGrant
+sidebar_label: IAP 결제 흐름
+slug: /guides/iap-payment-flow
+description: SKU 기반 IAP 주문의 표준 흐름 — createOrder → processProductGrant 콜백에서 서버 fulfillment → completeProductGrant로 종료.
+---
+
+# IAP 결제 흐름 — `processProductGrant`와 `completeProductGrant`
+
+`IAP.createOneTimePurchaseOrder`와 `IAP.createSubscriptionPurchaseOrder`는 결제 인증과 클라이언트-서버 fulfillment 핸드오프를 한 호출에 묶습니다. 이 흐름의 핵심은 두 콜백 — **`processProductGrant`**(주문이 결제 인증을 통과한 직후 서버에 권한 부여를 위임)와 **`IAP.completeProductGrant`**(서버 fulfillment 완료 후 토스에 종료를 알림). 이 가이드는 그 시퀀스, 책임 분리, 실패 회복 패턴을 한 곳에 정리합니다.
+
+## 전체 시퀀스 한눈에 보기
+
+```
+[클라이언트 webview]                      [당신의 서버]                [토스]
+      │                                       │                          │
+      │ 1. IAP.getProductItemList()          │                          │
+      ├──────────────────────────────────────────────────────────────► │
+      │ ◄──────────────────────────────────────────────────────────────┤
+      │   products[]                          │                          │
+      │                                       │                          │
+      │ 2. IAP.createOneTimePurchaseOrder({ sku, ...callbacks })       │
+      ├──────────────────────────────────────────────────────────────► │
+      │                                       │   결제 인증 다이얼로그        │
+      │                                       │                          │
+      │ 3. processProductGrant({ orderId }) ◄─┤◄─────────────────────────┤
+      ├──────────────────────────────────────►┤                          │
+      │                                       │ 4. 서버 fulfillment        │
+      │                                       │    (DB 권한 부여, 영수증 검증) │
+      │ ◄──────────────────────────────────────┤                         │
+      │   return true                         │                          │
+      │                                       │                          │
+      │ 5. IAP.completeProductGrant({ params: { orderId } })           │
+      ├──────────────────────────────────────────────────────────────► │
+      │ ◄──────────────────────────────────────────────────────────────┤
+      │   true                                │                          │
+      │                                       │                          │
+      │ 6. onEvent({ type: 'success' })       │                          │
+      │ ◄──────────────────────────────────────────────────────────────┤
+      │                                       │                          │
+      │ 7. cleanup() (반환된 함수)              │                          │
+```
+
+핵심:
+
+- **`createOrder` 자체가 cleanup 함수를 반환**합니다 — 결제 다이얼로그 라이프사이클이 끝나면 반드시 호출해 리스너를 떼세요.
+- **`processProductGrant` 콜백 안에서 서버 fulfillment를 수행**하고 성공/실패를 `boolean`으로 돌려줍니다.
+- **`completeProductGrant`는 fulfillment 후 별도 호출** — 토스에 "처리 끝났음"을 알려 영수증을 확정. 누락하면 같은 주문이 `getPendingOrders`에 계속 남습니다.
+
+## 단계 1 — 상품 목록 가져오기
+
+```ts
+import { IAP } from '@apps-in-toss/web-framework';
+
+const { products } = await IAP.getProductItemList();
+// products[].sku를 UI에 노출.
+```
+
+[`IAP.getProductItemList`](/api/iap/getProductItemList)은 미니앱 콘솔에 등록된 SKU 목록을 돌려줍니다. **클라이언트 하드코딩 금지** — SKU/가격은 콘솔의 source of truth이며, 클라이언트는 응답을 그대로 표시합니다.
+
+## 단계 2 — 결제 주문 생성
+
+`createOneTimePurchaseOrder`의 표준 호출 모양:
+
+```tsx
+import { IAP } from '@apps-in-toss/web-framework';
+
+const cleanup = IAP.createOneTimePurchaseOrder({
+  options: {
+    sku: 'premium-1month',
+    processProductGrant: async ({ orderId }) => {
+      // 서버에 fulfillment 위임. true면 권한 부여 성공.
+      const ok = await fetch('/api/iap/fulfill', {
+        method: 'POST',
+        body: JSON.stringify({ orderId }),
+        headers: { 'Content-Type': 'application/json' },
+      }).then((res) => res.ok);
+
+      return ok;
+    },
+  },
+  onEvent: async ({ type, data }) => {
+    if (type === 'success') {
+      // 토스가 사용자에게 성공을 표시한 직후. completeProductGrant 호출.
+      await IAP.completeProductGrant({ params: { orderId: data.orderId } });
+      cleanup();
+    }
+  },
+  onError: (error) => {
+    console.error('IAP failed', error);
+    cleanup();
+  },
+});
+```
+
+`createSubscriptionPurchaseOrder`도 같은 모양이지만 `options.offerId`를 받고 `processProductGrant` 콜백이 `subscriptionId`를 함께 받습니다.
+
+```ts
+processProductGrant: async ({ orderId, subscriptionId }) => {
+  // subscriptionId를 서버에 함께 전달해 구독 권한과 매핑.
+  return await fulfillSubscription({ orderId, subscriptionId });
+}
+```
+
+## 단계 3 — `processProductGrant` 콜백의 책임
+
+이 콜백이 **서버 fulfillment의 진입점**입니다. 보통 다음을 수행:
+
+1. **영수증 검증** — `orderId`로 토스 IAP API에 영수증 진위 확인 요청(필요시).
+2. **권한 부여** — DB에 `(userId, sku, orderId)` 매핑 기록. 중복 방지를 위해 `orderId` 유니크 제약.
+3. **결과 반환** — 위 두 단계가 모두 성공하면 `true`, 어느 하나라도 실패하면 `false`.
+
+```ts
+// 서버 측 라우트 예시 (Next.js, Express 등 어디서든)
+app.post('/api/iap/fulfill', async (req, res) => {
+  const { orderId } = req.body;
+
+  // 1. 영수증 검증.
+  const verified = await verifyToOrder(orderId);
+  if (!verified) return res.status(400).json({ ok: false });
+
+  // 2. DB에 권한 부여 (idempotent — 같은 orderId 재호출은 no-op).
+  await db.grants.upsert({
+    where: { orderId },
+    create: { userId: req.user.id, sku: verified.sku, orderId },
+    update: {},
+  });
+
+  res.json({ ok: true });
+});
+```
+
+**`false`를 반환하면** 토스가 사용자에게 "결제는 완료됐지만 권한 부여에 실패" 상태를 보여주고, 주문은 pending 상태로 남습니다 — [`IAP.getPendingOrders`](/api/iap/getPendingOrders)로 나중에 회수할 수 있습니다(아래 "복구" 참고).
+
+### 콜백이 안전해야 한다
+
+`processProductGrant`는 결제 인증 직후 한 번 호출되지만, **사용자가 결제 흐름을 중단·재시도하는 시나리오를 위해 idempotent**해야 합니다. DB 권한 부여는 항상 `orderId`를 유니크 키로 upsert. 같은 `orderId`로 두 번 부여하지 않도록 보장하세요.
+
+## 단계 4 — `completeProductGrant`로 종료
+
+`onEvent`에서 `type: 'success'`를 받은 직후 호출:
+
+```ts
+import { IAP } from '@apps-in-toss/web-framework';
+
+const result = await IAP.completeProductGrant({ params: { orderId } });
+// result: boolean — true면 토스가 영수증을 확정.
+```
+
+[`IAP.completeProductGrant`](/api/iap/completeProductGrant)는 토스 측에서 영수증을 "확정"으로 표시해 같은 주문이 `getPendingOrders`에 다시 나타나지 않게 합니다. **이걸 호출하지 않으면 사용자가 미니앱을 재방문할 때마다 pending 주문으로 다시 발견됩니다** — 권한은 이미 부여돼 있어 서버 fulfillment는 idempotent하게 통과하지만, UX적으로는 "오래된 주문이 남아 있는" 인상이 됩니다.
+
+## 단계 5 — cleanup 호출
+
+`createOrder` 호출의 반환값은 cleanup 함수입니다. 결제 흐름이 끝나면(성공·실패·취소 어느 쪽이든) **반드시 호출**:
+
+```ts
+const cleanup = IAP.createOneTimePurchaseOrder({ ... });
+// 흐름이 끝나는 모든 경로에서 cleanup() 호출.
+```
+
+React에서는 `useEffect` 클린업이나 비동기 흐름의 `finally`에 묶는 게 자연스럽습니다.
+
+## 복구 — pending 주문 회수
+
+미니앱 진입 시점에 [`IAP.getPendingOrders`](/api/iap/getPendingOrders)를 호출해, `completeProductGrant`가 호출되지 못한 채 남은 주문이 있으면 처리하세요. 일반적인 시나리오:
+
+- 사용자가 `processProductGrant` 직후 미니앱을 종료해 `completeProductGrant`가 호출되지 못함.
+- 네트워크 오류로 `completeProductGrant`가 reject됨.
+
+```tsx
+import { IAP } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function IAPRecovery() {
+  useEffect(() => {
+    (async () => {
+      const { orders } = await IAP.getPendingOrders();
+      for (const order of orders) {
+        // 서버 fulfillment는 idempotent하므로 다시 시도해도 안전.
+        const ok = await fetch('/api/iap/fulfill', {
+          method: 'POST',
+          body: JSON.stringify({ orderId: order.orderId }),
+          headers: { 'Content-Type': 'application/json' },
+        }).then((r) => r.ok);
+        if (ok) {
+          await IAP.completeProductGrant({ params: { orderId: order.orderId } });
+        }
+      }
+    })().catch(console.warn);
+  }, []);
+
+  return null;
+}
+```
+
+이 컴포넌트를 앱 진입점에 마운트해 두면 결제 중 비정상 종료에서 자동 회복됩니다.
+
+## 구독 상태 조회
+
+구독 상품의 현재 상태(`isAccessible`, `expiresAt`, `isAutoRenew` 등)는 [`IAP.getSubscriptionInfo`](/api/iap/getSubscriptionInfo)로 조회합니다. `processProductGrant`에서 부여한 권한과 별개로, 토스 측의 갱신·환불 상태를 추적할 때 사용하세요.
+
+```ts
+const { subscription } = await IAP.getSubscriptionInfo({
+  params: { orderId },
+});
+if (!subscription.isAccessible) {
+  // 권한 회수: 서버 DB에서도 access를 거둬들임.
+}
+```
+
+## 자주 빠뜨리는 체크리스트
+
+- `processProductGrant`의 서버 fulfillment가 **idempotent**한가? 같은 `orderId`로 두 번 호출돼도 권한이 두 번 부여되면 안 됩니다.
+- `completeProductGrant`를 `onEvent({ type: 'success' })` 직후 **반드시** 호출하는가? 누락 시 pending 주문 누수.
+- `createOrder`의 cleanup을 모든 경로(성공·실패·취소)에서 **호출**하는가?
+- 앱 진입 시 `getPendingOrders` 회수 루틴을 두고 있는가? 없으면 비정상 종료 후 영구 누수.
+- SKU·가격을 클라이언트에서 하드코딩하고 있지는 않은가? `getProductItemList` 응답을 source of truth로.
+
+## 환경별 차이
+
+- **실 토스 앱**: 결제 다이얼로그 → 인증 → 영수증 발급 전체 흐름이 정상 동작. 콘솔에 등록된 SKU가 활성 상태인지 확인.
+- **devtools mock**: [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) mock은 `processProductGrant` 콜백을 즉시 호출하고 가짜 `orderId`를 생성합니다. 서버 fulfillment는 별도 mock 필요. 실제 영수증 검증·갱신은 디바이스에서만 검증.
+- **외부 브라우저**: `createOrder` 호출이 throw 합니다.
+
+## 관련 API
+
+- [`api/iap`](/api/iap) — `iap` 네임스페이스 overview.
+- [`IAP.getProductItemList`](/api/iap/getProductItemList) — 상품 목록.
+- [`IAP.createOneTimePurchaseOrder`](/api/iap/createOneTimePurchaseOrder) — 일회성 결제 진입.
+- [`IAP.createSubscriptionPurchaseOrder`](/api/iap/createSubscriptionPurchaseOrder) — 구독 결제 진입.
+- [`IAP.completeProductGrant`](/api/iap/completeProductGrant) — fulfillment 종료 시그널.
+- [`IAP.getPendingOrders`](/api/iap/getPendingOrders) — 미완료 주문 회수.
+- [`IAP.getCompletedOrRefundedOrders`](/api/iap/getCompletedOrRefundedOrders) — 완료·환불 주문 이력.
+- [`IAP.getSubscriptionInfo`](/api/iap/getSubscriptionInfo) — 구독 상태 조회.
+
+## 관련 가이드
+
+- [Guides — 권한 처리 패턴](/guides/permissions-pattern) — IAP 자체는 권한이 없지만, 결제 후 권한 게이트(예: 사진/카메라)와 묶을 때 참고.
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지.
