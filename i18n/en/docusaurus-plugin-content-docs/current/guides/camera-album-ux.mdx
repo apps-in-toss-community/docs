@@ -1,0 +1,249 @@
+---
+id: camera-album-ux
+title: Camera and album UX patterns — openCamera and fetchAlbumPhotos together
+sidebar_label: Camera & album UX
+slug: /guides/camera-album-ux
+description: When to use openCamera (single-shot, system camera UI) versus fetchAlbumPhotos (album picker, multi-select), how their permissions differ, how to handle Base64 output safely, and an ActionSheet pattern that lets users choose between the two.
+---
+
+# Camera and album UX patterns
+
+`openCamera` and `fetchAlbumPhotos` both return images, but they serve different purposes and use different permission names. This guide covers when to use each, how to offer both options with an ActionSheet, and how to handle Base64 output without running into memory problems.
+
+## `openCamera` vs `fetchAlbumPhotos` — which one?
+
+| | `openCamera` | `fetchAlbumPhotos` |
+| --- | --- | --- |
+| **Purpose** | Open the camera for an immediate shot | Pick from the device album |
+| **Result** | `ImageResponse` (single item) | `ImageResponse[]` (array) |
+| **Multi-select** | No | Yes (`maxCount` cap) |
+| **Permission (`PermissionName`)** | `camera` | `photos` |
+| **Return format** | `dataUri` (file URI by default; raw Base64 when `base64: true`) | Same |
+| **Toss app** | System camera UI | System photo picker UI |
+| **devtools mock** | Stub (fixed image) | Stub (fixed list) |
+| **External browser** | throws | throws |
+
+**Decision rule**: use `openCamera` when the user needs to take a new photo right now; use `fetchAlbumPhotos` when the user picks from existing photos. For flows like "set a profile photo" where both paths are natural, offer both via an ActionSheet.
+
+## Permission flow
+
+The two functions use **different `PermissionName` values**. `openCamera.getPermission()` returning `'allowed'` says nothing about `fetchAlbumPhotos.getPermission()` — check each function's permission independently before calling it.
+
+```
+User action (button tap)
+        │
+        ▼
+  getPermission()          ← called on openCamera OR fetchAlbumPhotos separately
+        │
+  ┌─────┴──────────────────────┐
+  │ 'allowed'  │ 'notDetermined'│ 'denied'
+  │            │                │
+  │            ▼                ▼
+  │   openPermissionDialog()  fallback UI
+  │            │              ("Go to Settings to allow…")
+  │       ┌────┴─────┐
+  │  'allowed'   'denied'
+  │       │           │
+  ▼       ▼           ▼
+ call   call        exit
+```
+
+Key rules:
+
+- **Show the permission dialog only after a user action.** Showing it on screen entry raises rejection rates. Once the user denies, only OS Settings can recover it.
+- **Calling while `denied` throws.** Always wrap in `try/catch`.
+- **You do not need to await the result of `openPermissionDialog()` separately.** Once the dialog resolves, the next real function call will naturally branch on `'allowed'` or `'denied'`.
+
+For the full `getPermission` / `openPermissionDialog` flow, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+### Denied-permission fallback
+
+When permission is `denied`, only OS Settings can restore it. All you can do in-app is show a message.
+
+```tsx
+if (cameraStatus === 'denied') {
+  setMessage('Go to Settings → App → Camera to enable access.');
+  return;
+}
+```
+
+There is no SDK API to open the OS Settings screen directly, so guide the user with a toast or inline banner.
+
+## ActionSheet pattern — "Take photo / Choose from album / Cancel"
+
+For flows like profile photo upload that offer both paths. The handler branches on whichever option the user taps.
+
+```tsx
+import { openCamera, fetchAlbumPhotos } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+type Sheet = 'closed' | 'open';
+type ImageResult = { id: string; dataUri: string } | null;
+
+export function ProfilePhotoEditor() {
+  const [sheet, setSheet] = useState<Sheet>('closed');
+  const [image, setImage] = useState<ImageResult>(null);
+  const [message, setMessage] = useState('');
+
+  async function handleTakePhoto() {
+    setSheet('closed');
+    try {
+      const status = await openCamera.getPermission();
+      if (status === 'denied') {
+        setMessage('Please allow camera access in Settings.');
+        return;
+      }
+      if (status === 'notDetermined') {
+        await openCamera.openPermissionDialog();
+      }
+      const result = await openCamera({ base64: true, maxWidth: 512 });
+      setImage(result);
+    } catch {
+      setMessage('Could not capture photo — please try again.');
+    }
+  }
+
+  async function handlePickFromAlbum() {
+    setSheet('closed');
+    try {
+      const status = await fetchAlbumPhotos.getPermission();
+      if (status === 'denied') {
+        setMessage('Please allow photo access in Settings.');
+        return;
+      }
+      if (status === 'notDetermined') {
+        await fetchAlbumPhotos.openPermissionDialog();
+      }
+      // Pick only one photo for a profile image flow
+      const [picked] = await fetchAlbumPhotos({ maxCount: 1, maxWidth: 512, base64: true });
+      if (picked) setImage(picked);
+    } catch {
+      setMessage('Could not load album — please try again.');
+    }
+  }
+
+  return (
+    <div>
+      {image ? (
+        <img
+          src={`data:image/jpeg;base64,${image.dataUri}`}
+          alt="Selected profile photo"
+          width={120}
+          height={120}
+          style={{ objectFit: 'cover', borderRadius: '50%' }}
+        />
+      ) : (
+        <div style={{ width: 120, height: 120, background: '#eee', borderRadius: '50%' }} />
+      )}
+
+      <button type="button" onClick={() => setSheet('open')}>
+        Change photo
+      </button>
+
+      {sheet === 'open' && (
+        <div role="dialog" aria-modal="true" aria-label="Choose photo source">
+          <button type="button" onClick={handleTakePhoto}>
+            Take photo
+          </button>
+          <button type="button" onClick={handlePickFromAlbum}>
+            Choose from album
+          </button>
+          <button type="button" onClick={() => setSheet('closed')}>
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {message && <p role="status">{message}</p>}
+    </div>
+  );
+}
+```
+
+:::tip Check permissions independently for each function
+`openCamera` and `fetchAlbumPhotos` have different `PermissionName` values (`camera` vs `photos`). Having one granted does not imply the other — check them separately inside each handler.
+:::
+
+## Handling results — avoid keeping raw Base64 in `<img src>` long-term
+
+Using `base64: true` and plugging the result straight into `<img src>` is fine for an instant preview, but large Base64 strings put pressure on memory. **For upload flows, upload to the server and replace the Base64 with the returned URL.**
+
+```tsx
+async function uploadAndReplace(dataUri: string): Promise<string> {
+  // Base64 → Blob
+  const bytes = Uint8Array.from(atob(dataUri), (c) => c.charCodeAt(0));
+  const blob = new Blob([bytes], { type: 'image/jpeg' });
+
+  const formData = new FormData();
+  formData.append('file', blob, 'photo.jpg');
+  const res = await fetch('/api/upload', { method: 'POST', body: formData });
+  const { url } = await res.json() as { url: string };
+  return url;
+}
+
+const [previewSrc, setPreviewSrc] = useState<string | null>(null);
+
+async function handleCapture() {
+  const result = await openCamera({ base64: true, maxWidth: 512 });
+  // 1. Instant preview from Base64
+  setPreviewSrc(`data:image/jpeg;base64,${result.dataUri}`);
+  // 2. Upload, then replace with remote URL
+  const remoteUrl = await uploadAndReplace(result.dataUri);
+  setPreviewSrc(remoteUrl);
+}
+```
+
+When `base64` is `false` (default), `dataUri` is a local device path that `<img src>` can display directly. However, local paths are only valid on that device — you still need to upload if you want to persist or share the image.
+
+:::caution Add the data URL prefix yourself when `base64: true`
+Both `openCamera` and `fetchAlbumPhotos` return a raw Base64 string in `dataUri` when `base64: true` — there is no `data:image/jpeg;base64,` prefix. Add it yourself before passing to `<img src>`.
+:::
+
+## Multi-select — `fetchAlbumPhotos` and `maxCount`
+
+`fetchAlbumPhotos` is the only function that can return multiple images in a single call. Set `maxCount` to cap the number.
+
+```tsx
+// Up to 5 photos
+const photos = await fetchAlbumPhotos({ maxCount: 5, maxWidth: 720, base64: true });
+```
+
+**Recommended cap for most flows**: keep `maxCount` in the **5–10** range. Larger counts mean more Base64 data in memory at once. For photo-gallery features that need more, pair with pagination or lazy loading rather than fetching everything at once.
+
+```tsx
+// 9-photo grid — smaller maxWidth keeps memory usage reasonable
+const photos = await fetchAlbumPhotos({ maxCount: 9, maxWidth: 360, base64: true });
+```
+
+## Common-mistakes checklist
+
+- Checking only one permission for both functions? `openCamera` needs `camera`; `fetchAlbumPhotos` needs `photos` — they are independent.
+- Calling while `denied` without a `try/catch`? The call throws — wrap it.
+- Opening the permission dialog on screen mount instead of after a user action? Users who don't understand why will deny, and the screen is then permanently locked for them.
+- Forgetting the `data:image/jpeg;base64,` prefix on `base64: true` results? The image will not render.
+- Holding many large Base64 images in state? Set a reasonable `maxWidth` and replace with server URLs after upload.
+- Setting `maxCount` to a very large number? Memory and serialization costs grow linearly with count.
+
+## Environment differences
+
+| Environment | `openCamera` | `fetchAlbumPhotos` |
+| --- | --- | --- |
+| **Toss app** | System camera UI. OS permission dialog shown. | System photo picker UI. |
+| **devtools mock** | Returns a fixed stub image. No OS dialog. | Returns a fixed stub list. |
+| **External browser** | throws — no mini-app container. | throws — no mini-app container. |
+
+To test denied-permission fallback locally, set the permission to `denied` in the devtools Permissions panel. See [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) for details.
+
+## Related APIs
+
+- [`api/camera`](/api/camera) — `camera` namespace overview.
+- [`openCamera`](/api/camera/openCamera) — launch the camera for a single shot.
+- [`fetchAlbumPhotos`](/api/camera/fetchAlbumPhotos) — pick multiple photos from the album.
+
+## Related guides
+
+- [Guides — Permissions pattern](/guides/permissions-pattern) — the shared `getPermission` / `openPermissionDialog` flow that this guide reuses.
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package.

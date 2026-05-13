@@ -1,0 +1,253 @@
+---
+image: /og/guides-camera-album-ux.png
+id: camera-album-ux
+title: 카메라·앨범 UX 패턴 — openCamera와 fetchAlbumPhotos를 함께 다루기
+sidebar_label: 카메라·앨범 UX
+slug: /guides/camera-album-ux
+description: openCamera로 사진 한 장을 즉시 촬영하는 흐름과 fetchAlbumPhotos로 앨범에서 골라오는 흐름의 차이, 권한 처리, 결과 base64 처리, 그리고 사용자가 "촬영 / 앨범에서 선택" 둘 다 고를 수 있는 ActionSheet 패턴.
+---
+
+# 카메라·앨범 UX 패턴
+
+`openCamera`와 `fetchAlbumPhotos`는 둘 다 이미지를 가져오는 함수지만, 사용 목적과 권한 모델이 다릅니다. 이 가이드는 두 함수를 각각 언제 쓰는지, 사용자에게 두 선택지를 함께 제공하는 ActionSheet 패턴, 그리고 결과 Base64를 안전하게 처리하는 방법을 한 곳에 정리합니다.
+
+## `openCamera` vs `fetchAlbumPhotos` — 언제 어느 쪽?
+
+| | `openCamera` | `fetchAlbumPhotos` |
+| --- | --- | --- |
+| **목적** | 카메라를 켜 즉시 촬영 | 기기 앨범에서 선택 |
+| **결과** | `ImageResponse` (단건) | `ImageResponse[]` (배열) |
+| **다중 선택** | 불가 | 가능 (`maxCount` 상한) |
+| **권한 (`PermissionName`)** | `camera` | `photos` |
+| **반환 형식** | `dataUri` (기본: 파일 URI, `base64: true` 시 Base64) | 동일 |
+| **실 토스 앱** | 시스템 카메라 UI | 시스템 사진 picker UI |
+| **devtools mock** | stub (고정 이미지 반환) | stub (고정 목록 반환) |
+| **외부 브라우저** | throw | throw |
+
+**판단 기준**: 사용자가 지금 새로 찍어야 한다면 `openCamera`, 이미 있는 사진 중 하나 이상을 골라야 한다면 `fetchAlbumPhotos`. "프로필 사진 등록"처럼 둘 다 자연스러운 흐름에서는 ActionSheet로 두 선택지를 함께 제공하는 것이 정석입니다.
+
+## 권한 흐름
+
+두 함수는 **서로 다른 `PermissionName`**을 사용합니다. `openCamera.getPermission()`이 `allowed`여도 `fetchAlbumPhotos.getPermission()`은 `denied`일 수 있으므로, 각 함수를 호출하기 전에 각자 권한을 확인해야 합니다.
+
+```
+사용자 액션 (버튼 클릭)
+        │
+        ▼
+  getPermission()          ← openCamera 또는 fetchAlbumPhotos 각각 호출
+        │
+  ┌─────┴──────────────────────┐
+  │ 'allowed'  │ 'notDetermined'│ 'denied'
+  │            │                │
+  │            ▼                ▼
+  │   openPermissionDialog()   fallback UI
+  │            │                ("설정에서 허용해 주세요")
+  │       ┌────┴─────┐
+  │  'allowed'   'denied'
+  │       │           │
+  ▼       ▼           ▼
+  호출   호출        종료
+```
+
+핵심 규칙:
+
+- **권한 다이얼로그는 사용자 액션 직후에만.** 화면 진입과 동시에 띄우면 거절률이 올라가고, 한 번 거절하면 OS 설정을 통해서만 복구됩니다.
+- **`denied` 상태에서 호출하면 throw.** `try/catch` 없이 호출하면 런타임 에러가 됩니다.
+- **`notDetermined`에서 `openPermissionDialog()` 후 결과를 별도로 받지 않아도 됩니다.** 다이얼로그가 결정을 내리면, 다음 실제 함수 호출이 자연스럽게 `allowed`/`denied`로 분기됩니다.
+
+상세 패턴 — `getPermission` / `openPermissionDialog` 공통 흐름은 [Guides — 권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
+
+### 권한 거부 시 fallback
+
+권한이 `denied`이면 OS 설정을 통해서만 복구됩니다. 이 화면에서 할 수 있는 일은 메시지 안내뿐입니다.
+
+```tsx
+if (cameraStatus === 'denied') {
+  setMessage('설정 → 앱 → 카메라에서 권한을 켜 주세요.');
+  return;
+}
+```
+
+`openURL`로 OS 설정 페이지를 직접 여는 API는 없으므로, 토스트나 인라인 배너로 경로를 안내하는 데 그칩니다.
+
+## ActionSheet 패턴 — "촬영 / 앨범에서 선택 / 취소"
+
+프로필 사진 등록처럼 두 경로를 모두 열어 두는 케이스. 사용자가 어느 쪽을 선택하느냐에 따라 다른 함수를 호출합니다.
+
+```tsx
+import { openCamera, fetchAlbumPhotos } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+type Sheet = 'closed' | 'open';
+type ImageResult = { id: string; dataUri: string } | null;
+
+export function ProfilePhotoEditor() {
+  const [sheet, setSheet] = useState<Sheet>('closed');
+  const [image, setImage] = useState<ImageResult>(null);
+  const [message, setMessage] = useState('');
+
+  async function handleTakePhoto() {
+    setSheet('closed');
+    try {
+      const status = await openCamera.getPermission();
+      if (status === 'denied') {
+        setMessage('설정에서 카메라 권한을 허용해 주세요.');
+        return;
+      }
+      if (status === 'notDetermined') {
+        await openCamera.openPermissionDialog();
+      }
+      const result = await openCamera({ base64: true, maxWidth: 512 });
+      setImage(result);
+    } catch {
+      setMessage('사진을 가져오지 못했어요. 다시 시도해 주세요.');
+    }
+  }
+
+  async function handlePickFromAlbum() {
+    setSheet('closed');
+    try {
+      const status = await fetchAlbumPhotos.getPermission();
+      if (status === 'denied') {
+        setMessage('설정에서 사진 접근 권한을 허용해 주세요.');
+        return;
+      }
+      if (status === 'notDetermined') {
+        await fetchAlbumPhotos.openPermissionDialog();
+      }
+      // 앨범에서 1장만 고르므로 maxCount: 1
+      const [picked] = await fetchAlbumPhotos({ maxCount: 1, maxWidth: 512, base64: true });
+      if (picked) setImage(picked);
+    } catch {
+      setMessage('앨범을 불러오지 못했어요. 다시 시도해 주세요.');
+    }
+  }
+
+  return (
+    <div>
+      {image ? (
+        <img
+          src={`data:image/jpeg;base64,${image.dataUri}`}
+          alt="선택된 프로필 사진"
+          width={120}
+          height={120}
+          style={{ objectFit: 'cover', borderRadius: '50%' }}
+        />
+      ) : (
+        <div style={{ width: 120, height: 120, background: '#eee', borderRadius: '50%' }} />
+      )}
+
+      <button type="button" onClick={() => setSheet('open')}>
+        사진 변경
+      </button>
+
+      {sheet === 'open' && (
+        <div role="dialog" aria-modal="true" aria-label="사진 선택">
+          <button type="button" onClick={handleTakePhoto}>
+            촬영
+          </button>
+          <button type="button" onClick={handlePickFromAlbum}>
+            앨범에서 선택
+          </button>
+          <button type="button" onClick={() => setSheet('closed')}>
+            취소
+          </button>
+        </div>
+      )}
+
+      {message && <p role="status">{message}</p>}
+    </div>
+  );
+}
+```
+
+:::tip 권한 상태는 두 함수 각각 확인
+`openCamera`와 `fetchAlbumPhotos`는 `PermissionName`이 다르므로, 한쪽 권한이 있다고 다른 쪽도 있다고 가정하지 마세요. 각 핸들러 안에서 독립적으로 확인합니다.
+:::
+
+## 결과 처리 — Base64를 `<img src>`에 직접 쓰지 말 것
+
+`base64: true`로 받은 `dataUri`를 `<img src>`에 바로 넣어 미리보기로 쓰는 건 간편하지만, 파일이 크면 메모리와 렌더링 비용이 큽니다. **업로드 플로우라면 서버에 올린 후 URL을 받아 교체하는 패턴**을 권장합니다.
+
+```tsx
+async function uploadAndReplace(dataUri: string): Promise<string> {
+  // Base64 → Blob 변환
+  const base64 = dataUri; // openCamera / fetchAlbumPhotos가 반환한 raw base64
+  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  const blob = new Blob([bytes], { type: 'image/jpeg' });
+
+  // 서버에 업로드
+  const formData = new FormData();
+  formData.append('file', blob, 'photo.jpg');
+  const res = await fetch('/api/upload', { method: 'POST', body: formData });
+  const { url } = await res.json() as { url: string };
+  return url;
+}
+
+// 미리보기는 Base64로, 업로드 완료 후엔 서버 URL로 교체
+const [previewSrc, setPreviewSrc] = useState<string | null>(null);
+
+async function handleCapture() {
+  const result = await openCamera({ base64: true, maxWidth: 512 });
+  // 1. Base64로 즉시 미리보기
+  setPreviewSrc(`data:image/jpeg;base64,${result.dataUri}`);
+  // 2. 백그라운드 업로드 후 URL로 교체
+  const remoteUrl = await uploadAndReplace(result.dataUri);
+  setPreviewSrc(remoteUrl);
+}
+```
+
+`base64: true` 없이 받은 파일 URI(`dataUri`)는 `<img src>`에 직접 넣어 표시할 수 있습니다. 단, 기기 로컬 경로는 해당 기기에서만 유효하므로 서버에 저장하려면 반드시 업로드가 필요합니다.
+
+:::caution `base64: true` 시 데이터 URI prefix 직접 추가 필요
+`openCamera`와 `fetchAlbumPhotos` 모두 `base64: true`이면 `dataUri`에는 raw Base64 문자열만 담깁니다. `<img src>`에 쓰려면 `'data:image/jpeg;base64,' + dataUri` 형태로 prefix를 직접 붙여야 합니다.
+:::
+
+## 다중 선택 — `fetchAlbumPhotos`의 `maxCount`
+
+`fetchAlbumPhotos`는 한 번 호출로 여러 장을 가져올 수 있는 유일한 함수입니다. `maxCount`로 상한을 지정합니다.
+
+```tsx
+// 최대 5장까지 선택
+const photos = await fetchAlbumPhotos({ maxCount: 5, maxWidth: 720, base64: true });
+```
+
+**사용자 경험 측면의 권장 상한**: `maxCount`를 너무 크게 설정하면 한 번에 많은 이미지를 Base64로 올려 메모리 압박이 생깁니다. 일반 콘텐츠 업로드는 **5~10장**, 사진 앨범형 기능은 필요에 따라 조정하되 한 번에 너무 많이 받지 않도록 페이지네이션이나 lazy load와 함께 설계하세요.
+
+```tsx
+// 한 번에 9장 그리드 — 메모리 절약을 위해 maxWidth를 작게 설정
+const photos = await fetchAlbumPhotos({ maxCount: 9, maxWidth: 360, base64: true });
+```
+
+## 흔한 실수 체크리스트
+
+- `openCamera`와 `fetchAlbumPhotos`의 권한을 독립적으로 확인하지 않고 하나만 확인하나요? 두 함수의 `PermissionName`이 다릅니다 — `camera`와 `photos`.
+- `denied` 상태에서도 호출이 들어가도록 코드가 짜여 있나요? throw가 발생해 `try/catch`로 처리해야 합니다.
+- 화면 진입과 동시에 `openPermissionDialog`를 호출하고 있지 않나요? 사용자 액션 직후에만 호출하세요.
+- `base64: true`로 받은 `dataUri`를 prefix 없이 `<img src>`에 넣고 있지 않나요? `data:image/jpeg;base64,` prefix가 필요합니다.
+- 큰 이미지를 Base64로 받아 state에 여러 장 들고 있지 않나요? `maxWidth`를 적절히 설정하고, 업로드 후에는 서버 URL로 교체하세요.
+- `fetchAlbumPhotos`의 `maxCount`를 무제한에 가깝게 설정하지 않았나요? 한 번에 받는 양이 많아질수록 메모리와 Base64 직렬화 비용이 선형 이상으로 늘어납니다.
+
+## 환경별 차이
+
+| 환경 | `openCamera` | `fetchAlbumPhotos` |
+| --- | --- | --- |
+| **실 토스 앱** | 시스템 카메라 UI. OS 권한 다이얼로그가 뜸. | 시스템 사진 picker UI. |
+| **devtools mock** | 고정 stub 이미지 반환. OS 다이얼로그 없음. | 고정 stub 목록 반환. |
+| **외부 브라우저** | throw — 미니앱 컨테이너 없음. | throw — 미니앱 컨테이너 없음. |
+
+devtools mock에서 권한 상태를 `denied`로 미리 설정하면 거절 fallback UX를 로컬에서 테스트할 수 있습니다. 자세한 내용은 [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) 패널의 Permissions 탭을 참고하세요.
+
+## 관련 API
+
+- [`api/camera`](/api/camera) — `camera` 네임스페이스 개요.
+- [`openCamera`](/api/camera/openCamera) — 카메라를 실행해 단건 촬영.
+- [`fetchAlbumPhotos`](/api/camera/fetchAlbumPhotos) — 앨범에서 다중 선택.
+
+## 관련 가이드
+
+- [Guides — 권한 처리 패턴](/guides/permissions-pattern) — `getPermission` / `openPermissionDialog` 공통 흐름. 이 가이드의 권한 체크가 그 패턴을 재사용합니다.
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지.
