@@ -1,0 +1,199 @@
+---
+image: /og/guides-ads-integration.png
+id: ads-integration
+title: 광고 통합 패턴
+sidebar_label: 광고 통합 패턴
+slug: /guides/ads-integration
+description: 배너·전면 광고를 안전하게 통합하는 라이프사이클 패턴 — initialize, attach/destroy, load → show 흐름.
+---
+
+# 광고 통합 패턴
+
+`ads` 네임스페이스는 세 가지 광고 유형을 제공합니다 — 인라인 배너(`TossAds`), Google AdMob 전면(`GoogleAdMob`), 자체 전면(`loadFullScreenAd` / `showFullScreenAd`). 각 메서드 페이지는 시그니처만 정리하고, 라이프사이클·클린업·환경 가드 같은 공통 규칙은 이 가이드에서 한 곳에 모읍니다.
+
+## 광고 유형 한눈에 보기
+
+| 유형 | 진입 API | 라이프사이클 |
+| --- | --- | --- |
+| 배너 (인라인) | [`TossAds.initialize`](/api/ads/initialize) + [`TossAds.attachBanner`](/api/ads/attachBanner) | `initialize` 1회 → `attachBanner` 마운트 → 반환된 `destroy` 클린업 |
+| Google AdMob 전면 | [`GoogleAdMob.loadAppsInTossAdMob`](/api/ads/loadAppsInTossAdMob) → [`GoogleAdMob.showAppsInTossAdMob`](/api/ads/showAppsInTossAdMob) | `load` 이벤트 `loaded` 수신 → `show` 호출. 두 호출 모두 cleanup 함수 반환 |
+| 전면 (자체) | [`loadFullScreenAd`](/api/ads/loadFullScreenAd) → [`showFullScreenAd`](/api/ads/showFullScreenAd) | AdMob과 동일한 2단계 패턴. 별도 네임스페이스이며 top-level export |
+
+[`TossAds.attach`](/api/ads/attach)는 deprecated 상태입니다. 신규 코드는 `attachBanner`로 작성하세요.
+
+## 모든 호출 전에: `isSupported()` 가드
+
+`ads` 네임스페이스의 모든 함수는 `.isSupported()` 멤버를 가집니다. 지원되지 않는 환경(예: 광고 SDK가 아직 주입되지 않은 외부 브라우저)에서 호출하면 throw 합니다. **항상 가드부터** 두세요.
+
+```ts
+import { TossAds } from '@apps-in-toss/web-framework';
+
+if (!TossAds.attachBanner.isSupported()) {
+  // 광고 영역을 숨기거나 placeholder 렌더링.
+  return;
+}
+```
+
+가드를 생략하고 try/catch로만 잡아도 동작은 하지만, 광고가 없는 환경에서는 호출 자체를 건너뛰는 편이 UX·성능 모두에서 안전합니다.
+
+## 배너: initialize → attachBanner → destroy
+
+### 단계 1 — 앱 진입 시 1회 `initialize`
+
+`TossAds.initialize`는 앱 마운트 시점에 **한 번만** 호출합니다. 화면 단위로 다시 부르지 마세요.
+
+```tsx
+import { TossAds } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+export function AdsBootstrap() {
+  useEffect(() => {
+    if (!TossAds.initialize.isSupported()) return;
+
+    TossAds.initialize({
+      callbacks: {
+        onInitialized: () => console.log('TossAds 초기화 완료'),
+        onInitializationFailed: (error) => console.error('TossAds 초기화 실패', error),
+      },
+    });
+  }, []);
+
+  return null;
+}
+```
+
+이 컴포넌트를 앱 루트 한 곳에 마운트해 두면 이후 모든 화면에서 `attachBanner`를 바로 호출할 수 있습니다.
+
+### 단계 2 — 배너가 필요한 화면에서 `attachBanner`
+
+`attachBanner`는 `{ destroy }`를 반환합니다. **반환된 `destroy`를 React `useEffect` 클린업으로 그대로 돌려주는 것이 표준 패턴**입니다.
+
+```tsx
+import { TossAds } from '@apps-in-toss/web-framework';
+import { useEffect, useRef } from 'react';
+
+const AD_GROUP_ID = 'ad-group-id-here';
+
+export function AdBanner() {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    if (!TossAds.attachBanner.isSupported()) return;
+
+    const { destroy } = TossAds.attachBanner(AD_GROUP_ID, containerRef.current, {
+      theme: 'auto',
+      callbacks: {
+        onAdRendered: ({ slotId }) => console.log('렌더링 완료', slotId),
+        onAdFailedToRender: ({ error }) => console.error('렌더링 실패', error.message),
+      },
+    });
+
+    return destroy;
+  }, []);
+
+  return <div ref={containerRef} />;
+}
+```
+
+화면 언마운트 시 `destroy`가 호출되지 않으면 좀비 슬롯과 메모리 누수가 남습니다. 페이지 단위로 모든 슬롯을 한꺼번에 정리하고 싶다면 [`TossAds.destroyAll`](/api/ads/destroyAll)을 별도 effect의 클린업에서 호출하세요.
+
+## 전면: load → show 2단계
+
+Google AdMob과 자체 전면 광고 모두 동일한 패턴입니다 — **먼저 로드해 두고 사용자 액션 직후에 노출**.
+
+### Google AdMob
+
+```tsx
+import { GoogleAdMob } from '@apps-in-toss/web-framework';
+import { useEffect, useRef, useState } from 'react';
+
+const AD_GROUP_ID = 'admob-group-id';
+
+export function RewardedAdButton() {
+  const cleanupLoadRef = useRef<(() => void) | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  // 1. 컴포넌트 마운트 시 미리 로드.
+  useEffect(() => {
+    if (!GoogleAdMob.loadAppsInTossAdMob.isSupported()) return;
+
+    cleanupLoadRef.current = GoogleAdMob.loadAppsInTossAdMob({
+      options: { adGroupId: AD_GROUP_ID },
+      onEvent: (event) => {
+        if (event.type === 'loaded') setLoaded(true);
+      },
+      onError: (error) => console.error('AdMob 로드 실패', error),
+    });
+
+    return () => {
+      cleanupLoadRef.current?.();
+    };
+  }, []);
+
+  // 2. 버튼 클릭 시 show 호출.
+  const handleShow = () => {
+    if (!loaded) return;
+    if (!GoogleAdMob.showAppsInTossAdMob.isSupported()) return;
+
+    const cleanupShow = GoogleAdMob.showAppsInTossAdMob({
+      options: { adGroupId: AD_GROUP_ID },
+      onEvent: (event) => {
+        if (event.type === 'dismissed') {
+          cleanupShow();
+          setLoaded(false);
+        }
+      },
+      onError: (error) => {
+        console.error('AdMob 노출 실패', error);
+        cleanupShow();
+      },
+    });
+  };
+
+  return (
+    <button type="button" onClick={handleShow} disabled={!loaded}>
+      광고 보기
+    </button>
+  );
+}
+```
+
+핵심:
+
+- `load` 함수와 `show` 함수 **모두 cleanup 함수를 반환**합니다. 둘 다 호출해야 콜백·리스너가 떨어집니다.
+- `loaded` 이벤트를 받기 전에 `show`를 호출하면 실패합니다. [`GoogleAdMob.isAppsInTossAdMobLoaded`](/api/ads/isAppsInTossAdMobLoaded)로 별도 확인할 수도 있습니다.
+- `dismissed`(또는 `failedToShow`) 이벤트가 도착하면 광고는 일회용이므로 다시 로드해야 합니다.
+
+### 자체 전면 (`loadFullScreenAd` / `showFullScreenAd`)
+
+API 모양은 AdMob과 동일하지만 **import 위치가 다릅니다** — 네임스페이스 객체가 아니라 top-level export입니다.
+
+```tsx
+import { loadFullScreenAd, showFullScreenAd } from '@apps-in-toss/web-framework';
+```
+
+나머지 흐름(load → loaded → show → dismissed → cleanup)은 위 AdMob 예제와 동일하게 적용하세요.
+
+## 자주 빠뜨리는 클린업 체크리스트
+
+- 배너: `attachBanner` 반환 `destroy`를 `useEffect` 클린업에 연결했는가?
+- 전면: `load` cleanup과 `show` cleanup을 **모두** 호출했는가?
+- 페이지 전환 시 `destroyAll`이 필요한 화면이 있는가? (탭 라우터 등 컴포넌트 unmount가 보장되지 않는 곳)
+- `initialize`를 화면 단위로 반복 호출하고 있지 않은가?
+
+## 환경별 차이
+
+- **실 토스 앱**: 모든 광고 호출이 정상 동작합니다. 콘솔에서 발급한 `adGroupId`가 활성 상태인지 확인하세요.
+- **외부 브라우저 / devtools mock**: 광고 SDK가 주입되지 않은 환경에서는 `isSupported()`가 `false`를 반환합니다. [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools)의 mock은 광고 호출을 no-op로 처리하므로, 화면 흐름만 검증하고 실제 광고는 디바이스에서 확인하세요.
+
+## 관련 API
+
+- [`api/ads`](/api/ads) — `ads` 네임스페이스 overview.
+- [`TossAds.initialize`](/api/ads/initialize) · [`TossAds.attachBanner`](/api/ads/attachBanner) · [`TossAds.destroy`](/api/ads/destroy) · [`TossAds.destroyAll`](/api/ads/destroyAll)
+- [`GoogleAdMob.loadAppsInTossAdMob`](/api/ads/loadAppsInTossAdMob) · [`GoogleAdMob.showAppsInTossAdMob`](/api/ads/showAppsInTossAdMob) · [`GoogleAdMob.isAppsInTossAdMobLoaded`](/api/ads/isAppsInTossAdMobLoaded)
+- [`loadFullScreenAd`](/api/ads/loadFullScreenAd) · [`showFullScreenAd`](/api/ads/showFullScreenAd)
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지.
