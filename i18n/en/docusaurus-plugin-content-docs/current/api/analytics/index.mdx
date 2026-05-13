@@ -1,0 +1,65 @@
+---
+id: analytics-overview
+title: Analytics
+sidebar_label: Overview
+slug: /api/analytics
+description: SDK namespace for logging screen views, impressions, and click events in a mini-app.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `Analytics`
+
+Namespace for recording screen views, component impressions, and user click events. All three methods accept an optional `LoggerParams` object and return `Promise<void> | undefined`.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Methods
+
+| Method | Return type | Purpose |
+| --- | --- | --- |
+| [`Analytics.click`](/api/analytics/click) | `Promise<void> \| undefined` | Record a user tap or click on a UI element. |
+| [`Analytics.impression`](/api/analytics/impression) | `Promise<void> \| undefined` | Record when a UI component enters the viewport. |
+| [`Analytics.screen`](/api/analytics/screen) | `Promise<void> \| undefined` | Record a screen (page) view event. |
+
+## Shared parameter type
+
+All three methods accept the same `LoggerParams` type.
+
+```ts
+import { Analytics } from '@apps-in-toss/web-framework';
+
+type Primitive = string | number | boolean | null;
+
+type LoggerParams = {
+  log_name?: string;
+} & {
+  [key: string]: Primitive;
+};
+```
+
+`log_name` identifies the event in your analytics dashboard. Any additional keys are passed through as event properties and must be `Primitive` values.
+
+## Permission
+
+No permission required. None of the `Analytics` methods are bound to a `PermissionName`. For how permissions work in other namespaces see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## UX guidance
+
+- **Call `Analytics.screen` on page mount.** The standard pattern is `useEffect(() => { Analytics.screen({ page: 'home' }); }, [])`.
+- **Call `Analytics.impression` on viewport entry, not on mount.** Use an `IntersectionObserver` so only components the user actually sees are counted.
+- **Call `Analytics.click` inside the event handler.** Place it in `onClick` / `onPress` for a 1:1 match with actual taps.
+- **Keep `log_name` stable.** Changing an event name mid-stream breaks historical continuity — coordinate with your data pipeline before renaming.
+- **The return value can be `undefined`.** Always `await` and never depend on the resolved value.
+
+## Try it live
+
+Both methods are available on the Analytics page in sdk-example.
+
+<TryItLink group="analytics" />
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. `Analytics` is re-exported from [`@apps-in-toss/web-analytics`](https://www.npmjs.com/package/@apps-in-toss/web-analytics).

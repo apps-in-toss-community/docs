@@ -1,0 +1,120 @@
+---
+id: impression
+title: Analytics.impression
+sidebar_label: Analytics.impression
+description: Record when a UI component enters the viewport.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `Analytics.impression`
+
+Records the moment a UI component — banner, card, ad unit, etc. — becomes visible in the user's viewport. Impression data lets you calculate CTR (click-through rate) and power exposure-based optimisation.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+`impression` is a member of the `Analytics` namespace object. It is not imported as a standalone function.
+
+```ts
+import { Analytics } from '@apps-in-toss/web-framework';
+
+type Primitive = string | number | boolean | null;
+
+type LoggerParams = {
+  log_name?: string;
+} & {
+  [key: string]: Primitive;
+};
+
+declare const Analytics: {
+  impression: (params?: LoggerParams) => Promise<void> | undefined;
+};
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `params` | `LoggerParams` | — | Key-value pairs to log. Use `log_name` to identify the event; add any extra keys as event properties. Optional. |
+| `params.log_name` | `string` | — | Event identifier used to distinguish events in the analytics dashboard. |
+| `params[key]` | `string \| number \| boolean \| null` | — | Additional context fields. Only `Primitive` values are allowed. |
+
+## Returns
+
+- `Promise<void> | undefined` — resolves after the event is logged. The return value can be `undefined` depending on the environment — do not rely on it.
+
+## Permission
+
+No permission required — `Analytics.impression` is not bound to any `PermissionName`. For how permissions work in other namespaces see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { Analytics } from '@apps-in-toss/web-framework';
+
+async function handleBannerVisible() {
+  await Analytics.impression({ log_name: 'banner_impression', component: 'banner' });
+}
+```
+
+### Realistic — fire on viewport entry via IntersectionObserver
+
+```tsx
+import { Analytics } from '@apps-in-toss/web-framework';
+import { useEffect, useRef } from 'react';
+
+function PromoBanner({ bannerId, page }: { bannerId: string; page: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          Analytics.impression({
+            log_name: 'promo_banner_impression',
+            component: 'promo_banner',
+            banner_id: bannerId,
+            page,
+          });
+          // Stop observing after the first impression to avoid duplicates.
+          observer.unobserve(el);
+        }
+      },
+      { threshold: 0.5 }, // Fire when 50 % of the element is visible.
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [bannerId, page]);
+
+  return <div ref={ref}>Promo banner</div>;
+}
+```
+
+## Try it live
+
+Run the `Analytics.impression` card on the Analytics page in sdk-example.
+
+<TryItLink group="analytics" method="impression" />
+
+## Related APIs
+
+- [`Analytics.click`](./click) — record a user tap or click on a UI element.
+- [`Analytics.screen`](./screen) — record a screen (page) view event.
+
+## Related guides
+
+- _(coming soon)_ Recipes — impression event collection patterns
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. `Analytics` is re-exported from [`@apps-in-toss/web-analytics`](https://www.npmjs.com/package/@apps-in-toss/web-analytics).
