@@ -18,6 +18,7 @@ const sidebars: SidebarsConfig = {
       items: [
         'guides/ads-integration',
         'guides/auth-flow',
+        'guides/event-subscription',
         'guides/navigation-flow',
         'guides/permissions-pattern',
       ],

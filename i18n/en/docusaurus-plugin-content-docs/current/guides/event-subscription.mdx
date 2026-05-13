@@ -1,0 +1,183 @@
+---
+id: event-subscription
+title: Event subscription patterns
+sidebar_label: Event subscription patterns
+slug: /guides/event-subscription
+description: How mini-apps subscribe to container events — the addEventListener shape, cleanup guarantees, and when to use each of the three event domains.
+---
+
+# Event subscription patterns
+
+To receive events that originate in the Toss container (back button, home button, accessory button taps, etc.), a mini-app subscribes via the `addEventListener` APIs in the `events` namespace. This guide collects the shared structure in one place — each method page documents its own event type; the common shape (subscribe, cleanup, domain selection, anti-patterns) lives here.
+
+## At a glance
+
+| Domain | API | What it listens to |
+| --- | --- | --- |
+| `appsInTossEvent` | [`appsInTossEvent.addEventListener`](/api/events/appsInTossEvent.addEventListener) | Apps-in-Toss platform events (the type map is empty today, but it follows the same pattern when entries are added). |
+| `tdsEvent` | [`tdsEvent.addEventListener`](/api/events/tdsEvent.addEventListener) | Toss Design System component events. Today: `navigationAccessoryEvent` (accessory button taps). |
+| `graniteEvent` | [`graniteEvent.addEventListener`](/api/events/graniteEvent.addEventListener) | Container navigation events. Today: `backEvent`, `homeEvent`. |
+| One-off | [`onVisibilityChangedByTransparentServiceWeb`](/api/events/onVisibilityChangedByTransparentServiceWeb) | Transparent service web visibility. Not part of the `addEventListener` family, but uses the same cleanup pattern. |
+
+## Common call shape
+
+The three domains (`appsInTossEvent`, `tdsEvent`, `graniteEvent`) share a single signature:
+
+```ts
+const removeListener = <domain>.addEventListener(eventName, {
+  onEvent: (data) => { /* ... */ },
+  onError?: (error) => { /* ... */ },
+  options?: { /* event-specific */ },
+});
+```
+
+Key points:
+
+- **The return is always a cleanup function** (`() => void`). Keep it; call it when the subscription should end.
+- **`onEvent` is required**, `onError` and `options` are optional depending on the event type.
+- **Event names are type-narrowed** via `K extends keyof <Domain>Event`, so typos fail at compile time.
+
+## Standard React pattern
+
+Subscribe in `useEffect` and return the cleanup directly.
+
+```tsx
+import { graniteEvent } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function MultiStepForm() {
+  useEffect(() => {
+    const removeBack = graniteEvent.addEventListener('backEvent', {
+      onEvent: () => {
+        // Intercept the container back gesture and convert it into "go to previous step".
+        goPreviousStep();
+      },
+      onError: (error) => {
+        console.warn('backEvent failed', error);
+      },
+    });
+
+    return removeBack;
+  }, []);
+
+  return <FormSteps />;
+}
+```
+
+For multiple subscriptions in one effect, gather the cleanup calls:
+
+```tsx
+useEffect(() => {
+  const removes = [
+    graniteEvent.addEventListener('backEvent', { onEvent: handleBack }),
+    graniteEvent.addEventListener('homeEvent', { onEvent: handleHome }),
+  ];
+
+  return () => {
+    for (const remove of removes) remove();
+  };
+}, []);
+```
+
+## When to use which domain
+
+### `graniteEvent` — container navigation
+
+`backEvent` and `homeEvent` fire when the user taps the container's back or home button. Subscribe **only when you need to override** the default behaviour (return to the Toss container).
+
+- Multi-step form: convert container back → previous step.
+- Full-screen video: home button → exit full-screen first.
+- In-game: show a "quit?" dialog.
+
+Subscribing on screens that don't need to intercept blocks the natural exit path.
+
+### `tdsEvent` — TDS components
+
+The only event defined today is `navigationAccessoryEvent`, fired when a button added via [`addAccessoryButton`](/api/partner/addAccessoryButton) is tapped. Subscribe on screens that add such a button; clean up before leaving.
+
+### `appsInTossEvent` — platform-wide
+
+The current type map (`AppsInTossEvent = {}`) is empty, but the API is in place for future additions. **You rarely need this today**, but the API exists for forward-compat.
+
+## The one-off — `onVisibilityChangedByTransparentServiceWeb`
+
+[`onVisibilityChangedByTransparentServiceWeb`](/api/events/onVisibilityChangedByTransparentServiceWeb) isn't part of the `addEventListener` family but follows **the same cleanup contract**.
+
+```tsx
+import { onVisibilityChangedByTransparentServiceWeb } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function TransparentServiceWidget({ callbackId }: { callbackId: string }) {
+  useEffect(() => {
+    const remove = onVisibilityChangedByTransparentServiceWeb({
+      options: { callbackId },
+      onEvent: (isVisible) => {
+        if (isVisible) startAnalytics();
+        else stopAnalytics();
+      },
+      onError: (error) => console.warn('visibility subscription failed', error),
+    });
+
+    return remove;
+  }, [callbackId]);
+
+  return <Widget />;
+}
+```
+
+`callbackId` is an identifier issued by Toss. Wrong values either trigger `onError` immediately or silently drop events.
+
+## Cleanup checklist
+
+- Are you **capturing the return value** of `addEventListener` into a variable? If not, you can't unsubscribe.
+- Does your `useEffect` have an empty deps array while the handler closes over props/state? Use a ref or add the deps so the effect re-subscribes.
+- Are you **subscribing to the same event from multiple effects**? Consolidate into one.
+- Have you **verified cleanup actually runs** on screen transitions? React 18 strict mode mounts/unmounts twice in dev — your effect should be idempotent.
+
+## Anti-patterns
+
+### Subscribing to fight the container default
+
+```tsx
+// ❌ Useless: subscribes to backEvent and does nothing
+useEffect(() => {
+  return graniteEvent.addEventListener('backEvent', { onEvent: () => {} });
+}, []);
+```
+
+An empty handler only suppresses the container's default back flow without giving the user anything in return. **Don't subscribe if you don't intercept.**
+
+### Subscribing at module scope
+
+```tsx
+// ❌ Lives outside the component lifecycle — there's no cleanup site
+const remove = graniteEvent.addEventListener('homeEvent', { onEvent: handleHome });
+```
+
+This listener has no exit and accumulates on hot-reload. **Subscribe inside an effect lifecycle.**
+
+### Ignoring `onError`
+
+A subscription without `onError` silently drops failures. The mock will look fine while the real Toss app starts misbehaving — a classic "works in dev only" bug. **Always pass at least a `console.warn`-level `onError`.**
+
+## Environment differences
+
+- **Real Toss app**: all events dispatch normally. `graniteEvent` back/home work alongside the OS gesture.
+- **devtools mock**: the [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) mock lets you trigger events manually from the panel. There's no auto-dispatch — verify time-based cases (e.g. visibility changes) on a real device.
+- **External browser**: no container, so the subscribe calls throw. No `isSupported()` guard is offered — simply don't call them outside the mini-app environment.
+
+## Related APIs
+
+- [`api/events`](/api/events) — `events` namespace overview.
+- [`appsInTossEvent.addEventListener`](/api/events/appsInTossEvent.addEventListener) — platform events.
+- [`tdsEvent.addEventListener`](/api/events/tdsEvent.addEventListener) — TDS component events (`navigationAccessoryEvent`).
+- [`graniteEvent.addEventListener`](/api/events/graniteEvent.addEventListener) — container navigation (`backEvent`, `homeEvent`).
+- [`onVisibilityChangedByTransparentServiceWeb`](/api/events/onVisibilityChangedByTransparentServiceWeb) — transparent service web visibility.
+
+## Related guides
+
+- [Guides — Mini-app navigation flow patterns](/guides/navigation-flow) — for context on when to intercept `graniteEvent.backEvent`/`homeEvent` from a screen-flow perspective.
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — upstream SDK package.
