@@ -1,0 +1,301 @@
+---
+image: /og/guides-event-logging.png
+id: event-logging
+title: 이벤트 로깅 패턴 — log_name 컨벤션과 log_type 선택
+sidebar_label: 이벤트 로깅
+slug: /guides/event-logging
+description: analytics.eventLog의 log_type 9종을 언제 어떻게 골라 쓰는지, log_name 네이밍 컨벤션, params 안에 절대 넣으면 안 되는 것들, 그리고 사용자 액션·화면·노출·에러 4개 축을 한 페이지에서 일관되게 로깅하는 패턴.
+---
+
+# 이벤트 로깅 패턴 — log_name 컨벤션과 log_type 선택
+
+`analytics.eventLog`는 9가지 `log_type`을 지원하는 저수준(low-level) 로깅 함수입니다. 반면 `Analytics.click`, `Analytics.screen`, `Analytics.impression`은 각각 `log_type: 'click'` / `'screen'` / `'impression'`으로 미리 고정된 얇은 래퍼입니다.
+
+**어떤 것을 쓸지 기준:**
+
+- 클릭·화면 진입·컴포넌트 노출처럼 하나의 축만 필요하다면 `Analytics.click` / `Analytics.screen` / `Analytics.impression`을 먼저 고려합니다. 파라미터 표기가 더 단순하고 의미가 코드에서 명확히 드러납니다.
+- `log_type`을 직접 제어해야 하거나(`'debug'`, `'warn'`, `'error'`, `'popup'`, `'event'`), 하나의 헬퍼로 여러 타입을 통합해 관리하고 싶다면 `eventLog`를 직접 씁니다.
+
+## `log_type` 결정 테이블
+
+| `log_type` | 언제 | 권장 `log_name` 형태 |
+| --- | --- | --- |
+| `'click'` | 버튼·링크·카드 등 명시적 탭/클릭 | `<domain>_<component>_click` |
+| `'screen'` | 화면(SPA 라우트) 진입 | `<domain>_<screen>_view` |
+| `'impression'` | 뷰포트에 진입한 UI 컴포넌트 | `<domain>_<component>_impression` |
+| `'event'` | 위 3종이 아닌 일반 사용자 액션 | `<domain>_<noun>_<verb>` |
+| `'popup'` | 팝업·바텀시트·모달 노출 | `<domain>_<popup_name>_popup` |
+| `'error'` | 앱 레벨 에러 — fetch 실패, 파싱 오류 등 | `<domain>_<context>_error` |
+| `'warn'` | 경고 — 레이스 컨디션, 예외 경로 | `<domain>_<context>_warn` |
+| `'info'` | 정보성 — 상태 전환, 주요 흐름 체크포인트 | `<domain>_<context>_info` |
+| `'debug'` | 개발 중 진단 — 릴리즈에서 사용 자제 | `debug_<detail>` |
+
+`'event'`는 가장 범용적인 값입니다. 어디에 속하는지 판단이 서지 않으면 `'event'`를 쓰고 나중에 더 구체적인 타입으로 좁힙니다.
+
+## `log_name` 컨벤션
+
+### 규칙
+
+- **snake_case** — 모두 소문자, 단어 사이 언더스코어.
+- **`<domain>_<noun>_<verb>` 구조** — 도메인(화면·기능 영역), 대상(명사), 동사 순서.
+- 세 부분이 명확하지 않아도 단어 2개 이상이면 충분합니다.
+
+```
+product_detail_view       ✅  (domain: product, noun: detail, verb: view)
+cta_signup_click          ✅  (domain: cta, noun: signup, verb: click)
+banner_promo_impression   ✅  (domain: banner, noun: promo, verb: impression)
+checkout_payment_error    ✅  (domain: checkout, noun: payment, verb: error)
+```
+
+### 안티 패턴
+
+```
+// ❌ 공백 포함
+"product detail view"
+
+// ❌ camelCase 혼용
+productDetailView
+
+// ❌ 동적 ID 삽입 — 이름이 폭발, 대시보드 집계 불가
+`product_${productId}_view`
+
+// ❌ 너무 추상적 — 어느 화면인지 알 수 없음
+"click"
+"error"
+```
+
+동적 식별자는 `log_name`에 포함하지 말고 **`params`** 안에 넣으세요.
+
+```tsx
+// ✅
+eventLog({
+  log_name: 'product_detail_view',
+  log_type: 'screen',
+  params: { product_id: productId },
+});
+```
+
+## `params` 규칙
+
+### 허용 타입
+
+`params` 값은 `string | number | boolean | null | undefined | symbol` 범주의 **원시값(Primitive)만** 허용됩니다. 중첩 객체나 배열은 넣지 마세요.
+
+```tsx
+// ✅
+params: {
+  product_id: '12345',
+  price: 4900,
+  is_new: true,
+  category: null,
+}
+
+// ❌ 객체 중첩 — 직렬화 결과가 "[object Object]"
+params: {
+  product: { id: '12345', name: '상품명' },
+}
+
+// ❌ 배열 — 직렬화 결과가 문자열 합산
+params: {
+  tags: ['sale', 'new'],
+}
+```
+
+### 개인정보(PII) 금지
+
+`params`에 이름, 전화번호, 이메일, 주민번호 등 개인 식별 정보를 넣지 마세요. 사용자 식별이 필요하다면 **익명 ID** 또는 서버 측에서 해싱된 토큰을 씁니다.
+
+### 키 네이밍
+
+`log_name`과 일관되게 **snake_case**로 씁니다.
+
+```tsx
+// ✅
+params: { product_id: id, screen_name: 'home' }
+
+// ❌ camelCase 혼용
+params: { productId: id, screenName: 'home' }
+```
+
+### 페이로드 크기
+
+`params`를 거대한 JSON 저장소로 쓰지 마세요. 필요한 컨텍스트만 추려서 키 5–10개 이내로 유지합니다. 로깅 시스템은 단순 키-값 접근에 최적화돼 있습니다.
+
+## 4개 축 로깅 패턴
+
+사용자 액션, 화면 진입, 노출, 에러 — 네 가지 로깅 축을 `eventLog`로 일관되게 처리하는 패턴입니다.
+
+### 공통 헬퍼 (선택적)
+
+여러 컴포넌트에서 같은 파라미터 구조를 쓴다면 얇은 `track()` 함수로 묶어 두면 편리합니다.
+
+```tsx
+import { eventLog } from '@apps-in-toss/web-framework';
+
+type Primitive = string | number | boolean | null | undefined | symbol;
+
+interface TrackOptions {
+  log_name: string;
+  log_type: 'debug' | 'info' | 'warn' | 'error' | 'event' | 'screen' | 'impression' | 'click' | 'popup';
+  params?: Record<string, Primitive>;
+}
+
+/** fire-and-forget — UI를 블로킹하지 않습니다. */
+function track({ log_name, log_type, params = {} }: TrackOptions): void {
+  eventLog({ log_name, log_type, params });
+}
+```
+
+### 사용자 액션 (click)
+
+```tsx
+import { eventLog } from '@apps-in-toss/web-framework';
+
+function SignupButton({ source }: { source: string }) {
+  const handleClick = () => {
+    eventLog({
+      log_name: 'cta_signup_click',
+      log_type: 'click',
+      params: { source },
+    });
+    // 실제 동작 (예: 회원가입 페이지로 이동)
+  };
+
+  return (
+    <button type="button" onClick={handleClick}>
+      시작하기
+    </button>
+  );
+}
+```
+
+### 화면 진입 (screen)
+
+```tsx
+import { eventLog } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function ProductDetailPage({ productId, category }: { productId: string; category: string }) {
+  useEffect(() => {
+    eventLog({
+      log_name: 'product_detail_view',
+      log_type: 'screen',
+      params: { product_id: productId, category },
+    });
+  }, [productId, category]);
+
+  return <main>{/* 상품 상세 */}</main>;
+}
+```
+
+### 노출 (impression)
+
+```tsx
+import { eventLog } from '@apps-in-toss/web-framework';
+import { useEffect, useRef } from 'react';
+
+function PromoBanner({ bannerId }: { bannerId: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          eventLog({
+            log_name: 'banner_promo_impression',
+            log_type: 'impression',
+            params: { banner_id: bannerId },
+          });
+          observer.unobserve(el);
+        }
+      },
+      { threshold: 0.5 },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [bannerId]);
+
+  return <div ref={ref}>프로모션 배너</div>;
+}
+```
+
+### 에러 (error)
+
+```tsx
+import { eventLog } from '@apps-in-toss/web-framework';
+
+async function fetchProductData(productId: string) {
+  try {
+    const res = await fetch(`/api/products/${productId}`);
+    return await res.json();
+  } catch (error) {
+    eventLog({
+      log_name: 'product_fetch_error',
+      log_type: 'error',
+      params: {
+        product_id: productId,
+        message: error instanceof Error ? error.message : String(error),
+      },
+    });
+    throw error;
+  }
+}
+```
+
+## 배치·비동기 주의사항
+
+`eventLog`는 fire-and-forget Promise입니다. 몇 가지 주의사항:
+
+- **UI 렌더를 블로킹하지 마세요.** `await eventLog(...)` 결과를 기다렸다가 다음 UI 액션을 처리하는 패턴은 지양합니다. 로깅이 느려지면 UX도 함께 느려집니다.
+- **루프 안에서 반복 호출을 최소화하세요.** 배열을 순회하며 각 항목마다 `eventLog`를 호출하는 경우, 단일 `'event'` 로그로 묶어 `count` 파라미터를 넘기는 방식을 우선 고려합니다.
+- **에러를 삼키지 마세요.** `eventLog` 자체가 실패해도 앱 흐름이 멈추면 안 됩니다. 에러 로깅용 `eventLog`가 또 에러를 내면 `catch` 없이 조용히 흘려보내는 게 맞습니다.
+
+```tsx
+// ✅ fire-and-forget
+function handleAction() {
+  eventLog({ log_name: 'action_done', log_type: 'event', params: {} });
+  doNextThing(); // 로깅을 기다리지 않고 바로 진행
+}
+
+// ❌ 로깅 때문에 UI 블로킹
+async function handleAction() {
+  await eventLog({ log_name: 'action_done', log_type: 'event', params: {} });
+  doNextThing();
+}
+```
+
+## 흔한 실수 체크리스트
+
+- `log_name`에 동적 ID가 들어 있지 않나요? 집계가 불가능해집니다. 동적 값은 `params`로 옮기세요.
+- `log_name`에 camelCase나 공백을 쓰고 있지 않나요? snake_case로 통일하세요.
+- `params` 값에 중첩 객체나 배열을 넣고 있지 않나요? 원시값으로 펼쳐 넣으세요.
+- `params`에 이메일, 이름, 전화번호 등 개인정보가 포함되어 있지 않나요?
+- `log_type: 'debug'`를 릴리즈 빌드에서 그대로 쓰고 있지 않나요? 개발 전용 로그는 환경 분기를 두세요.
+- `await eventLog(...)`로 UI 렌더나 사용자 인터랙션을 막고 있지 않나요?
+- 에러 로깅 안에서 `eventLog`가 또 throw될 때 앱 전체가 깨지지 않나요? 이중 `try/catch`로 격리하세요.
+
+## 환경별 차이
+
+- **실 앱인토스 앱**: `eventLog` 호출이 로그 시스템에 기록됩니다. `log_type`에 따라 다른 파이프라인으로 라우팅될 수 있습니다.
+- **샌드박스 / devtools mock**: [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools)가 주입하는 mock에서는 `eventLog` 호출이 **브라우저 콘솔**에 출력됩니다. 개발 중 `log_name` · `log_type` · `params` 구조를 빠르게 확인할 수 있습니다.
+- **외부 브라우저(미니앱 환경 밖)**: `eventLog`가 throw합니다. 미니앱 외부에서 실행되는 유틸리티 코드에서는 호출하지 마세요.
+
+## 관련 API
+
+- [`api/analytics`](/api/analytics) — `analytics` 네임스페이스 개요.
+- [`Analytics.click`](/api/analytics/click) — `log_type: 'click'` 래퍼.
+- [`Analytics.impression`](/api/analytics/impression) — `log_type: 'impression'` 래퍼.
+- [`Analytics.screen`](/api/analytics/screen) — `log_type: 'screen'` 래퍼.
+- [`eventLog`](/api/analytics/eventLog) — 저수준 로깅 함수. 9가지 `log_type` 직접 지정.
+
+## 관련 가이드
+
+- [Guides — 이벤트 구독 패턴](/guides/event-subscription) — 앱인토스 컨테이너 이벤트(뒤로가기, 홈 버튼 등)를 구독하는 방법. 이벤트 *로깅*이 아닌 이벤트 *구독*의 패턴.
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. `eventLog`는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.
