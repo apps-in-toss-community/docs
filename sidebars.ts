@@ -72,6 +72,19 @@ const sidebars: SidebarsConfig = {
         },
         {
           type: 'category',
+          label: 'events',
+          collapsed: false,
+          items: [
+            'api/events/events-overview',
+            'api/events/appsInTossEvent-addEventListener',
+            'api/events/eventLog',
+            'api/events/graniteEvent-addEventListener',
+            'api/events/onVisibilityChangedByTransparentServiceWeb',
+            'api/events/tdsEvent-addEventListener',
+          ],
+        },
+        {
+          type: 'category',
           label: 'location',
           collapsed: false,
           items: [

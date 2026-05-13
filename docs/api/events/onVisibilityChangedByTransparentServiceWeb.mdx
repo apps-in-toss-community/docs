@@ -1,0 +1,135 @@
+---
+image: /og/api-events-onVisibilityChangedByTransparentServiceWeb.png
+id: onVisibilityChangedByTransparentServiceWeb
+title: onVisibilityChangedByTransparentServiceWeb
+sidebar_label: onVisibilityChangedByTransparentServiceWeb
+description: 투명 서비스 웹 컨테이너의 표시 여부 변화를 구독합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `onVisibilityChangedByTransparentServiceWeb`
+
+투명 서비스 웹 컨테이너가 표시되거나 숨겨질 때 이벤트를 수신합니다. 호출 시 `callbackId`를 지정해야 하며, cleanup 함수를 반환합니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+```ts
+import { onVisibilityChangedByTransparentServiceWeb } from '@apps-in-toss/web-framework';
+
+declare function onVisibilityChangedByTransparentServiceWeb(eventParams: {
+  options: {
+    callbackId: string;
+  };
+  onEvent: (isVisible: boolean) => void;
+  onError: (error: unknown) => void;
+}): () => void;
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `options.callbackId` | `string` | ✓ | 콜백을 식별하는 고유 ID. 앱 내에서 유일해야 합니다. |
+| `onEvent` | `(isVisible: boolean) => void` | ✓ | 가시성 변화 시 호출되는 핸들러. `true` = 표시됨, `false` = 숨겨짐. |
+| `onError` | `(error: unknown) => void` | ✓ | 에러 발생 시 호출되는 핸들러. |
+
+## 반환값
+
+- `() => void` — cleanup 함수. 구독을 해제합니다. `useEffect` 반환값으로 사용하세요.
+
+## 권한
+
+권한이 필요하지 않습니다 — `onVisibilityChangedByTransparentServiceWeb`은 별도의 `PermissionName`에 바인딩되지 않습니다.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { onVisibilityChangedByTransparentServiceWeb } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+function Page() {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const cleanup = onVisibilityChangedByTransparentServiceWeb({
+      options: { callbackId: 'my-app-visibility' },
+      onEvent: (visible) => {
+        setIsVisible(visible);
+      },
+      onError: (error) => {
+        console.error('가시성 이벤트 에러:', error);
+      },
+    });
+    return cleanup;
+  }, []);
+
+  return (
+    <main>
+      <p>컨테이너 상태: {isVisible ? '표시됨' : '숨겨짐'}</p>
+    </main>
+  );
+}
+```
+
+### 실전 예제 — 가시성에 따라 미디어 재생 제어
+
+```tsx
+import { onVisibilityChangedByTransparentServiceWeb } from '@apps-in-toss/web-framework';
+import { useEffect, useRef } from 'react';
+
+function VideoPage() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const cleanup = onVisibilityChangedByTransparentServiceWeb({
+      options: { callbackId: 'video-page-visibility' },
+      onEvent: (isVisible) => {
+        if (videoRef.current) {
+          if (isVisible) {
+            videoRef.current.play();
+          } else {
+            videoRef.current.pause();
+          }
+        }
+      },
+      onError: (error) => {
+        console.error('가시성 이벤트 에러:', error);
+      },
+    });
+    return cleanup;
+  }, []);
+
+  return (
+    <main>
+      <video ref={videoRef} src="/example.mp4" />
+    </main>
+  );
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Events 페이지에서 구독하고 결과를 확인할 수 있습니다.
+
+<TryItLink group="events" method="onVisibilityChangedByTransparentServiceWeb" />
+
+## 관련 API
+
+- [`graniteEvent.addEventListener`](./graniteEvent.addEventListener) — `backEvent`, `homeEvent` 등 Granite 이벤트를 구독합니다.
+- [`tdsEvent.addEventListener`](./tdsEvent.addEventListener) — TDS 이벤트를 구독합니다.
+- [`appsInTossEvent.addEventListener`](./appsInTossEvent.addEventListener) — 앱인토스 플랫폼 이벤트를 구독합니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Guides — "이벤트 구독 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.

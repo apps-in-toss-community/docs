@@ -1,0 +1,132 @@
+---
+id: onVisibilityChangedByTransparentServiceWeb
+title: onVisibilityChangedByTransparentServiceWeb
+sidebar_label: onVisibilityChangedByTransparentServiceWeb
+description: Subscribe to visibility changes of the transparent service web container.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `onVisibilityChangedByTransparentServiceWeb`
+
+Receives events when the transparent service web container becomes visible or hidden. Requires a `callbackId` to identify the subscription, and returns a cleanup function.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { onVisibilityChangedByTransparentServiceWeb } from '@apps-in-toss/web-framework';
+
+declare function onVisibilityChangedByTransparentServiceWeb(eventParams: {
+  options: {
+    callbackId: string;
+  };
+  onEvent: (isVisible: boolean) => void;
+  onError: (error: unknown) => void;
+}): () => void;
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `options.callbackId` | `string` | ✓ | Unique ID for this subscription. Must be unique within the app. |
+| `onEvent` | `(isVisible: boolean) => void` | ✓ | Called on visibility change. `true` = visible, `false` = hidden. |
+| `onError` | `(error: unknown) => void` | ✓ | Called when an error occurs. |
+
+## Returns
+
+- `() => void` — cleanup function that unsubscribes. Use as the `useEffect` return value.
+
+## Permission
+
+No permission required — `onVisibilityChangedByTransparentServiceWeb` is not bound to a `PermissionName`.
+
+## Examples
+
+### Minimal
+
+```tsx
+import { onVisibilityChangedByTransparentServiceWeb } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+function Page() {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const cleanup = onVisibilityChangedByTransparentServiceWeb({
+      options: { callbackId: 'my-app-visibility' },
+      onEvent: (visible) => {
+        setIsVisible(visible);
+      },
+      onError: (error) => {
+        console.error('Visibility event error:', error);
+      },
+    });
+    return cleanup;
+  }, []);
+
+  return (
+    <main>
+      <p>Container: {isVisible ? 'visible' : 'hidden'}</p>
+    </main>
+  );
+}
+```
+
+### Realistic — pause media on hide
+
+```tsx
+import { onVisibilityChangedByTransparentServiceWeb } from '@apps-in-toss/web-framework';
+import { useEffect, useRef } from 'react';
+
+function VideoPage() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const cleanup = onVisibilityChangedByTransparentServiceWeb({
+      options: { callbackId: 'video-page-visibility' },
+      onEvent: (isVisible) => {
+        if (videoRef.current) {
+          if (isVisible) {
+            videoRef.current.play();
+          } else {
+            videoRef.current.pause();
+          }
+        }
+      },
+      onError: (error) => {
+        console.error('Visibility event error:', error);
+      },
+    });
+    return cleanup;
+  }, []);
+
+  return (
+    <main>
+      <video ref={videoRef} src="/example.mp4" />
+    </main>
+  );
+}
+```
+
+## Try it live
+
+<TryItLink group="events" method="onVisibilityChangedByTransparentServiceWeb" />
+
+## Related APIs
+
+- [`graniteEvent.addEventListener`](./graniteEvent.addEventListener) — subscribe to `backEvent`, `homeEvent`.
+- [`tdsEvent.addEventListener`](./tdsEvent.addEventListener) — subscribe to TDS events.
+- [`appsInTossEvent.addEventListener`](./appsInTossEvent.addEventListener) — subscribe to platform events.
+
+## Related guides
+
+- _(coming soon)_ Guides — "Event subscription patterns"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

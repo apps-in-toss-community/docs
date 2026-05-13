@@ -1,0 +1,96 @@
+---
+image: /og/api-events-appsInTossEvent.addEventListener.png
+id: appsInTossEvent-addEventListener
+title: appsInTossEvent.addEventListener
+sidebar_label: appsInTossEvent.addEventListener
+slug: /api/events/appsInTossEvent.addEventListener
+description: 앱인토스 플랫폼 이벤트를 구독합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `appsInTossEvent.addEventListener`
+
+앱인토스 플랫폼 고유 이벤트를 구독합니다. 현재 SDK 버전(`2.5.0`)에서 `AppsInTossEvent` 타입은 빈 객체이므로 구독 가능한 이벤트가 없지만, 이 네임스페이스는 향후 플랫폼 이벤트 확장을 위해 예약되어 있습니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+```ts
+import { appsInTossEvent } from '@apps-in-toss/web-framework';
+
+type AppsInTossEvent = {};
+
+declare const appsInTossEvent: {
+  addEventListener: <K extends keyof AppsInTossEvent>(
+    event: K,
+    handlers: {
+      onEvent: AppsInTossEvent[K]['onEvent'];
+      onError?: AppsInTossEvent[K]['onError'];
+      options?: AppsInTossEvent[K]['options'];
+    }
+  ) => () => void;
+};
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `event` | `keyof AppsInTossEvent` | ✓ | 구독할 이벤트 이름. 현재 SDK 버전에서는 정의된 이벤트가 없습니다. |
+| `handlers.onEvent` | `function` | ✓ | 이벤트 발생 시 호출되는 핸들러. |
+| `handlers.onError` | `function` | — | 이벤트 처리 중 에러 발생 시 호출되는 핸들러. |
+| `handlers.options` | — | — | 이벤트별 추가 옵션. |
+
+## 반환값
+
+- `() => void` — cleanup 함수. 이벤트 구독을 해제합니다. `useEffect` 반환값으로 사용하세요.
+
+## 권한
+
+권한이 필요하지 않습니다 — `appsInTossEvent.addEventListener`는 별도의 `PermissionName`에 바인딩되지 않습니다.
+
+## 예제
+
+### 최소 예제
+
+현재 `AppsInTossEvent`에 정의된 이벤트가 없으므로, 타입 구조 참조용 예제입니다.
+
+```tsx
+import { appsInTossEvent } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function Page() {
+  useEffect(() => {
+    // 현재 SDK 버전에서 AppsInTossEvent는 빈 타입입니다.
+    // 향후 플랫폼 이벤트가 추가되면 여기에 구독 코드를 추가하세요.
+    // const cleanup = appsInTossEvent.addEventListener('someEvent', { onEvent: () => {} });
+    // return cleanup;
+  }, []);
+
+  return <main>{/* 페이지 콘텐츠 */}</main>;
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Events 페이지에서 이벤트 구독 동작을 확인할 수 있습니다.
+
+<TryItLink group="events" method="appsInTossEvent.addEventListener" />
+
+## 관련 API
+
+- [`graniteEvent.addEventListener`](./graniteEvent.addEventListener) — `backEvent`, `homeEvent` 등 Granite 이벤트를 구독합니다.
+- [`tdsEvent.addEventListener`](./tdsEvent.addEventListener) — `navigationAccessoryEvent` 등 TDS 이벤트를 구독합니다.
+- [`onVisibilityChangedByTransparentServiceWeb`](./onVisibilityChangedByTransparentServiceWeb) — 가시성 변화 이벤트를 구독합니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Guides — "이벤트 구독 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.

@@ -1,0 +1,139 @@
+---
+id: eventLog
+title: eventLog
+sidebar_label: eventLog
+description: Log an analytics event.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `eventLog`
+
+Records analytics events that occur inside the mini-app. Supports multiple log types — from `debug` through to `click` and `impression`. In sandbox, logs are printed to the console; in the Apps in Toss environment they are forwarded to the logging system.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { eventLog } from '@apps-in-toss/web-framework';
+
+type Primitive = string | number | boolean | null | undefined | symbol;
+
+interface EventLogParams {
+  log_name: string;
+  log_type: 'debug' | 'info' | 'warn' | 'error' | 'event' | 'screen' | 'impression' | 'click' | 'popup';
+  params: Record<string, Primitive>;
+}
+
+declare function eventLog(params: EventLogParams): Promise<void>;
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `log_name` | `string` | ✓ | Name of the log entry. |
+| `log_type` | `'debug' \| 'info' \| 'warn' \| 'error' \| 'event' \| 'screen' \| 'impression' \| 'click' \| 'popup'` | ✓ | Type of the log entry. |
+| `params` | `Record<string, Primitive>` | ✓ | Additional key-value metadata to attach to the log. |
+
+### `log_type` guide
+
+| Value | When to use |
+| --- | --- |
+| `'event'` | General user action events (default choice) |
+| `'click'` | Click/tap interactions |
+| `'screen'` | Screen view |
+| `'impression'` | Component becomes visible |
+| `'debug'` | Development-only diagnostics |
+| `'info'` | Informational messages |
+| `'warn'` | Warnings |
+| `'error'` | Errors |
+| `'popup'` | Popup impressions |
+
+## Returns
+
+- `Promise<void>` — resolves when the log is recorded.
+
+## Permission
+
+No permission required — `eventLog` is not bound to a `PermissionName`.
+
+## Examples
+
+### Minimal
+
+```tsx
+import { eventLog } from '@apps-in-toss/web-framework';
+
+await eventLog({
+  log_name: 'button_click',
+  log_type: 'click',
+  params: {},
+});
+```
+
+### Realistic — screen view logging
+
+```tsx
+import { eventLog } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function ProductPage({ productId }: { productId: string }) {
+  useEffect(() => {
+    eventLog({
+      log_name: 'product_screen_view',
+      log_type: 'screen',
+      params: {
+        product_id: productId,
+      },
+    });
+  }, [productId]);
+
+  return <main>{/* product content */}</main>;
+}
+```
+
+### Realistic — error logging
+
+```tsx
+import { eventLog } from '@apps-in-toss/web-framework';
+
+async function fetchData(url: string) {
+  try {
+    const response = await fetch(url);
+    return await response.json();
+  } catch (error) {
+    await eventLog({
+      log_name: 'fetch_error',
+      log_type: 'error',
+      params: {
+        url,
+        message: error instanceof Error ? error.message : String(error),
+      },
+    });
+    throw error;
+  }
+}
+```
+
+## Try it live
+
+Run `eventLog` on the Analytics page in sdk-example.
+
+<TryItLink group="analytics" method="eventLog" />
+
+## Related APIs
+
+- [`appsInTossEvent.addEventListener`](./appsInTossEvent.addEventListener) — subscribe to platform events.
+- [`graniteEvent.addEventListener`](./graniteEvent.addEventListener) — subscribe to Granite events.
+
+## Related guides
+
+- _(coming soon)_ Guides — "Event logging patterns"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. `eventLog` is re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

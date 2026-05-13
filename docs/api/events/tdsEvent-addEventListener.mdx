@@ -1,0 +1,151 @@
+---
+image: /og/api-events-tdsEvent.addEventListener.png
+id: tdsEvent-addEventListener
+title: tdsEvent.addEventListener
+sidebar_label: tdsEvent.addEventListener
+slug: /api/events/tdsEvent.addEventListener
+description: TDS(Toss Design System) 이벤트를 구독합니다. navigationAccessoryEvent를 지원합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `tdsEvent.addEventListener`
+
+TDS(Toss Design System) 이벤트를 구독합니다. 현재 `navigationAccessoryEvent`(상단 네비게이션 악세서리 버튼 클릭)를 지원합니다. `partner.addAccessoryButton`으로 버튼을 등록한 뒤 이 메서드로 클릭 이벤트를 수신합니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+```ts
+import { tdsEvent } from '@apps-in-toss/web-framework';
+
+type TdsEvent = {
+  navigationAccessoryEvent: {
+    onEvent: (data: { id: string }) => void;
+    onError?: (error: Error) => void;
+    options: undefined;
+  };
+};
+
+declare const tdsEvent: {
+  addEventListener: <K extends keyof TdsEvent>(
+    event: K,
+    handlers: {
+      onEvent: TdsEvent[K]['onEvent'];
+      onError?: TdsEvent[K]['onError'];
+      options?: TdsEvent[K]['options'];
+    }
+  ) => () => void;
+};
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `event` | `'navigationAccessoryEvent'` | ✓ | 구독할 이벤트 이름. |
+| `handlers.onEvent` | `(data: { id: string }) => void` | ✓ | 이벤트 발생 시 호출되는 핸들러. `data.id`는 `partner.addAccessoryButton`에 등록한 버튼 ID. |
+| `handlers.onError` | `(error: Error) => void` | — | 이벤트 처리 중 에러 발생 시 호출되는 핸들러. |
+| `handlers.options` | `undefined` | — | 현재 사용하지 않음. |
+
+### `navigationAccessoryEvent` 페이로드
+
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `id` | `string` | `partner.addAccessoryButton`에 등록한 버튼의 고유 ID. |
+
+## 반환값
+
+- `() => void` — cleanup 함수. 이벤트 구독을 해제합니다. `useEffect` 반환값으로 사용하세요.
+
+## 권한
+
+권한이 필요하지 않습니다 — `tdsEvent.addEventListener`는 별도의 `PermissionName`에 바인딩되지 않습니다.
+
+## 예제
+
+### 최소 예제 — navigationAccessoryEvent
+
+```tsx
+import { tdsEvent } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function Page() {
+  useEffect(() => {
+    const cleanup = tdsEvent.addEventListener('navigationAccessoryEvent', {
+      onEvent: ({ id }) => {
+        console.log('악세서리 버튼 클릭:', id);
+      },
+    });
+    return cleanup;
+  }, []);
+
+  return <main>{/* 페이지 콘텐츠 */}</main>;
+}
+```
+
+### 실전 예제 — partner.addAccessoryButton과 함께 사용
+
+```tsx
+import { partner, tdsEvent } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+function ArticlePage() {
+  const navigate = useNavigate();
+  const [isLiked, setIsLiked] = useState(false);
+
+  useEffect(() => {
+    // 1. 상단 네비게이션에 하트 버튼 추가
+    partner.addAccessoryButton({
+      id: 'like-button',
+      title: '좋아요',
+      icon: { name: 'icon-heart-mono' },
+    });
+
+    // 2. 버튼 클릭 이벤트 구독
+    const cleanup = tdsEvent.addEventListener('navigationAccessoryEvent', {
+      onEvent: ({ id }) => {
+        if (id === 'like-button') {
+          setIsLiked((prev) => !prev);
+        }
+      },
+    });
+
+    return () => {
+      cleanup();
+      // 페이지를 벗어날 때 버튼 제거
+      partner.removeAccessoryButton();
+    };
+  }, []);
+
+  return (
+    <main>
+      <p>좋아요 상태: {isLiked ? '❤️ 좋아요' : '🤍 좋아요 안 함'}</p>
+    </main>
+  );
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Events 페이지에서 `navigationAccessoryEvent`를 직접 구독하고 결과를 확인할 수 있습니다.
+
+<TryItLink group="events" method="tdsEvent.addEventListener" />
+
+## 관련 API
+
+- [`graniteEvent.addEventListener`](./graniteEvent.addEventListener) — `backEvent`, `homeEvent` 등 Granite 이벤트를 구독합니다.
+- [`appsInTossEvent.addEventListener`](./appsInTossEvent.addEventListener) — 앱인토스 플랫폼 이벤트를 구독합니다.
+- [`onVisibilityChangedByTransparentServiceWeb`](./onVisibilityChangedByTransparentServiceWeb) — 가시성 변화 이벤트를 구독합니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Guides — "이벤트 구독 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.

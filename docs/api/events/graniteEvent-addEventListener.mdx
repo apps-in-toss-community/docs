@@ -1,0 +1,175 @@
+---
+image: /og/api-events-graniteEvent.addEventListener.png
+id: graniteEvent-addEventListener
+title: graniteEvent.addEventListener
+sidebar_label: graniteEvent.addEventListener
+slug: /api/events/graniteEvent.addEventListener
+description: Granite(토스 내부) 이벤트를 구독합니다. backEvent, homeEvent를 지원합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `graniteEvent.addEventListener`
+
+Granite(토스 내부 UI 프레임워크) 이벤트를 구독합니다. 현재 `backEvent`(뒤로 가기 버튼)와 `homeEvent`(홈 버튼) 두 가지 이벤트를 지원합니다. 반환된 cleanup 함수를 호출하면 구독이 해제됩니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+```ts
+import { graniteEvent } from '@apps-in-toss/web-framework';
+
+type GraniteEvent = {
+  backEvent: {
+    onEvent: () => void;
+    onError?: (error: Error) => void;
+    options?: void;
+  };
+  homeEvent: {
+    onEvent: () => void;
+    onError?: (error: Error) => void;
+    options?: void;
+  };
+};
+
+declare const graniteEvent: {
+  addEventListener: <K extends keyof GraniteEvent>(
+    event: K,
+    handlers: {
+      onEvent: GraniteEvent[K]['onEvent'];
+      onError?: GraniteEvent[K]['onError'];
+      options?: GraniteEvent[K]['options'];
+    }
+  ) => () => void;
+};
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `event` | `'backEvent' \| 'homeEvent'` | ✓ | 구독할 이벤트 이름. |
+| `handlers.onEvent` | `() => void` | ✓ | 이벤트 발생 시 호출되는 핸들러. 페이로드 없음. |
+| `handlers.onError` | `(error: Error) => void` | — | 이벤트 처리 중 에러 발생 시 호출되는 핸들러. |
+| `handlers.options` | `void` | — | 현재 사용하지 않음. |
+
+### 이벤트 타입
+
+| 이벤트 | 발화 시점 |
+| --- | --- |
+| `backEvent` | 하드웨어 또는 소프트웨어 뒤로 가기 버튼을 누를 때 |
+| `homeEvent` | 홈 버튼을 누를 때 |
+
+## 반환값
+
+- `() => void` — cleanup 함수. 이벤트 구독을 해제합니다. `useEffect` 반환값으로 사용하세요.
+
+:::caution
+`backEvent`를 구독하면 기본 뒤로 가기 동작이 억제됩니다. `onEvent` 핸들러 내에서 직접 내비게이션 로직(예: `history.back()`, 라우터의 `navigate(-1)`)을 구현해야 합니다.
+:::
+
+## 권한
+
+권한이 필요하지 않습니다 — `graniteEvent.addEventListener`는 별도의 `PermissionName`에 바인딩되지 않습니다.
+
+## 예제
+
+### 최소 예제 — backEvent
+
+```tsx
+import { graniteEvent } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+function Page() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const cleanup = graniteEvent.addEventListener('backEvent', {
+      onEvent: () => {
+        navigate(-1);
+      },
+    });
+    return cleanup;
+  }, [navigate]);
+
+  return <main>{/* 페이지 콘텐츠 */}</main>;
+}
+```
+
+### 최소 예제 — homeEvent
+
+```tsx
+import { graniteEvent } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function Page() {
+  useEffect(() => {
+    const cleanup = graniteEvent.addEventListener('homeEvent', {
+      onEvent: () => {
+        // 홈 버튼 눌림 처리 (예: 진행 중인 작업 저장)
+        console.log('홈 버튼이 눌렸습니다.');
+      },
+    });
+    return cleanup;
+  }, []);
+
+  return <main>{/* 페이지 콘텐츠 */}</main>;
+}
+```
+
+### 실전 예제 — 편집 중 뒤로 가기 확인 다이얼로그
+
+```tsx
+import { graniteEvent } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+function EditPage() {
+  const navigate = useNavigate();
+  const [isDirty, setIsDirty] = useState(false);
+
+  useEffect(() => {
+    const cleanup = graniteEvent.addEventListener('backEvent', {
+      onEvent: () => {
+        if (isDirty) {
+          // 저장되지 않은 변경사항이 있을 때 확인
+          const confirmed = window.confirm('변경사항이 저장되지 않았습니다. 나가시겠습니까?');
+          if (!confirmed) return;
+        }
+        navigate(-1);
+      },
+    });
+    return cleanup;
+  }, [isDirty, navigate]);
+
+  return (
+    <form onChange={() => setIsDirty(true)}>
+      {/* 편집 폼 */}
+    </form>
+  );
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Events 페이지에서 `backEvent`와 `homeEvent`를 직접 구독하고 결과를 확인할 수 있습니다.
+
+<TryItLink group="events" method="graniteEvent.addEventListener" />
+
+## 관련 API
+
+- [`tdsEvent.addEventListener`](./tdsEvent.addEventListener) — TDS 이벤트를 구독합니다.
+- [`appsInTossEvent.addEventListener`](./appsInTossEvent.addEventListener) — 앱인토스 플랫폼 이벤트를 구독합니다.
+- [`onVisibilityChangedByTransparentServiceWeb`](./onVisibilityChangedByTransparentServiceWeb) — 가시성 변화 이벤트를 구독합니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Guides — "이벤트 구독 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.
