@@ -1,0 +1,243 @@
+---
+id: iap-payment-flow
+title: IAP payment flow — processProductGrant and completeProductGrant
+sidebar_label: IAP payment flow
+slug: /guides/iap-payment-flow
+description: The standard SKU-based IAP order flow — createOrder → processProductGrant callback for server fulfillment → completeProductGrant to finalize.
+---
+
+# IAP payment flow — `processProductGrant` and `completeProductGrant`
+
+`IAP.createOneTimePurchaseOrder` and `IAP.createSubscriptionPurchaseOrder` bundle payment authentication and client/server fulfillment hand-off into a single call. The two callbacks that drive this — **`processProductGrant`** (called right after auth succeeds, your hook to grant the user the product server-side) and **`IAP.completeProductGrant`** (called after fulfillment succeeds, to tell Toss the receipt is finalized) — share a tight sequencing contract. This guide collects that sequence, the responsibility split, and recovery patterns in one place.
+
+## End-to-end sequence at a glance
+
+```
+[Client webview]                          [Your server]              [Toss]
+      │                                       │                          │
+      │ 1. IAP.getProductItemList()          │                          │
+      ├──────────────────────────────────────────────────────────────► │
+      │ ◄──────────────────────────────────────────────────────────────┤
+      │   products[]                          │                          │
+      │                                       │                          │
+      │ 2. IAP.createOneTimePurchaseOrder({ sku, ...callbacks })       │
+      ├──────────────────────────────────────────────────────────────► │
+      │                                       │     Auth dialog          │
+      │                                       │                          │
+      │ 3. processProductGrant({ orderId }) ◄─┤◄─────────────────────────┤
+      ├──────────────────────────────────────►┤                          │
+      │                                       │ 4. Server fulfillment    │
+      │                                       │    (DB grant, verify)    │
+      │ ◄──────────────────────────────────────┤                         │
+      │   return true                         │                          │
+      │                                       │                          │
+      │ 5. IAP.completeProductGrant({ params: { orderId } })           │
+      ├──────────────────────────────────────────────────────────────► │
+      │ ◄──────────────────────────────────────────────────────────────┤
+      │   true                                │                          │
+      │                                       │                          │
+      │ 6. onEvent({ type: 'success' })       │                          │
+      │ ◄──────────────────────────────────────────────────────────────┤
+      │                                       │                          │
+      │ 7. cleanup() (returned by createOrder)│                          │
+```
+
+Key points:
+
+- **`createOrder` itself returns a cleanup function** — call it when the payment dialog's lifecycle ends, to detach listeners.
+- **Do server fulfillment inside the `processProductGrant` callback** and return `boolean` for success/failure.
+- **`completeProductGrant` is a separate call after fulfillment** — it tells Toss "we're done" and finalizes the receipt. Skip it and the same order keeps showing up in `getPendingOrders`.
+
+## Step 1 — Fetch the product list
+
+```ts
+import { IAP } from '@apps-in-toss/web-framework';
+
+const { products } = await IAP.getProductItemList();
+// Surface products[].sku in your UI.
+```
+
+[`IAP.getProductItemList`](/api/iap/getProductItemList) returns the SKUs registered in your mini-app console. **Don't hardcode SKUs/prices on the client** — the console is the source of truth, the client just renders the response.
+
+## Step 2 — Create the payment order
+
+Standard call shape for `createOneTimePurchaseOrder`:
+
+```tsx
+import { IAP } from '@apps-in-toss/web-framework';
+
+const cleanup = IAP.createOneTimePurchaseOrder({
+  options: {
+    sku: 'premium-1month',
+    processProductGrant: async ({ orderId }) => {
+      // Delegate fulfillment to your server. Return true if grant succeeded.
+      const ok = await fetch('/api/iap/fulfill', {
+        method: 'POST',
+        body: JSON.stringify({ orderId }),
+        headers: { 'Content-Type': 'application/json' },
+      }).then((res) => res.ok);
+
+      return ok;
+    },
+  },
+  onEvent: async ({ type, data }) => {
+    if (type === 'success') {
+      // Right after Toss confirms success to the user, finalize.
+      await IAP.completeProductGrant({ params: { orderId: data.orderId } });
+      cleanup();
+    }
+  },
+  onError: (error) => {
+    console.error('IAP failed', error);
+    cleanup();
+  },
+});
+```
+
+`createSubscriptionPurchaseOrder` has the same shape but accepts `options.offerId` and the `processProductGrant` callback receives `subscriptionId` alongside `orderId`:
+
+```ts
+processProductGrant: async ({ orderId, subscriptionId }) => {
+  // Send subscriptionId to the server so it can link the grant to the subscription.
+  return await fulfillSubscription({ orderId, subscriptionId });
+}
+```
+
+## Step 3 — What `processProductGrant` is responsible for
+
+This callback is your **server fulfillment entry point**. Typically it does:
+
+1. **Verify the receipt** — call the Toss IAP API to confirm the `orderId` is authentic (if your flow requires it).
+2. **Grant the product** — write the `(userId, sku, orderId)` mapping to your DB. Use a unique constraint on `orderId` for idempotency.
+3. **Return the result** — `true` if both succeed, `false` if any step fails.
+
+```ts
+// Server-side route example (Next.js, Express, or wherever)
+app.post('/api/iap/fulfill', async (req, res) => {
+  const { orderId } = req.body;
+
+  // 1. Verify receipt.
+  const verified = await verifyToOrder(orderId);
+  if (!verified) return res.status(400).json({ ok: false });
+
+  // 2. Grant in DB (idempotent — re-calls with the same orderId are no-ops).
+  await db.grants.upsert({
+    where: { orderId },
+    create: { userId: req.user.id, sku: verified.sku, orderId },
+    update: {},
+  });
+
+  res.json({ ok: true });
+});
+```
+
+**Returning `false`** makes Toss show the user a "payment completed but grant failed" state, and the order stays pending — recoverable later via [`IAP.getPendingOrders`](/api/iap/getPendingOrders) (see "Recovery" below).
+
+### The callback must be safe to re-run
+
+`processProductGrant` is called once after auth, but **make it idempotent** to cover users who cancel and retry. Always upsert grants on `orderId` as the unique key — never grant twice for the same order.
+
+## Step 4 — Finalize with `completeProductGrant`
+
+Call this right after `onEvent` fires `type: 'success'`:
+
+```ts
+import { IAP } from '@apps-in-toss/web-framework';
+
+const result = await IAP.completeProductGrant({ params: { orderId } });
+// result: boolean — true if Toss finalized the receipt.
+```
+
+[`IAP.completeProductGrant`](/api/iap/completeProductGrant) marks the receipt as finalized on Toss's side, so the same order doesn't reappear in `getPendingOrders`. **Skip it and every time the user revisits the mini-app, the pending-orders flow finds the order again** — your server fulfillment is idempotent so the grant won't double-write, but the UX shows a stale "incomplete order" state.
+
+## Step 5 — Call the cleanup
+
+`createOrder` returns a cleanup function. When the payment flow ends (success, failure, or cancel), **always call it**:
+
+```ts
+const cleanup = IAP.createOneTimePurchaseOrder({ ... });
+// On every exit path, call cleanup().
+```
+
+In React, attach it to `useEffect` cleanup or the `finally` of an async flow.
+
+## Recovery — handling pending orders
+
+On mini-app entry, call [`IAP.getPendingOrders`](/api/iap/getPendingOrders) and finish anything that never made it through `completeProductGrant`. Common scenarios:
+
+- The user closed the mini-app right after `processProductGrant`, before `completeProductGrant` ran.
+- `completeProductGrant` itself rejected due to a network blip.
+
+```tsx
+import { IAP } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function IAPRecovery() {
+  useEffect(() => {
+    (async () => {
+      const { orders } = await IAP.getPendingOrders();
+      for (const order of orders) {
+        // Server fulfillment is idempotent — safe to retry.
+        const ok = await fetch('/api/iap/fulfill', {
+          method: 'POST',
+          body: JSON.stringify({ orderId: order.orderId }),
+          headers: { 'Content-Type': 'application/json' },
+        }).then((r) => r.ok);
+        if (ok) {
+          await IAP.completeProductGrant({ params: { orderId: order.orderId } });
+        }
+      }
+    })().catch(console.warn);
+  }, []);
+
+  return null;
+}
+```
+
+Mount this once at app entry and you automatically recover from any abnormal termination mid-purchase.
+
+## Querying subscription state
+
+For subscription products, the current state (`isAccessible`, `expiresAt`, `isAutoRenew`, etc.) is available via [`IAP.getSubscriptionInfo`](/api/iap/getSubscriptionInfo). Use this — separately from the grant you wrote during `processProductGrant` — to track renewals and refunds on Toss's side.
+
+```ts
+const { subscription } = await IAP.getSubscriptionInfo({
+  params: { orderId },
+});
+if (!subscription.isAccessible) {
+  // Revoke access in your own DB as well.
+}
+```
+
+## Common-mistakes checklist
+
+- Is your `processProductGrant` server fulfillment **idempotent**? Re-calls with the same `orderId` must not double-grant.
+- Are you calling `completeProductGrant` **right after** `onEvent({ type: 'success' })`? Skipping it leaks pending orders.
+- Are you calling `cleanup` on **every exit path** (success, failure, cancel)?
+- Do you have a `getPendingOrders` recovery routine on app entry? Without one, abnormal termination leaks permanently.
+- Are you hardcoding SKUs/prices on the client? Use `getProductItemList` as the source of truth.
+
+## Environment differences
+
+- **Real Toss app**: the auth dialog → receipt issuance → fulfillment hand-off works end-to-end. Verify SKUs are active in the console.
+- **devtools mock**: the [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) mock invokes `processProductGrant` immediately with a fake `orderId`. You'll need to mock the server fulfillment separately. Verify real receipts and renewals only on-device.
+- **External browser**: `createOrder` throws.
+
+## Related APIs
+
+- [`api/iap`](/api/iap) — `iap` namespace overview.
+- [`IAP.getProductItemList`](/api/iap/getProductItemList) — product list.
+- [`IAP.createOneTimePurchaseOrder`](/api/iap/createOneTimePurchaseOrder) — one-time purchase entry.
+- [`IAP.createSubscriptionPurchaseOrder`](/api/iap/createSubscriptionPurchaseOrder) — subscription entry.
+- [`IAP.completeProductGrant`](/api/iap/completeProductGrant) — fulfillment-done signal.
+- [`IAP.getPendingOrders`](/api/iap/getPendingOrders) — recover unfinished orders.
+- [`IAP.getCompletedOrRefundedOrders`](/api/iap/getCompletedOrRefundedOrders) — completed/refunded order history.
+- [`IAP.getSubscriptionInfo`](/api/iap/getSubscriptionInfo) — subscription state.
+
+## Related guides
+
+- [Guides — Permissions pattern](/guides/permissions-pattern) — IAP itself has no permissions, but useful when pairing payment with permission-gated content (e.g., photos).
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — upstream SDK package.
