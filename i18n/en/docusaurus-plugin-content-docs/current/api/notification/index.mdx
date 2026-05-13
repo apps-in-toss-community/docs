@@ -1,0 +1,43 @@
+---
+id: notification-overview
+title: notification
+sidebar_label: Overview
+slug: /api/notification
+description: SDK namespace for requesting notification subscription consent.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `notification`
+
+The `notification` namespace handles in-app notification consent flows. It currently provides one method — `requestNotificationAgreement` — which displays a notification opt-in UI and delivers the user's response via a callback.
+
+## Methods
+
+| Method | Return type | Purpose |
+| --- | --- | --- |
+| [`requestNotificationAgreement`](/api/notification/requestNotificationAgreement) | `() => void` | Display the notification opt-in UI and receive the user's response via callback. The return value is a cancel function. |
+
+## Permission
+
+No permission required — methods in the `notification` namespace are not bound to a `PermissionName`.
+
+## Agreement result types
+
+The `onEvent` callback in `requestNotificationAgreement` delivers one of three result types.
+
+| `type` | Meaning |
+| --- | --- |
+| `newAgreement` | The user agreed to receive notifications for the first time. |
+| `alreadyAgreed` | The user had already consented to this notification template. |
+| `agreementRejected` | The user declined to receive notifications. |
+
+## Try it live
+
+Run the methods interactively on the Notification page in sdk-example.
+
+<TryItLink group="notification" />
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

@@ -1,0 +1,47 @@
+---
+id: payment-overview
+title: payment
+sidebar_label: Overview
+slug: /api/payment
+description: SDK namespace for TossPay recurring billing authentication.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `payment`
+
+The `payment` namespace handles TossPay recurring billing (subscription) authentication flows. It currently provides one method — `requestTossPayPaysBilling` — which opens the TossPay billing enrollment sheet, obtains user consent, and issues a billing key for server-side recurring charges.
+
+This is distinct from the `iap` namespace's `checkoutPayment` (one-time payment authentication): `payment` is dedicated to billing key issuance for repeat charges.
+
+## Methods
+
+| Method | Return type | Purpose |
+| --- | --- | --- |
+| [`requestTossPayPaysBilling`](/api/payment/requestTossPayPaysBilling) | `Promise<{ success: boolean; reason?: string } \| undefined>` | Open the TossPay billing enrollment sheet and request billing key issuance. |
+
+## Permission
+
+No permission required — methods in the `payment` namespace are not bound to a `PermissionName`. The billing authentication flow is handled internally by the Toss app.
+
+## Typical recurring billing enrollment flow
+
+```
+requestTossPayPaysBilling()   ← billing key issuance authentication
+       ↓ success: true
+       store billing key on your server
+       ↓
+       (later) execute recurring charge via server-side API
+```
+
+`success: true` means the user consented in the billing sheet and a billing key was issued. The actual charge is a separate server-side call.
+
+## Try it live
+
+Run the methods interactively on the Payment page in sdk-example.
+
+<TryItLink group="payment" />
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

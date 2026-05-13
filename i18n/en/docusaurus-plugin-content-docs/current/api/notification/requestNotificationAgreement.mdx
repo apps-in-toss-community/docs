@@ -1,0 +1,131 @@
+---
+id: requestNotificationAgreement
+title: requestNotificationAgreement
+sidebar_label: requestNotificationAgreement
+description: Display the notification opt-in UI and receive the user's response via callback.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `requestNotificationAgreement`
+
+Display a notification consent prompt for a specific notification template and receive the user's response — `newAgreement`, `alreadyAgreed`, or `agreementRejected` — via the `onEvent` callback. Returns a cancel function that tears down the subscription when called.
+
+## Signature
+
+```ts
+import { requestNotificationAgreement } from '@apps-in-toss/web-framework';
+
+declare function requestNotificationAgreement(params: {
+  options: { templateCode: string };
+  onEvent: (result: { type: 'newAgreement' | 'alreadyAgreed' | 'agreementRejected' }) => void;
+  onError: (error: unknown) => void | Promise<void>;
+}): () => void;
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `options.templateCode` | `string` | ✓ | The notification template code to request consent for. This is the template ID registered in the Apps in Toss console. |
+| `onEvent` | `(result: { type: ... }) => void` | ✓ | Called when the user responds. Inspect `result.type` to distinguish the outcome. |
+| `onError` | `(error: unknown) => void \| Promise<void>` | ✓ | Called when an error occurs. |
+
+## Returns
+
+- `() => void` — cancel function. Calling it cancels the consent request. Use as the `useEffect` return value.
+
+## Event result (`result.type`)
+
+| `type` | Meaning |
+| --- | --- |
+| `newAgreement` | The user agreed to receive this notification for the first time. Enable notification delivery on your server. |
+| `alreadyAgreed` | The user had already consented to this template. No additional action needed. |
+| `agreementRejected` | The user declined. Do not re-prompt immediately. |
+
+## Permission
+
+No permission required. `requestNotificationAgreement` is not bound to any `PermissionName`.
+
+## Examples
+
+### Minimal
+
+```tsx
+import { requestNotificationAgreement } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function NotificationConsentPage() {
+  useEffect(() => {
+    const cancel = requestNotificationAgreement({
+      options: { templateCode: 'MY_TEMPLATE_CODE' },
+      onEvent: ({ type }) => {
+        if (type === 'newAgreement') {
+          console.log('User agreed to notifications.');
+        } else if (type === 'alreadyAgreed') {
+          console.log('User had already consented.');
+        } else if (type === 'agreementRejected') {
+          console.log('User declined notifications.');
+        }
+      },
+      onError: (error) => {
+        console.error('Notification consent error:', error);
+      },
+    });
+    return cancel;
+  }, []);
+
+  return <main><p>Requesting notification consent…</p></main>;
+}
+```
+
+### Realistic — branch UI on agreement result
+
+```tsx
+import { requestNotificationAgreement } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+type AgreementStatus = 'pending' | 'newAgreement' | 'alreadyAgreed' | 'agreementRejected' | 'error';
+
+export function NotificationOptIn({ templateCode }: { templateCode: string }) {
+  const [status, setStatus] = useState<AgreementStatus>('pending');
+
+  useEffect(() => {
+    const cancel = requestNotificationAgreement({
+      options: { templateCode },
+      onEvent: ({ type }) => {
+        setStatus(type);
+      },
+      onError: (error) => {
+        console.error('Notification consent error:', error);
+        setStatus('error');
+      },
+    });
+    return cancel;
+  }, [templateCode]);
+
+  if (status === 'pending') return <p>Requesting notification consent…</p>;
+  if (status === 'newAgreement') return <p>You have opted in to notifications. Thank you!</p>;
+  if (status === 'alreadyAgreed') return <p>You are already subscribed to this notification.</p>;
+  if (status === 'agreementRejected') return <p>You have opted out of this notification.</p>;
+  return <p>Something went wrong while requesting consent.</p>;
+}
+```
+
+## Try it live
+
+Run the `requestNotificationAgreement` card on the Notification page in sdk-example.
+
+<TryItLink group="notification" method="requestNotificationAgreement" />
+
+## Related APIs
+
+- [`onVisibilityChangedByTransparentServiceWeb`](/api/events/onVisibilityChangedByTransparentServiceWeb) — another API using the callback + cancel-function pattern.
+
+## Related guides
+
+- _(coming soon)_ Guides — "Notification consent request patterns"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

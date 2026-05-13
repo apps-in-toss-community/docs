@@ -1,0 +1,132 @@
+---
+image: /og/api-notification-requestNotificationAgreement.png
+id: requestNotificationAgreement
+title: requestNotificationAgreement
+sidebar_label: requestNotificationAgreement
+description: 알림 수신 동의 UI를 표시하고, 사용자의 응답을 콜백으로 수신합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `requestNotificationAgreement`
+
+사용자에게 특정 알림 템플릿에 대한 수신 동의를 요청합니다. 동의 UI가 표시되면 사용자의 응답(`newAgreement` / `alreadyAgreed` / `agreementRejected`)이 `onEvent` 콜백으로 전달됩니다. 호출 시 cleanup 함수를 반환하며, 필요 시 이를 호출해 요청을 취소할 수 있습니다.
+
+## 시그니처
+
+```ts
+import { requestNotificationAgreement } from '@apps-in-toss/web-framework';
+
+declare function requestNotificationAgreement(params: {
+  options: { templateCode: string };
+  onEvent: (result: { type: 'newAgreement' | 'alreadyAgreed' | 'agreementRejected' }) => void;
+  onError: (error: unknown) => void | Promise<void>;
+}): () => void;
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `options.templateCode` | `string` | ✓ | 알림 수신 동의를 요청할 템플릿의 코드. 앱인토스 콘솔에서 등록한 알림 템플릿 ID입니다. |
+| `onEvent` | `(result: { type: ... }) => void` | ✓ | 사용자 응답이 결정되면 호출되는 핸들러. `result.type`으로 결과를 구분합니다. |
+| `onError` | `(error: unknown) => void \| Promise<void>` | ✓ | 에러 발생 시 호출되는 핸들러. |
+
+## 반환값
+
+- `() => void` — cleanup 함수. 호출하면 동의 요청을 취소합니다. `useEffect` 반환값으로 사용하세요.
+
+## 이벤트 결과 (`result.type`)
+
+| `type` | 의미 |
+| --- | --- |
+| `newAgreement` | 사용자가 해당 알림에 처음으로 동의했습니다. 서버 측에서 알림 발송을 활성화하세요. |
+| `alreadyAgreed` | 사용자가 이미 해당 알림에 동의한 상태입니다. 별도의 추가 처리가 필요하지 않습니다. |
+| `agreementRejected` | 사용자가 알림 수신을 거절했습니다. 강제 재요청은 하지 마세요. |
+
+## 권한
+
+권한이 필요하지 않습니다. `requestNotificationAgreement`는 별도의 `PermissionName`에 바인딩되지 않습니다.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { requestNotificationAgreement } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function NotificationConsentPage() {
+  useEffect(() => {
+    const cancel = requestNotificationAgreement({
+      options: { templateCode: 'MY_TEMPLATE_CODE' },
+      onEvent: ({ type }) => {
+        if (type === 'newAgreement') {
+          console.log('알림 동의 완료');
+        } else if (type === 'alreadyAgreed') {
+          console.log('이미 동의된 상태');
+        } else if (type === 'agreementRejected') {
+          console.log('사용자가 알림을 거절했습니다');
+        }
+      },
+      onError: (error) => {
+        console.error('알림 동의 요청 오류:', error);
+      },
+    });
+    return cancel;
+  }, []);
+
+  return <main><p>알림 동의 요청 중…</p></main>;
+}
+```
+
+### 실전 예제 — 동의 결과에 따른 UI 분기
+
+```tsx
+import { requestNotificationAgreement } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+type AgreementStatus = 'pending' | 'newAgreement' | 'alreadyAgreed' | 'agreementRejected' | 'error';
+
+export function NotificationOptIn({ templateCode }: { templateCode: string }) {
+  const [status, setStatus] = useState<AgreementStatus>('pending');
+
+  useEffect(() => {
+    const cancel = requestNotificationAgreement({
+      options: { templateCode },
+      onEvent: ({ type }) => {
+        setStatus(type);
+      },
+      onError: (error) => {
+        console.error('알림 동의 요청 오류:', error);
+        setStatus('error');
+      },
+    });
+    return cancel;
+  }, [templateCode]);
+
+  if (status === 'pending') return <p>알림 동의 요청 중…</p>;
+  if (status === 'newAgreement') return <p>알림 수신에 동의해 주셨어요. 감사합니다!</p>;
+  if (status === 'alreadyAgreed') return <p>이미 알림 수신에 동의하셨습니다.</p>;
+  if (status === 'agreementRejected') return <p>알림 수신을 거절하셨습니다.</p>;
+  return <p>알림 동의 요청 중 오류가 발생했어요.</p>;
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Notification 페이지에서 `requestNotificationAgreement` 카드를 실행해 결과를 확인할 수 있습니다.
+
+<TryItLink group="notification" method="requestNotificationAgreement" />
+
+## 관련 API
+
+- [`onVisibilityChangedByTransparentServiceWeb`](/api/events/onVisibilityChangedByTransparentServiceWeb) — 콜백 + cleanup 패턴을 사용하는 다른 API 예시.
+
+## 관련 가이드
+
+- _(작성 예정)_ Guides — "알림 동의 요청 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.
