@@ -38,8 +38,8 @@ const sidebars: SidebarsConfig = {
           collapsed: false,
           items: [
             'api/environment/environment-overview',
-            'api/environment/env',
             'api/environment/getAppsInTossGlobals',
+            'api/environment/getDeploymentId',
             'api/environment/getDeviceId',
             'api/environment/getGroupId',
             'api/environment/getLocale',

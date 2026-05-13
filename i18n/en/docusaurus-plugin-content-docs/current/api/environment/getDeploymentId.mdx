@@ -1,16 +1,16 @@
 ---
-image: /og/api-environment-env.png
-id: env
-title: env
-sidebar_label: env
-description: Namespace object exposing runtime environment constants such as the deployment ID.
+image: /og/api-environment-getDeploymentId.png
+id: getDeploymentId
+title: env.getDeploymentId
+sidebar_label: env.getDeploymentId
+description: Returns the unique identifier for the current mini-app deployment.
 ---
 
 import TryItLink from '@site/src/components/TryItLink';
 
-# `env`
+# `env.getDeploymentId`
 
-A namespace object holding runtime environment constants. Currently it exposes a single member, `getDeploymentId()`. Additional members may be added in future SDK releases.
+Returns the unique identifier for the current mini-app deployment. The deployment ID is assigned per build and is useful for logging, debugging, and A/B test context tracking. Returns the same value as `getAppsInTossGlobals().deploymentId`.
 
 :::info Unofficial docs
 This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
@@ -18,20 +18,14 @@ This page is community-written. The SDK behavior itself is defined by the publis
 
 ## Signature
 
+`getDeploymentId` is exposed as a member of the `env` namespace object — it is not imported on its own.
+
 ```ts
 import { env } from '@apps-in-toss/web-framework';
 
 declare const env: {
-  getDeploymentId: () => string;
+  getDeploymentId(): string;
 };
-```
-
-### `env.getDeploymentId()`
-
-Returns the unique identifier for the current mini-app deployment. The deployment ID is assigned per build and is useful for logging, debugging, and A/B test context tracking. Returns the same value as `getAppsInTossGlobals().deploymentId`.
-
-```ts
-declare function getDeploymentId(): string;
 ```
 
 ## Parameters
@@ -44,7 +38,7 @@ None.
 
 ## Permission
 
-No permission required — the `env` object is not bound to a `PermissionName`. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+No permission required — `env.getDeploymentId` is not bound to a `PermissionName`. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
 
 ## Examples
 
@@ -84,7 +78,7 @@ function App() {
 
 Open the Environment page in sdk-example and run the `env.getDeploymentId` card to inspect the result.
 
-<TryItLink group="environment" method="env" />
+<TryItLink group="environment" method="getDeploymentId" />
 
 ## Related APIs
 
@@ -94,7 +88,7 @@ Open the Environment page in sdk-example and run the `env.getDeploymentId` card 
 
 ## Related guides
 
-- [Guides — Permissions pattern](/guides/permissions-pattern) — permission flow used by other namespaces (reference only; `env` doesn't require a permission).
+- [Guides — Permissions pattern](/guides/permissions-pattern) — permission flow used by other namespaces (reference only; `env.getDeploymentId` doesn't require a permission).
 - _(coming soon)_ Recipes — "Error tracking with deployment ID"
 
 ## External references
