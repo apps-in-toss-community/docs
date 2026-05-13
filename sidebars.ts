@@ -144,6 +144,17 @@ const sidebars: SidebarsConfig = {
         },
         {
           type: 'category',
+          label: 'permissions',
+          collapsed: false,
+          items: [
+            'api/permissions/permissions-overview',
+            'api/permissions/getPermission',
+            'api/permissions/openPermissionDialog',
+            'api/permissions/requestPermission',
+          ],
+        },
+        {
+          type: 'category',
           label: 'storage',
           collapsed: false,
           items: [

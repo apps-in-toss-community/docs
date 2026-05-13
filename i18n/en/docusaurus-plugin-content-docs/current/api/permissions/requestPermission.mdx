@@ -1,0 +1,138 @@
+---
+id: requestPermission
+title: requestPermission
+sidebar_label: requestPermission
+description: Check permission status and show the system dialog if undecided, then return the final status.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `requestPermission`
+
+Internally checks the current permission status, then shows the OS-native dialog only if the status is `notDetermined`. Resolves with the final state — either `'allowed'` or `'denied'`. Convenience wrapper around [`getPermission`](./getPermission) + [`openPermissionDialog`](./openPermissionDialog).
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { requestPermission } from '@apps-in-toss/web-framework';
+
+declare function requestPermission(permission: {
+  name: PermissionName;
+  access: PermissionAccess;
+}): Promise<'allowed' | 'denied'>;
+
+type PermissionName = 'camera' | 'photos' | 'contacts' | 'geolocation' | 'microphone' | 'clipboard';
+type PermissionAccess = 'read' | 'write' | 'access';
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `permission.name` | `PermissionName` | ✓ | The permission to request. One of `'camera'` / `'photos'` / `'contacts'` / `'geolocation'` / `'microphone'` / `'clipboard'`. |
+| `permission.access` | `PermissionAccess` | ✓ | The access type being requested. One of `'read'` / `'write'` / `'access'`. |
+
+## Returns
+
+- `Promise<'allowed' | 'denied'>` — `notDetermined` is never returned:
+  - `'allowed'` — access is granted (either already was, or the user just allowed it).
+  - `'denied'` — access is blocked (either already was, or the user just denied it).
+
+## `requestPermission` vs `getPermission` + `openPermissionDialog`
+
+`requestPermission` is conceptually equivalent to:
+
+```ts
+// Conceptual pseudocode — actual implementation may differ
+const status = await getPermission(permission);
+if (status !== 'notDetermined') return status; // already decided
+return openPermissionDialog(permission);        // only prompt if undecided
+```
+
+Use `requestPermission` for simple "request and branch on result" flows. When you need fine-grained UX for each state — e.g. showing a guidance message specifically for `denied`, or skipping the dialog entirely if already `allowed` — use `getPermission` and `openPermissionDialog` directly.
+
+## Permission
+
+`requestPermission` itself requires no permission — it **requests** one. For the full treatment, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { requestPermission } from '@apps-in-toss/web-framework';
+
+const result = await requestPermission({ name: 'microphone', access: 'read' });
+if (result === 'allowed') {
+  console.log('Microphone access granted.');
+} else {
+  console.log('Microphone access denied.');
+}
+```
+
+### Realistic — request permission then invoke the gated API
+
+```tsx
+import { requestPermission, fetchContacts } from '@apps-in-toss/web-framework';
+
+async function loadContacts() {
+  const status = await requestPermission({ name: 'contacts', access: 'read' });
+
+  if (status === 'denied') {
+    // Only OS settings can recover a denied state — show guidance.
+    showAppToast('Contacts access is required to invite friends. Enable it in Settings → Toss → Permissions.');
+    return;
+  }
+
+  // Guaranteed to be allowed — safe to call.
+  const contacts = await fetchContacts({ offset: 0, limit: 20 });
+  console.log('Contacts:', contacts);
+}
+
+// `showAppToast` is NOT provided by the SDK — substitute your app's own
+// toast / snackbar component.
+declare function showAppToast(message: string): void;
+```
+
+### Realistic — `access: 'write'` for saving photos
+
+```tsx
+import { requestPermission } from '@apps-in-toss/web-framework';
+
+async function savePhotoWithPermission(base64Data: string) {
+  // Saving to the photo library requires write access.
+  const status = await requestPermission({ name: 'photos', access: 'write' });
+  if (status === 'denied') {
+    showAppToast('Photo library access was denied.');
+    return;
+  }
+
+  // allowed — proceed with save logic
+  console.log('Saving photo…');
+}
+
+declare function showAppToast(message: string): void;
+```
+
+## Try it live
+
+Run `requestPermission` on the Permissions page in sdk-example and inspect the result.
+
+<TryItLink group="permissions" method="requestPermission" />
+
+## Related APIs
+
+- [`getPermission`](./getPermission) — check current status only, no dialog.
+- [`openPermissionDialog`](./openPermissionDialog) — show the dialog directly. Combine with `getPermission` when you need per-state UX control.
+
+## Related guides
+
+- [Guides — Permissions pattern](/guides/permissions-pattern) — check → prompt → invoke flow, denied recovery, environment differences.
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

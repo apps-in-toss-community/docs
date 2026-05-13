@@ -1,0 +1,138 @@
+---
+id: openPermissionDialog
+title: openPermissionDialog
+sidebar_label: openPermissionDialog
+description: Show the OS-native permission request dialog and return the user's choice.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `openPermissionDialog`
+
+Displays the OS-native permission request dialog and resolves with the user's selection — either `'allowed'` or `'denied'`. Use this when the current permission status is `notDetermined` and you need to collect the user's initial consent.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { openPermissionDialog } from '@apps-in-toss/web-framework';
+
+declare function openPermissionDialog(permission: {
+  name: PermissionName;
+  access: PermissionAccess;
+}): Promise<'allowed' | 'denied'>;
+
+type PermissionName = 'camera' | 'photos' | 'contacts' | 'geolocation' | 'microphone' | 'clipboard';
+type PermissionAccess = 'read' | 'write' | 'access';
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `permission.name` | `PermissionName` | ✓ | The permission to request. One of `'camera'` / `'photos'` / `'contacts'` / `'geolocation'` / `'microphone'` / `'clipboard'`. |
+| `permission.access` | `PermissionAccess` | ✓ | The access type being requested. One of `'read'` / `'write'` / `'access'`. |
+
+## Returns
+
+- `Promise<'allowed' | 'denied'>` — the user's choice:
+  - `'allowed'` — user tapped Allow.
+  - `'denied'` — user tapped Deny.
+
+:::caution Calling on a `denied` permission
+On iOS, calling `openPermissionDialog` when the status is already `denied` typically resolves immediately with `'denied'` — the OS dialog does not appear again. Recovery from `denied` is only possible through the OS settings screen. Check with [`getPermission`](./getPermission) first; if already `denied`, skip the dialog and show guidance ("Settings → Toss → Permissions") instead.
+:::
+
+## Permission
+
+`openPermissionDialog` itself requires no permission — it **requests** one. For the complete flow, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { openPermissionDialog } from '@apps-in-toss/web-framework';
+
+const result = await openPermissionDialog({ name: 'camera', access: 'read' });
+console.log('User chose:', result); // 'allowed' | 'denied'
+```
+
+### Realistic — conditional dialog after status check
+
+```tsx
+import { getPermission, openPermissionDialog } from '@apps-in-toss/web-framework';
+
+async function requestCameraIfNeeded(): Promise<boolean> {
+  const status = await getPermission({ name: 'camera', access: 'read' });
+
+  // Already decided — skip the dialog.
+  if (status === 'allowed') return true;
+  if (status === 'denied') {
+    // Only OS settings can recover this — show guidance.
+    showAppToast('Camera access was denied. Enable it in Settings → Toss → Permissions.');
+    return false;
+  }
+
+  // Only show dialog when truly undecided.
+  const result = await openPermissionDialog({ name: 'camera', access: 'read' });
+  if (result === 'denied') {
+    showAppToast('Camera permission is required to take a photo.');
+    return false;
+  }
+  return true;
+}
+
+// `showAppToast` is NOT provided by the SDK — substitute your app's own
+// toast / snackbar component.
+declare function showAppToast(message: string): void;
+```
+
+### Realistic — React button handler
+
+```tsx
+import { openPermissionDialog } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+function RequestLocationButton() {
+  const [result, setResult] = useState<'allowed' | 'denied' | null>(null);
+
+  const handleRequest = async () => {
+    try {
+      const status = await openPermissionDialog({ name: 'geolocation', access: 'read' });
+      setResult(status);
+    } catch (error) {
+      console.error('Permission dialog error:', error);
+    }
+  };
+
+  return (
+    <div>
+      <button type="button" onClick={handleRequest}>Request location permission</button>
+      {result && <p>Result: {result}</p>}
+    </div>
+  );
+}
+```
+
+## Try it live
+
+Run `openPermissionDialog` on the Permissions page in sdk-example and inspect the result.
+
+<TryItLink group="permissions" method="openPermissionDialog" />
+
+## Related APIs
+
+- [`getPermission`](./getPermission) — check current status. Call this before opening the dialog to avoid prompting a `denied` state.
+- [`requestPermission`](./requestPermission) — convenience wrapper: checks status, then calls `openPermissionDialog` only if undecided.
+
+## Related guides
+
+- [Guides — Permissions pattern](/guides/permissions-pattern) — check → prompt → invoke flow, denied recovery, environment differences.
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
