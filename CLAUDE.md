@@ -25,7 +25,7 @@
 
 ```
 /docs/
-├── intro                         # Landing (비공식 배너 + 사이트 소개)
+├── intro                         # Landing (사이트 소개 + 푸터 disclaimer 1회)
 ├── getting-started/              # what-is-apps-in-toss, quickstart, project-setup, first-deploy
 ├── guides/                       # "왜/언제" — auth-flow, iap-workflow, permissions-pattern, events-subscription, ads-integration
 ├── api/                          # "무엇/어떻게" 레퍼런스 — auth, navigation, environment, permissions, storage,
@@ -36,7 +36,9 @@
 
 ### API 페이지 템플릿 (`/docs/api/<group>/<method>`)
 
-각 페이지는 다음 순서로 구성: (1) 제목 (2) 한 줄 요약 (3) 비공식 안내 배지 `:::info 비공식 문서` (4) 설명 — 어디서 언제, 제약, 플랫폼 가용성 (5) 시그니처 (`ts` `declare function ...`) (6) 파라미터 표 (name/type/required/description; 없으면 "없음.") (7) 반환값/이벤트 — 특이 사항은 `:::caution` (8) **권한** — `PermissionName` 명시 + `.getPermission()`/`.openPermissionDialog()` 예시, Guides "권한 처리 패턴" 역참조(현재 placeholder) (9) 예제 — 최소 + 실전 (`tsx` 선호) (10) **직접 실행해 보기** (en: "Try it live") — `<TryItLink group method />` (11) 관련 API — 같은 네임스페이스 내 메서드로 상대경로 (12) 관련 가이드 — 미작성은 `_(작성 예정)_ Guides — "<제목>"` placeholder (en: `_(coming soon)_ Guides — "<title>"`) (13) 외부 참조 — npm + 앱인토스 공식 docs 앵커. 영어 표준 헤딩 **"External references"**. "Upstream" 사용 금지.
+각 페이지는 다음 순서로 구성: (1) 제목 (2) 한 줄 요약 (3) 설명 — 어디서 언제, 제약, 플랫폼 가용성 (4) 시그니처 (`ts` `declare function ...`) (5) 파라미터 표 (name/type/required/description; 없으면 "없음.") (6) 반환값/이벤트 — 특이 사항은 `:::caution` (7) **권한** — `PermissionName` 명시 + `.getPermission()`/`.openPermissionDialog()` 예시, Guides "권한 처리 패턴" 역참조(현재 placeholder) (8) 예제 — 최소 + 실전 (`tsx` 선호) (9) **직접 실행해 보기** (en: "Try it live") — `<TryItLink group method />` (10) 관련 API — 같은 네임스페이스 내 메서드로 상대경로 (11) 관련 가이드 — 미작성은 `_(작성 예정)_ Guides — "<제목>"` placeholder (en: `_(coming soon)_ Guides — "<title>"`) (12) 외부 참조 — npm + 앱인토스 공식 docs 앵커. 영어 표준 헤딩 **"External references"**. "Upstream" 사용 금지.
+
+페이지마다 별도 disclaimer 배지를 붙이지 않는다. 사이트 정체성은 `intro.md`/en intro 푸터의 차분한 한 줄(`커뮤니티 오픈소스 프로젝트입니다.` / `Community open-source project.`)에서 1회 명시한다 — 위 "프로젝트 성격"의 톤 가이드 참조.
 
 예시 코드에서 `showToast`처럼 **SDK에 실제로 존재하지 않는 API를 import하지 않는다**. 사용자 피드백은 앱 자체 토스트(`showAppToast(...)`) 또는 `setState` 인라인 메시지로. 새 SDK import 추가 시 `../devtools/src/mock/device/` 또는 `@apps-in-toss/web-bridge` 타입에 실재 여부 먼저 확인.
 

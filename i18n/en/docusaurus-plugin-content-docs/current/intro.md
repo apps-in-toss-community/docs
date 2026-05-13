@@ -7,9 +7,7 @@ sidebar_position: 1
 
 # Apps in Toss — Community Docs
 
-> **Unofficial project.** This site is a community-maintained set of guides and references built by the `apps-in-toss-community` community. It is not affiliated with or endorsed by the Toss team.
-
-This site provides friendlier, example-driven docs for developers building Apps in Toss mini-apps with [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework). It complements the official docs with deeper explanations, recipe-style code, and links to an interactive sandbox.
+Community guides and references for developers building Apps in Toss mini-apps with [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework). Friendlier explanations, recipe-style code, and links to an interactive sandbox — all in one place.
 
 ## What's here
 
@@ -27,3 +25,7 @@ The reference is currently a scaffold. See [`setClipboardText`](./api/clipboard/
 - [Organization landing](https://aitc.dev/)
 - [GitHub: apps-in-toss-community/docs](https://github.com/apps-in-toss-community/docs)
 - [sdk-example — run every SDK API interactively](https://sdk-example.aitc.dev/)
+
+---
+
+Community open-source project.

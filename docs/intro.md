@@ -8,9 +8,7 @@ sidebar_position: 1
 
 # 앱인토스 커뮤니티 문서
 
-> **비공식 프로젝트입니다.** 이 사이트는 `apps-in-toss-community` 커뮤니티가 자발적으로 만든 비공식 가이드·레퍼런스입니다. 토스(Toss) 팀과 공식적인 제휴 관계가 없습니다.
-
-이 사이트는 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) SDK로 앱인토스 미니앱을 만드는 개발자를 위한 커뮤니티 가이드와 레퍼런스를 제공합니다. 공식 문서를 보완하여 더 친절한 설명, 실전 예제, 인터랙티브 데모로 연결합니다.
+[`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) SDK로 앱인토스 미니앱을 만드는 개발자를 위한 커뮤니티 가이드와 레퍼런스입니다. 더 친절한 설명, 실전 예제, 인터랙티브 데모를 한 곳에 모았습니다.
 
 ## 무엇을 찾을 수 있나요
 
@@ -28,3 +26,7 @@ sidebar_position: 1
 - [조직 랜딩](https://aitc.dev/)
 - [GitHub: apps-in-toss-community/docs](https://github.com/apps-in-toss-community/docs)
 - [sdk-example — 모든 API를 직접 실행](https://sdk-example.aitc.dev/)
+
+---
+
+커뮤니티 오픈소스 프로젝트입니다.
