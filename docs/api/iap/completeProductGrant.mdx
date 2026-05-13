@@ -1,0 +1,114 @@
+---
+image: /og/api-iap-completeProductGrant.png
+id: completeProductGrant
+title: IAP.completeProductGrant
+sidebar_label: completeProductGrant
+description: 상품 지급 처리를 완료했다는 신호를 앱에 전달합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `IAP.completeProductGrant`
+
+결제가 완료된 주문에 대해 상품 지급이 정상적으로 끝났음을 토스 앱에 알립니다. `createOneTimePurchaseOrder`의 `processProductGrant` 콜백 안에서 서버 지급을 완료한 뒤 호출합니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+`completeProductGrant`는 `IAP` 네임스페이스 객체의 멤버로 노출됩니다.
+
+```ts
+import { IAP } from '@apps-in-toss/web-framework';
+
+declare const IAP: {
+  completeProductGrant(args: {
+    params: { orderId: string };
+  }): Promise<boolean>;
+  // ...overview 참고
+};
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `args.params.orderId` | `string` | ✓ | 상품 지급을 완료할 주문의 고유 ID. `processProductGrant` 콜백에서 받은 `orderId`를 그대로 전달합니다. |
+
+## 반환값
+
+- `Promise<boolean>` — 지급 완료 확인 여부. 앱 버전이 최소 지원 버전(Android 5.233.0 / iOS 5.233.0)보다 낮으면 `undefined`를 반환할 수 있습니다.
+
+## 권한
+
+권한이 필요하지 않습니다 — `IAP` 네임스페이스는 별도의 `PermissionName`에 바인딩되지 않습니다.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { IAP } from '@apps-in-toss/web-framework';
+
+async function handleGrantProduct(orderId: string) {
+  try {
+    await IAP.completeProductGrant({ params: { orderId } });
+  } catch (error) {
+    console.error(error);
+  }
+}
+```
+
+### 실전 예제 — 결제 성공 후 서버 지급 완료 처리
+
+```tsx
+import { IAP } from '@apps-in-toss/web-framework';
+
+async function grantOnServer(orderId: string): Promise<void> {
+  const res = await fetch('/api/grant', {
+    method: 'POST',
+    body: JSON.stringify({ orderId }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) throw new Error('서버 지급 실패');
+}
+
+IAP.createOneTimePurchaseOrder({
+  options: {
+    sku: 'item_coin_100',
+    processProductGrant: async ({ orderId }) => {
+      try {
+        await grantOnServer(orderId);
+        await IAP.completeProductGrant({ params: { orderId } });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+  },
+  onEvent: (event) => console.log('결제 완료', event.data),
+  onError: (error) => console.error('결제 오류', error),
+});
+```
+
+## 직접 실행해 보기
+
+sdk-example의 IAP 페이지 워크플로에서 결제 완료 후 상품 지급 흐름을 확인할 수 있습니다.
+
+<TryItLink group="iap" method="completeProductGrant" />
+
+## 관련 API
+
+- [`IAP.createOneTimePurchaseOrder`](./createOneTimePurchaseOrder) — 단건 구매 주문서로 이동하며 `processProductGrant` 콜백을 받습니다.
+- [`IAP.createSubscriptionPurchaseOrder`](./createSubscriptionPurchaseOrder) — 구독 구매 주문서로 이동합니다.
+- [`IAP.getPendingOrders`](./getPendingOrders) — 지급 대기 중인 주문을 조회합니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Guides — "IAP 결제 흐름 — processProductGrant와 completeProductGrant"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.

@@ -1,0 +1,113 @@
+---
+id: completeProductGrant
+title: IAP.completeProductGrant
+sidebar_label: completeProductGrant
+description: Signal to the app that product fulfillment is complete.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `IAP.completeProductGrant`
+
+Notifies the Toss app that product fulfillment for a completed order has finished successfully. Call this after your server-side fulfillment logic succeeds, typically inside the `processProductGrant` callback of `createOneTimePurchaseOrder`.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+`completeProductGrant` is a member of the `IAP` namespace object.
+
+```ts
+import { IAP } from '@apps-in-toss/web-framework';
+
+declare const IAP: {
+  completeProductGrant(args: {
+    params: { orderId: string };
+  }): Promise<boolean>;
+  // ...see overview
+};
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `args.params.orderId` | `string` | ✓ | The unique ID of the order to mark as fulfilled. Pass the `orderId` received from the `processProductGrant` callback. |
+
+## Returns
+
+- `Promise<boolean>` — whether fulfillment was acknowledged. May return `undefined` on app versions below the minimum (Android 5.233.0 / iOS 5.233.0).
+
+## Permission
+
+No permission required — the `IAP` namespace is not bound to a `PermissionName`.
+
+## Examples
+
+### Minimal
+
+```tsx
+import { IAP } from '@apps-in-toss/web-framework';
+
+async function handleGrantProduct(orderId: string) {
+  try {
+    await IAP.completeProductGrant({ params: { orderId } });
+  } catch (error) {
+    console.error(error);
+  }
+}
+```
+
+### Realistic — server fulfillment then complete grant
+
+```tsx
+import { IAP } from '@apps-in-toss/web-framework';
+
+async function grantOnServer(orderId: string): Promise<void> {
+  const res = await fetch('/api/grant', {
+    method: 'POST',
+    body: JSON.stringify({ orderId }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) throw new Error('Server fulfillment failed');
+}
+
+IAP.createOneTimePurchaseOrder({
+  options: {
+    sku: 'item_coin_100',
+    processProductGrant: async ({ orderId }) => {
+      try {
+        await grantOnServer(orderId);
+        await IAP.completeProductGrant({ params: { orderId } });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+  },
+  onEvent: (event) => console.log('Purchase complete', event.data),
+  onError: (error) => console.error('Purchase error', error),
+});
+```
+
+## Try it live
+
+The IAP workflow in sdk-example shows the fulfillment step after a successful purchase.
+
+<TryItLink group="iap" method="completeProductGrant" />
+
+## Related APIs
+
+- [`IAP.createOneTimePurchaseOrder`](./createOneTimePurchaseOrder) — one-time checkout; provides the `processProductGrant` callback.
+- [`IAP.createSubscriptionPurchaseOrder`](./createSubscriptionPurchaseOrder) — subscription checkout.
+- [`IAP.getPendingOrders`](./getPendingOrders) — query orders awaiting fulfillment.
+
+## Related guides
+
+- _(coming soon)_ Guides — "IAP payment flow — processProductGrant and completeProductGrant"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

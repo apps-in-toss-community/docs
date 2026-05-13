@@ -1,0 +1,117 @@
+---
+image: /og/api-iap-getCompletedOrRefundedOrders.png
+id: getCompletedOrRefundedOrders
+title: IAP.getCompletedOrRefundedOrders
+sidebar_label: getCompletedOrRefundedOrders
+description: 인앱결제로 구매하거나 환불한 주문 목록을 페이지네이션으로 조회합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `IAP.getCompletedOrRefundedOrders`
+
+인앱결제로 완료되거나 환불된 주문 목록을 가져옵니다. 페이지네이션을 지원하며, `hasNext`와 `nextKey`로 다음 페이지를 순차 조회할 수 있습니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+`getCompletedOrRefundedOrders`는 `IAP` 네임스페이스 객체의 멤버로 노출됩니다.
+
+```ts
+import { IAP } from '@apps-in-toss/web-framework';
+
+declare const IAP: {
+  getCompletedOrRefundedOrders(): Promise<{
+    hasNext: boolean;
+    nextKey?: string | null;
+    orders: {
+      orderId: string;
+      sku: string;
+      status: 'COMPLETED' | 'REFUNDED';
+      date: string;
+    }[];
+  }>;
+  // ...overview 참고
+};
+```
+
+## 파라미터
+
+없음.
+
+## 반환값
+
+`Promise<CompletedOrRefundedOrdersResult>` — 페이지네이션 포함 주문 목록 객체.
+
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `hasNext` | `boolean` | 다음 페이지 존재 여부. `true`면 더 많은 주문이 있습니다. |
+| `nextKey` | `string \| null` (옵션) | 다음 페이지 조회용 키. 마지막 페이지이면 `null`이거나 생략됩니다. |
+| `orders` | `array` | 주문 정보 배열. |
+| `orders[].orderId` | `string` | 주문 고유 ID. |
+| `orders[].sku` | `string` | 상품 고유 ID. |
+| `orders[].status` | `'COMPLETED' \| 'REFUNDED'` | 주문 상태. |
+| `orders[].date` | `string` | ISO 8601 날짜 문자열. `COMPLETED`면 구매일, `REFUNDED`면 환불일. |
+
+앱 버전이 최소 지원 버전(Android 5.231.0 / iOS 5.231.0)보다 낮으면 `undefined`를 반환할 수 있습니다.
+
+## 권한
+
+권한이 필요하지 않습니다 — `IAP` 네임스페이스는 별도의 `PermissionName`에 바인딩되지 않습니다.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { IAP } from '@apps-in-toss/web-framework';
+
+const result = await IAP.getCompletedOrRefundedOrders();
+console.log(result?.orders);
+```
+
+### 실전 예제 — 전체 페이지 순회
+
+```tsx
+import { IAP } from '@apps-in-toss/web-framework';
+
+async function fetchAllOrders() {
+  const allOrders: { orderId: string; sku: string; status: string; date: string }[] = [];
+
+  const result = await IAP.getCompletedOrRefundedOrders();
+  if (!result) return allOrders;
+
+  allOrders.push(...result.orders);
+
+  // 현재 SDK는 nextKey 파라미터를 받는 오버로드를 노출하지 않으므로
+  // hasNext는 UI 표시용으로만 활용하세요.
+  if (result.hasNext) {
+    console.log('추가 페이지 있음 — nextKey:', result.nextKey);
+  }
+
+  return allOrders;
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 IAP 페이지 "주문 관리" 단계에서 이 API를 실행해 볼 수 있습니다.
+
+<TryItLink group="iap" method="getCompletedOrRefundedOrders" />
+
+## 관련 API
+
+- [`IAP.getPendingOrders`](./getPendingOrders) — 대기 중인 주문을 조회합니다.
+- [`IAP.getProductItemList`](./getProductItemList) — 구매 가능한 상품 목록을 조회합니다.
+- [`IAP.getSubscriptionInfo`](./getSubscriptionInfo) — 구독 상태를 조회합니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Guides — "IAP 주문 내역 조회 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.

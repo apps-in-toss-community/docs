@@ -1,0 +1,121 @@
+---
+id: getSubscriptionInfo
+title: IAP.getSubscriptionInfo
+sidebar_label: getSubscriptionInfo
+description: Query the current status of a subscription order.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `IAP.getSubscriptionInfo`
+
+Queries the current state of a subscription by order ID. Use this to check whether a subscription is still active (`isAccessible`), when it expires, and whether auto-renewal is on.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+`getSubscriptionInfo` is a member of the `IAP` namespace object.
+
+```ts
+import { IAP } from '@apps-in-toss/web-framework';
+
+declare const IAP: {
+  getSubscriptionInfo(args: {
+    params: { orderId: string };
+  }): Promise<{
+    subscription: {
+      catalogId: number;
+      status: string;
+      expiresAt: string | null;
+      isAutoRenew: boolean;
+      gracePeriodExpiresAt: string | null;
+      isAccessible: boolean;
+    };
+  }>;
+  // ...see overview
+};
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `args.params.orderId` | `string` | ✓ | Unique ID of the subscription order to query. |
+
+## Returns
+
+`Promise<IapSubscriptionInfoResponse>` — subscription status.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `subscription.catalogId` | `number` | Subscription catalog ID. |
+| `subscription.status` | `string` | Subscription status string. |
+| `subscription.expiresAt` | `string \| null` | Expiry timestamp (ISO 8601), or `null` if unavailable. |
+| `subscription.isAutoRenew` | `boolean` | Whether auto-renewal is enabled. |
+| `subscription.gracePeriodExpiresAt` | `string \| null` | Grace period expiry (ISO 8601), or `null` if no grace period. |
+| `subscription.isAccessible` | `boolean` | Whether the subscription content is currently accessible. |
+
+## Permission
+
+No permission required — the `IAP` namespace is not bound to a `PermissionName`.
+
+## Examples
+
+### Minimal
+
+```tsx
+import { IAP } from '@apps-in-toss/web-framework';
+
+const result = await IAP.getSubscriptionInfo({ params: { orderId: 'order-123' } });
+console.log(result.subscription);
+```
+
+### Realistic — subscription-gated content
+
+```tsx
+import { IAP } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+interface Props {
+  orderId: string;
+}
+
+function SubscriptionGate({ orderId }: Props) {
+  const [accessible, setAccessible] = useState(false);
+
+  useEffect(() => {
+    IAP.getSubscriptionInfo({ params: { orderId } }).then((result) => {
+      setAccessible(result.subscription.isAccessible);
+    });
+  }, [orderId]);
+
+  if (!accessible) {
+    return <p>A subscription is required to view this content.</p>;
+  }
+
+  return <p>Subscriber content here.</p>;
+}
+```
+
+## Try it live
+
+Run this API in the "Order management" step of the IAP page in sdk-example.
+
+<TryItLink group="iap" method="getSubscriptionInfo" />
+
+## Related APIs
+
+- [`IAP.createSubscriptionPurchaseOrder`](./createSubscriptionPurchaseOrder) — subscription checkout.
+- [`IAP.getCompletedOrRefundedOrders`](./getCompletedOrRefundedOrders) — completed and refunded order history.
+- [`IAP.getPendingOrders`](./getPendingOrders) — pending orders.
+
+## Related guides
+
+- _(coming soon)_ Guides — "IAP subscription status management pattern"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

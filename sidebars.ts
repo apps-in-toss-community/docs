@@ -75,6 +75,21 @@ const sidebars: SidebarsConfig = {
         },
         {
           type: 'category',
+          label: 'iap',
+          collapsed: false,
+          items: [
+            'api/iap/iap-overview',
+            'api/iap/completeProductGrant',
+            'api/iap/createOneTimePurchaseOrder',
+            'api/iap/createSubscriptionPurchaseOrder',
+            'api/iap/getCompletedOrRefundedOrders',
+            'api/iap/getPendingOrders',
+            'api/iap/getProductItemList',
+            'api/iap/getSubscriptionInfo',
+          ],
+        },
+        {
+          type: 'category',
           label: 'navigation',
           collapsed: false,
           items: [

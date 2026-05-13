@@ -1,0 +1,116 @@
+---
+id: getCompletedOrRefundedOrders
+title: IAP.getCompletedOrRefundedOrders
+sidebar_label: getCompletedOrRefundedOrders
+description: Retrieve completed or refunded in-app purchase orders (paginated).
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `IAP.getCompletedOrRefundedOrders`
+
+Fetches in-app purchase orders that have been completed or refunded. Supports pagination via `hasNext` and `nextKey`.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+`getCompletedOrRefundedOrders` is a member of the `IAP` namespace object.
+
+```ts
+import { IAP } from '@apps-in-toss/web-framework';
+
+declare const IAP: {
+  getCompletedOrRefundedOrders(): Promise<{
+    hasNext: boolean;
+    nextKey?: string | null;
+    orders: {
+      orderId: string;
+      sku: string;
+      status: 'COMPLETED' | 'REFUNDED';
+      date: string;
+    }[];
+  }>;
+  // ...see overview
+};
+```
+
+## Parameters
+
+None.
+
+## Returns
+
+`Promise<CompletedOrRefundedOrdersResult>` — paginated order list.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `hasNext` | `boolean` | Whether more pages exist. |
+| `nextKey` | `string \| null` (optional) | Key for the next page. `null` or omitted on the last page. |
+| `orders` | `array` | Array of order objects. |
+| `orders[].orderId` | `string` | Unique order ID. |
+| `orders[].sku` | `string` | Product SKU. |
+| `orders[].status` | `'COMPLETED' \| 'REFUNDED'` | Order status. |
+| `orders[].date` | `string` | ISO 8601 date — purchase date for `COMPLETED`, refund date for `REFUNDED`. |
+
+May return `undefined` on app versions below the minimum (Android 5.231.0 / iOS 5.231.0).
+
+## Permission
+
+No permission required — the `IAP` namespace is not bound to a `PermissionName`.
+
+## Examples
+
+### Minimal
+
+```tsx
+import { IAP } from '@apps-in-toss/web-framework';
+
+const result = await IAP.getCompletedOrRefundedOrders();
+console.log(result?.orders);
+```
+
+### Realistic — iterate all pages
+
+```tsx
+import { IAP } from '@apps-in-toss/web-framework';
+
+async function fetchAllOrders() {
+  const allOrders: { orderId: string; sku: string; status: string; date: string }[] = [];
+
+  const result = await IAP.getCompletedOrRefundedOrders();
+  if (!result) return allOrders;
+
+  allOrders.push(...result.orders);
+
+  // The current SDK does not expose a nextKey parameter overload, so
+  // use hasNext for UI indication only.
+  if (result.hasNext) {
+    console.log('More pages available — nextKey:', result.nextKey);
+  }
+
+  return allOrders;
+}
+```
+
+## Try it live
+
+Run this API in the "Order management" step of the IAP page in sdk-example.
+
+<TryItLink group="iap" method="getCompletedOrRefundedOrders" />
+
+## Related APIs
+
+- [`IAP.getPendingOrders`](./getPendingOrders) — query orders awaiting fulfillment.
+- [`IAP.getProductItemList`](./getProductItemList) — fetch the purchasable product list.
+- [`IAP.getSubscriptionInfo`](./getSubscriptionInfo) — query subscription status.
+
+## Related guides
+
+- _(coming soon)_ Guides — "IAP order history retrieval pattern"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

@@ -1,0 +1,122 @@
+---
+image: /og/api-iap-getSubscriptionInfo.png
+id: getSubscriptionInfo
+title: IAP.getSubscriptionInfo
+sidebar_label: getSubscriptionInfo
+description: 구독 주문의 현재 상태 정보를 조회합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `IAP.getSubscriptionInfo`
+
+특정 주문 ID로 구독의 현재 상태를 조회합니다. 구독 유효 여부(`isAccessible`), 만료 일시, 자동 갱신 설정 등을 확인할 수 있습니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+`getSubscriptionInfo`는 `IAP` 네임스페이스 객체의 멤버로 노출됩니다.
+
+```ts
+import { IAP } from '@apps-in-toss/web-framework';
+
+declare const IAP: {
+  getSubscriptionInfo(args: {
+    params: { orderId: string };
+  }): Promise<{
+    subscription: {
+      catalogId: number;
+      status: string;
+      expiresAt: string | null;
+      isAutoRenew: boolean;
+      gracePeriodExpiresAt: string | null;
+      isAccessible: boolean;
+    };
+  }>;
+  // ...overview 참고
+};
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `args.params.orderId` | `string` | ✓ | 상태를 조회할 구독 주문의 고유 ID. |
+
+## 반환값
+
+`Promise<IapSubscriptionInfoResponse>` — 구독 상태 정보.
+
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `subscription.catalogId` | `number` | 구독 카탈로그 ID. |
+| `subscription.status` | `string` | 구독 상태 문자열. |
+| `subscription.expiresAt` | `string \| null` | 구독 만료 일시 (ISO 8601). 만료 정보가 없으면 `null`. |
+| `subscription.isAutoRenew` | `boolean` | 자동 갱신 여부. |
+| `subscription.gracePeriodExpiresAt` | `string \| null` | 유예 기간 만료 일시. 유예 기간이 없으면 `null`. |
+| `subscription.isAccessible` | `boolean` | 구독 콘텐츠 접근 가능 여부. |
+
+## 권한
+
+권한이 필요하지 않습니다 — `IAP` 네임스페이스는 별도의 `PermissionName`에 바인딩되지 않습니다.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { IAP } from '@apps-in-toss/web-framework';
+
+const result = await IAP.getSubscriptionInfo({ params: { orderId: 'order-123' } });
+console.log(result.subscription);
+```
+
+### 실전 예제 — 구독 상태에 따른 콘텐츠 게이팅
+
+```tsx
+import { IAP } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+interface Props {
+  orderId: string;
+}
+
+function SubscriptionGate({ orderId }: Props) {
+  const [accessible, setAccessible] = useState(false);
+
+  useEffect(() => {
+    IAP.getSubscriptionInfo({ params: { orderId } }).then((result) => {
+      setAccessible(result.subscription.isAccessible);
+    });
+  }, [orderId]);
+
+  if (!accessible) {
+    return <p>구독이 필요한 콘텐츠입니다.</p>;
+  }
+
+  return <p>구독 콘텐츠 표시</p>;
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 IAP 페이지 "주문 관리" 단계에서 이 API를 실행해 볼 수 있습니다.
+
+<TryItLink group="iap" method="getSubscriptionInfo" />
+
+## 관련 API
+
+- [`IAP.createSubscriptionPurchaseOrder`](./createSubscriptionPurchaseOrder) — 구독 구매 주문서로 이동합니다.
+- [`IAP.getCompletedOrRefundedOrders`](./getCompletedOrRefundedOrders) — 구독을 포함한 완료·환불 주문 목록을 조회합니다.
+- [`IAP.getPendingOrders`](./getPendingOrders) — 대기 중인 주문을 조회합니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Guides — "IAP 구독 상태 관리 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.
