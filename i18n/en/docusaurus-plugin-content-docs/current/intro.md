@@ -11,14 +11,10 @@ Community guides and references for developers building Apps in Toss mini-apps w
 
 ## What's here
 
-- **Getting started** — end-to-end flow from zero to deployed mini-app (coming soon)
-- **Guides** — common scenarios (auth, IAP, permissions) from a community lens (coming soon)
-- **API reference** — each SDK method with params, return value, examples, and related guides
-- **Try it** — every API page links to the matching page in [sdk-example](https://sdk-example.aitc.dev/) so you can run it live
-
-## Sample page
-
-The reference is currently a scaffold. See [`setClipboardText`](./api/clipboard/setClipboardText) for the page template we're using.
+- **Guides** — common scenarios (auth, IAP, permissions, event subscription, ads, viral) explained from a community "why/when" angle. 14 currently.
+- **API reference** — 16 namespaces of SDK methods grouped by namespace, with params, return value, examples, and related guides on one page.
+- **Recipes** — short copy-paste snippets. Clipboard UX, analytics tracking, GameCenter integration, environment-based branching, and more. 27 currently.
+- **Try it** — every API page links to the matching page in [sdk-example](https://sdk-example.aitc.dev/) so you can run it live.
 
 ## Community
 
