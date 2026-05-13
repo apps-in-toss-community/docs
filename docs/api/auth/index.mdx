@@ -4,7 +4,7 @@ id: auth-overview
 title: auth
 sidebar_label: Overview
 slug: /api/auth
-description: 토스 로그인, 인증서 서명, 익명 키 조회 등 인증 관련 기능을 제공하는 SDK 네임스페이스입니다.
+description: 토스 로그인, 인증서 서명, 익명 키 조회, 게임용 deprecated 키 등 인증 관련 기능을 제공하는 SDK 네임스페이스입니다.
 ---
 
 import TryItLink from '@site/src/components/TryItLink';
@@ -21,6 +21,7 @@ import TryItLink from '@site/src/components/TryItLink';
 | [`appsInTossSignTossCert`](/api/auth/appsInTossSignTossCert) | `Promise<void>` | 토스 인증서를 사용해 서명합니다. `appLogin` 이후 호출해야 합니다. |
 | [`getAnonymousKey`](/api/auth/getAnonymousKey) | `Promise<{ type: 'HASH'; hash: string } \| 'ERROR' \| undefined>` | 로그인 없이 사용자를 식별하는 익명 키를 반환합니다. |
 | [`getIsTossLoginIntegratedService`](/api/auth/getIsTossLoginIntegratedService) | `Promise<boolean \| undefined>` | 사용자가 토스 로그인을 연동했는지 여부를 확인합니다. |
+| [`getUserKeyForGame`](/api/auth/getUserKeyForGame) | `Promise<{ key: string } \| 'INVALID_CATEGORY' \| 'ERROR' \| undefined>` | _Deprecated._ 게임용 익명 키. `getAnonymousKey`를 권장합니다. |
 
 ## 권한
 

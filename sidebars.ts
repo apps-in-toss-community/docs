@@ -62,6 +62,7 @@ const sidebars: SidebarsConfig = {
             'api/auth/appsInTossSignTossCert',
             'api/auth/getAnonymousKey',
             'api/auth/getIsTossLoginIntegratedService',
+            'api/auth/getUserKeyForGame',
           ],
         },
         {
@@ -141,7 +142,6 @@ const sidebars: SidebarsConfig = {
             'api/game/game-overview',
             'api/game/contactsViral',
             'api/game/getGameCenterGameProfile',
-            'api/game/getUserKeyForGame',
             'api/game/grantPromotionReward',
             'api/game/grantPromotionRewardForGame',
             'api/game/openGameCenterLeaderboard',
@@ -164,6 +164,7 @@ const sidebars: SidebarsConfig = {
           collapsed: false,
           items: [
             'api/iap/iap-overview',
+            'api/iap/checkoutPayment',
             'api/iap/completeProductGrant',
             'api/iap/createOneTimePurchaseOrder',
             'api/iap/createSubscriptionPurchaseOrder',

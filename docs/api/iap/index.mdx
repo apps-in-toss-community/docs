@@ -11,12 +11,13 @@ import TryItLink from '@site/src/components/TryItLink';
 
 # `IAP`
 
-인앱결제(In-App Purchase) 관련 기능을 모은 네임스페이스입니다. 단건 구매, 구독 구매, 상품 목록 조회, 주문 내역 조회 등 결제 흐름 전반을 다룹니다. 결제 처리는 토스 앱이 직접 담당하므로 별도의 `PermissionName` 인가가 필요하지 않습니다.
+인앱결제(In-App Purchase) 관련 기능을 모은 네임스페이스입니다. 단건 구매, 구독 구매, 상품 목록 조회, 주문 내역 조회와 함께 토스페이 일반 결제 진입점(`checkoutPayment`)도 같은 페이지에서 다룹니다. 결제 처리는 토스 앱이 직접 담당하므로 별도의 `PermissionName` 인가가 필요하지 않습니다.
 
 ## 메서드
 
 | 메서드 | 용도 |
 | --- | --- |
+| [`checkoutPayment`](/api/iap/checkoutPayment) | 토스페이 결제창을 띄워 `payToken` 기반 사용자 인증을 처리합니다. SKU 비기반 일반 결제. |
 | [`IAP.completeProductGrant`](/api/iap/completeProductGrant) | 상품 지급 완료 신호를 앱에 전달합니다. |
 | [`IAP.createOneTimePurchaseOrder`](/api/iap/createOneTimePurchaseOrder) | 단건 인앱결제 주문서 페이지로 이동합니다. |
 | [`IAP.createSubscriptionPurchaseOrder`](/api/iap/createSubscriptionPurchaseOrder) | 구독 인앱결제 주문서 페이지로 이동합니다. |
@@ -24,6 +25,8 @@ import TryItLink from '@site/src/components/TryItLink';
 | [`IAP.getPendingOrders`](/api/iap/getPendingOrders) | 대기 중인 주문 목록을 조회합니다. |
 | [`IAP.getProductItemList`](/api/iap/getProductItemList) | 구매 가능한 상품 목록을 가져옵니다. |
 | [`IAP.getSubscriptionInfo`](/api/iap/getSubscriptionInfo) | 구독 주문의 현재 상태를 조회합니다. |
+
+`checkoutPayment`은 `IAP.*` 네임스페이스 메서드가 아닌 플랫 export지만, sdk-example의 IAP 페이지에서 함께 렌더링되며 결제 흐름의 한 갈래라는 점에서 같은 네임스페이스로 묶었습니다.
 
 ## 권한
 

@@ -3,7 +3,7 @@ id: auth-overview
 title: auth
 sidebar_label: Overview
 slug: /api/auth
-description: SDK namespace for Toss login, Toss Cert signing, anonymous key retrieval, and login integration checks.
+description: SDK namespace for Toss login, Toss Cert signing, anonymous key retrieval, login integration checks, and the deprecated game-session key.
 ---
 
 import TryItLink from '@site/src/components/TryItLink';
@@ -20,6 +20,7 @@ Namespace for authentication-related functions: Toss login flow, Toss Cert (elec
 | [`appsInTossSignTossCert`](/api/auth/appsInTossSignTossCert) | `Promise<void>` | Sign with the Toss Cert certificate. Must be called after `appLogin`. |
 | [`getAnonymousKey`](/api/auth/getAnonymousKey) | `Promise<{ type: 'HASH'; hash: string } \| 'ERROR' \| undefined>` | Retrieve an anonymous identifier without requiring login. |
 | [`getIsTossLoginIntegratedService`](/api/auth/getIsTossLoginIntegratedService) | `Promise<boolean \| undefined>` | Check whether the user has integrated Toss login. |
+| [`getUserKeyForGame`](/api/auth/getUserKeyForGame) | `Promise<{ key: string } \| 'INVALID_CATEGORY' \| 'ERROR' \| undefined>` | _Deprecated._ Game-session anonymous key. Use `getAnonymousKey` instead. |
 
 ## Permission
 

@@ -123,26 +123,30 @@ const GROUP_MAP: Record<string, string> = {
   getPermission: 'permissions',
   requestPermission: 'permissions',
   openPermissionDialog: 'permissions',
-  // auth
+  // auth — `getUserKeyForGame` is rendered on sdk-example's AuthPage
+  // (it's the deprecated predecessor of `getAnonymousKey`).
   appLogin: 'auth',
   getIsTossLoginIntegratedService: 'auth',
   appsInTossSignTossCert: 'auth',
   getAnonymousKey: 'auth',
+  getUserKeyForGame: 'auth',
   // payment
-  checkoutPayment: 'payment',
   requestTossPayPaysBilling: 'payment',
-  // iap
+  // iap — `checkoutPayment` is rendered on sdk-example's IAPPage even
+  // though the SDK re-exports it flat at the top level.
   IAP: 'iap',
+  checkoutPayment: 'iap',
   // ads
   GoogleAdMob: 'ads',
   TossAds: 'ads',
   loadFullScreenAd: 'ads',
   showFullScreenAd: 'ads',
-  // game — `contactsViral` lives on sdk-example's GamePage so it docs here too.
+  // game — `contactsViral` lives on sdk-example's GamePage (via a
+  // custom ContactsViralCard component, not a stock ApiCard) so it
+  // docs here too.
   getGameCenterGameProfile: 'game',
   openGameCenterLeaderboard: 'game',
   submitGameCenterLeaderBoardScore: 'game',
-  getUserKeyForGame: 'game',
   grantPromotionReward: 'game',
   grantPromotionRewardForGame: 'game',
   contactsViral: 'game',
