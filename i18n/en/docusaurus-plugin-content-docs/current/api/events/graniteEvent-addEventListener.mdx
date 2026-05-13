@@ -1,0 +1,173 @@
+---
+id: graniteEvent-addEventListener
+title: graniteEvent.addEventListener
+sidebar_label: graniteEvent.addEventListener
+slug: /api/events/graniteEvent.addEventListener
+description: Subscribe to Granite (Toss internal) events — backEvent and homeEvent.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `graniteEvent.addEventListener`
+
+Subscribes to Granite (Toss internal UI framework) events. Currently supports `backEvent` (hardware/software back button) and `homeEvent` (home button). Returns a cleanup function that unsubscribes when called.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { graniteEvent } from '@apps-in-toss/web-framework';
+
+type GraniteEvent = {
+  backEvent: {
+    onEvent: () => void;
+    onError?: (error: Error) => void;
+    options?: void;
+  };
+  homeEvent: {
+    onEvent: () => void;
+    onError?: (error: Error) => void;
+    options?: void;
+  };
+};
+
+declare const graniteEvent: {
+  addEventListener: <K extends keyof GraniteEvent>(
+    event: K,
+    handlers: {
+      onEvent: GraniteEvent[K]['onEvent'];
+      onError?: GraniteEvent[K]['onError'];
+      options?: GraniteEvent[K]['options'];
+    }
+  ) => () => void;
+};
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `event` | `'backEvent' \| 'homeEvent'` | ✓ | Event name to subscribe. |
+| `handlers.onEvent` | `() => void` | ✓ | Handler called when the event fires. No payload. |
+| `handlers.onError` | `(error: Error) => void` | — | Handler called on error. |
+| `handlers.options` | `void` | — | Not used currently. |
+
+### Event types
+
+| Event | Fires when |
+| --- | --- |
+| `backEvent` | The hardware or software back button is pressed |
+| `homeEvent` | The home button is pressed |
+
+## Returns
+
+- `() => void` — cleanup function that unsubscribes. Use as the `useEffect` return value.
+
+:::caution
+Subscribing to `backEvent` suppresses the default back navigation. You must implement your own navigation logic (e.g. `history.back()` or `navigate(-1)`) inside the `onEvent` handler.
+:::
+
+## Permission
+
+No permission required — `graniteEvent.addEventListener` is not bound to a `PermissionName`.
+
+## Examples
+
+### Minimal — backEvent
+
+```tsx
+import { graniteEvent } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+function Page() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const cleanup = graniteEvent.addEventListener('backEvent', {
+      onEvent: () => {
+        navigate(-1);
+      },
+    });
+    return cleanup;
+  }, [navigate]);
+
+  return <main>{/* page content */}</main>;
+}
+```
+
+### Minimal — homeEvent
+
+```tsx
+import { graniteEvent } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function Page() {
+  useEffect(() => {
+    const cleanup = graniteEvent.addEventListener('homeEvent', {
+      onEvent: () => {
+        // e.g. save in-progress work
+        console.log('Home button pressed.');
+      },
+    });
+    return cleanup;
+  }, []);
+
+  return <main>{/* page content */}</main>;
+}
+```
+
+### Realistic — confirm dialog before back navigation
+
+```tsx
+import { graniteEvent } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+function EditPage() {
+  const navigate = useNavigate();
+  const [isDirty, setIsDirty] = useState(false);
+
+  useEffect(() => {
+    const cleanup = graniteEvent.addEventListener('backEvent', {
+      onEvent: () => {
+        if (isDirty) {
+          const confirmed = window.confirm('You have unsaved changes. Leave anyway?');
+          if (!confirmed) return;
+        }
+        navigate(-1);
+      },
+    });
+    return cleanup;
+  }, [isDirty, navigate]);
+
+  return (
+    <form onChange={() => setIsDirty(true)}>
+      {/* edit form */}
+    </form>
+  );
+}
+```
+
+## Try it live
+
+Subscribe to `backEvent` and `homeEvent` directly on the Events page in sdk-example.
+
+<TryItLink group="events" method="graniteEvent.addEventListener" />
+
+## Related APIs
+
+- [`tdsEvent.addEventListener`](./tdsEvent.addEventListener) — subscribe to TDS events.
+- [`appsInTossEvent.addEventListener`](./appsInTossEvent.addEventListener) — subscribe to platform events.
+- [`onVisibilityChangedByTransparentServiceWeb`](./onVisibilityChangedByTransparentServiceWeb) — subscribe to visibility changes.
+
+## Related guides
+
+- _(coming soon)_ Guides — "Event subscription patterns"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

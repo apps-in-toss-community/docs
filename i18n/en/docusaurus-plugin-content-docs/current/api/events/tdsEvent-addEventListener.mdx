@@ -1,0 +1,148 @@
+---
+id: tdsEvent-addEventListener
+title: tdsEvent.addEventListener
+sidebar_label: tdsEvent.addEventListener
+slug: /api/events/tdsEvent.addEventListener
+description: Subscribe to TDS (Toss Design System) events — navigationAccessoryEvent.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `tdsEvent.addEventListener`
+
+Subscribes to TDS (Toss Design System) events. Currently supports `navigationAccessoryEvent` — fired when a navigation accessory button (registered with `partner.addAccessoryButton`) is clicked.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { tdsEvent } from '@apps-in-toss/web-framework';
+
+type TdsEvent = {
+  navigationAccessoryEvent: {
+    onEvent: (data: { id: string }) => void;
+    onError?: (error: Error) => void;
+    options: undefined;
+  };
+};
+
+declare const tdsEvent: {
+  addEventListener: <K extends keyof TdsEvent>(
+    event: K,
+    handlers: {
+      onEvent: TdsEvent[K]['onEvent'];
+      onError?: TdsEvent[K]['onError'];
+      options?: TdsEvent[K]['options'];
+    }
+  ) => () => void;
+};
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `event` | `'navigationAccessoryEvent'` | ✓ | Event name to subscribe. |
+| `handlers.onEvent` | `(data: { id: string }) => void` | ✓ | Called when a button is clicked. `data.id` is the button ID from `partner.addAccessoryButton`. |
+| `handlers.onError` | `(error: Error) => void` | — | Called on error. |
+| `handlers.options` | `undefined` | — | Not used currently. |
+
+### `navigationAccessoryEvent` payload
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | The unique ID of the button registered with `partner.addAccessoryButton`. |
+
+## Returns
+
+- `() => void` — cleanup function that unsubscribes. Use as the `useEffect` return value.
+
+## Permission
+
+No permission required — `tdsEvent.addEventListener` is not bound to a `PermissionName`.
+
+## Examples
+
+### Minimal — navigationAccessoryEvent
+
+```tsx
+import { tdsEvent } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function Page() {
+  useEffect(() => {
+    const cleanup = tdsEvent.addEventListener('navigationAccessoryEvent', {
+      onEvent: ({ id }) => {
+        console.log('Accessory button clicked:', id);
+      },
+    });
+    return cleanup;
+  }, []);
+
+  return <main>{/* page content */}</main>;
+}
+```
+
+### Realistic — paired with `partner.addAccessoryButton`
+
+```tsx
+import { partner, tdsEvent } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+function ArticlePage() {
+  const [isLiked, setIsLiked] = useState(false);
+
+  useEffect(() => {
+    // 1. Add a heart button to the top navigation
+    partner.addAccessoryButton({
+      id: 'like-button',
+      title: 'Like',
+      icon: { name: 'icon-heart-mono' },
+    });
+
+    // 2. Subscribe to clicks
+    const cleanup = tdsEvent.addEventListener('navigationAccessoryEvent', {
+      onEvent: ({ id }) => {
+        if (id === 'like-button') {
+          setIsLiked((prev) => !prev);
+        }
+      },
+    });
+
+    return () => {
+      cleanup();
+      // Remove button when the page unmounts
+      partner.removeAccessoryButton();
+    };
+  }, []);
+
+  return (
+    <main>
+      <p>{isLiked ? '❤️ Liked' : '🤍 Not liked'}</p>
+    </main>
+  );
+}
+```
+
+## Try it live
+
+Subscribe to `navigationAccessoryEvent` directly on the Events page in sdk-example.
+
+<TryItLink group="events" method="tdsEvent.addEventListener" />
+
+## Related APIs
+
+- [`graniteEvent.addEventListener`](./graniteEvent.addEventListener) — subscribe to `backEvent`, `homeEvent`.
+- [`appsInTossEvent.addEventListener`](./appsInTossEvent.addEventListener) — subscribe to platform events.
+- [`onVisibilityChangedByTransparentServiceWeb`](./onVisibilityChangedByTransparentServiceWeb) — subscribe to visibility changes.
+
+## Related guides
+
+- _(coming soon)_ Guides — "Event subscription patterns"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

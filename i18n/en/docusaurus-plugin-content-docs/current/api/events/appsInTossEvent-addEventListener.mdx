@@ -1,0 +1,93 @@
+---
+id: appsInTossEvent-addEventListener
+title: appsInTossEvent.addEventListener
+sidebar_label: appsInTossEvent.addEventListener
+slug: /api/events/appsInTossEvent.addEventListener
+description: Subscribe to Apps in Toss platform events.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `appsInTossEvent.addEventListener`
+
+Subscribes to Apps in Toss platform-specific events. In the current SDK version (`2.5.0`), the `AppsInTossEvent` type is an empty object — no subscribable events are defined yet. This namespace is reserved for future platform event expansion.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { appsInTossEvent } from '@apps-in-toss/web-framework';
+
+type AppsInTossEvent = {};
+
+declare const appsInTossEvent: {
+  addEventListener: <K extends keyof AppsInTossEvent>(
+    event: K,
+    handlers: {
+      onEvent: AppsInTossEvent[K]['onEvent'];
+      onError?: AppsInTossEvent[K]['onError'];
+      options?: AppsInTossEvent[K]['options'];
+    }
+  ) => () => void;
+};
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `event` | `keyof AppsInTossEvent` | ✓ | Event name to subscribe. No events are defined in the current SDK version. |
+| `handlers.onEvent` | `function` | ✓ | Handler called when the event fires. |
+| `handlers.onError` | `function` | — | Handler called on error. |
+| `handlers.options` | — | — | Event-specific options. |
+
+## Returns
+
+- `() => void` — cleanup function that unsubscribes. Use as the `useEffect` return value.
+
+## Permission
+
+No permission required — `appsInTossEvent.addEventListener` is not bound to a `PermissionName`.
+
+## Examples
+
+### Minimal
+
+`AppsInTossEvent` has no events defined currently — this illustrates the subscription structure for when events are added.
+
+```tsx
+import { appsInTossEvent } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function Page() {
+  useEffect(() => {
+    // AppsInTossEvent is currently an empty type.
+    // Add subscriptions here when platform events are introduced.
+    // const cleanup = appsInTossEvent.addEventListener('someEvent', { onEvent: () => {} });
+    // return cleanup;
+  }, []);
+
+  return <main>{/* page content */}</main>;
+}
+```
+
+## Try it live
+
+<TryItLink group="events" method="appsInTossEvent.addEventListener" />
+
+## Related APIs
+
+- [`graniteEvent.addEventListener`](./graniteEvent.addEventListener) — subscribe to `backEvent`, `homeEvent`.
+- [`tdsEvent.addEventListener`](./tdsEvent.addEventListener) — subscribe to `navigationAccessoryEvent`.
+- [`onVisibilityChangedByTransparentServiceWeb`](./onVisibilityChangedByTransparentServiceWeb) — subscribe to visibility changes.
+
+## Related guides
+
+- _(coming soon)_ Guides — "Event subscription patterns"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
