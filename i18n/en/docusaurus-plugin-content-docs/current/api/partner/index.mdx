@@ -1,0 +1,66 @@
+---
+id: partner-overview
+title: partner
+sidebar_label: Overview
+slug: /api/partner
+description: SDK namespace for adding and removing accessory buttons in the top navigation bar.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `partner`
+
+Namespace for adding and removing accessory buttons in the top navigation bar. Button tap callbacks are registered via `tdsEvent.addEventListener("navigationAccessoryEvent", callback)`.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Methods
+
+| Method | Return type | Purpose |
+| --- | --- | --- |
+| [`partner.addAccessoryButton`](/api/partner/addAccessoryButton) | `Promise<void>` | Add an accessory button to the top navigation bar. |
+| [`partner.removeAccessoryButton`](/api/partner/removeAccessoryButton) | `Promise<void>` | Remove the accessory button from the top navigation bar. |
+
+## Permission
+
+No permission required — the `partner` namespace methods are not bound to any `PermissionName` and do not expose `getPermission()` / `openPermissionDialog()` helpers. For how other namespaces handle permissions, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Event integration
+
+After adding a button with `addAccessoryButton`, tapping it fires a `navigationAccessoryEvent` on `tdsEvent`. Register a listener with `tdsEvent.addEventListener`:
+
+```tsx
+import { partner, tdsEvent } from '@apps-in-toss/web-framework';
+
+// Add the button
+await partner.addAccessoryButton({
+  id: 'my-button',
+  title: 'Favorite',
+  icon: { name: 'icon-star-mono' },
+});
+
+// Listen for taps
+tdsEvent.addEventListener('navigationAccessoryEvent', (event) => {
+  if (event.id === 'my-button') {
+    console.log('Accessory button tapped');
+  }
+});
+```
+
+## UX guidance
+
+- **Keep button IDs unique.** Calling `addAccessoryButton` with the same ID again may overwrite the previous button.
+- **Clean up when leaving the screen.** Not calling `removeAccessoryButton` can leave the button visible on other screens. Handle cleanup in the `useEffect` return function.
+- **Use design-system icon tokens** for `icon.name`. An unrecognized name may render as an empty icon.
+
+## Try it live
+
+Both methods are available on the Partner page in sdk-example.
+
+<TryItLink group="partner" />
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

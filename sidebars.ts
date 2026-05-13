@@ -92,6 +92,16 @@ const sidebars: SidebarsConfig = {
         },
         {
           type: 'category',
+          label: 'partner',
+          collapsed: false,
+          items: [
+            'api/partner/partner-overview',
+            'api/partner/addAccessoryButton',
+            'api/partner/removeAccessoryButton',
+          ],
+        },
+        {
+          type: 'category',
           label: 'storage',
           collapsed: false,
           items: [

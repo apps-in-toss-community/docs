@@ -1,0 +1,93 @@
+---
+image: /og/api-partner-removeAccessoryButton.png
+id: removeAccessoryButton
+title: partner.removeAccessoryButton
+sidebar_label: partner.removeAccessoryButton
+description: 상단 네비게이션에서 악세서리 버튼을 제거합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `partner.removeAccessoryButton`
+
+`partner.addAccessoryButton`으로 추가한 악세서리 버튼을 상단 네비게이션 바에서 제거합니다. 화면을 떠날 때 cleanup으로 호출하는 것이 일반적입니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+`removeAccessoryButton`은 `partner` 네임스페이스 객체의 멤버로 노출됩니다. 함수 자체를 단독으로 import하지 않습니다.
+
+```ts
+import { partner } from '@apps-in-toss/web-framework';
+
+declare const partner: {
+  removeAccessoryButton(): Promise<void>;
+};
+```
+
+## 파라미터
+
+없음.
+
+## 반환값
+
+- `Promise<void>` — 버튼이 제거되면 resolve.
+
+## 권한
+
+권한이 필요하지 않습니다 — `partner.removeAccessoryButton`은 별도의 `PermissionName`에 바인딩되지 않습니다. 권한이 필요한 다른 네임스페이스의 일반적인 처리 흐름은 [Guides — 권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { partner } from '@apps-in-toss/web-framework';
+
+await partner.removeAccessoryButton();
+```
+
+### 실전 예제 — useEffect cleanup에서 제거
+
+```tsx
+import { partner } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function ProductDetailPage() {
+  useEffect(() => {
+    partner.addAccessoryButton({
+      id: 'btn-share',
+      title: '공유',
+      icon: { name: 'icon-share-mono' },
+    });
+
+    return () => {
+      // 화면을 벗어날 때 버튼을 정리합니다.
+      partner.removeAccessoryButton();
+    };
+  }, []);
+
+  return <main>{/* 페이지 콘텐츠 */}</main>;
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Partner 페이지에서 `partner.removeAccessoryButton` 카드를 실행해 결과를 확인할 수 있습니다.
+
+<TryItLink group="partner" method="removeAccessoryButton" />
+
+## 관련 API
+
+- [`partner.addAccessoryButton`](./addAccessoryButton) — 상단 네비게이션에 악세서리 버튼을 추가합니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Guides — "네비게이션 악세서리 버튼 UX 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.

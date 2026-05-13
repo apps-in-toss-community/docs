@@ -1,0 +1,121 @@
+---
+id: addAccessoryButton
+title: partner.addAccessoryButton
+sidebar_label: partner.addAccessoryButton
+description: Add an accessory button to the top navigation bar.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `partner.addAccessoryButton`
+
+Adds an icon + label accessory button to the top navigation bar. Tap events are received via `tdsEvent.addEventListener("navigationAccessoryEvent", callback)`.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+`addAccessoryButton` is exposed as a member of the `partner` namespace object. It is not imported as a standalone function.
+
+```ts
+import { partner } from '@apps-in-toss/web-framework';
+
+type AddAccessoryButtonOptions = {
+  id: string;
+  title: string;
+  icon: {
+    name: string;
+  };
+};
+
+declare const partner: {
+  addAccessoryButton(options: AddAccessoryButtonOptions): Promise<void>;
+};
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `options` | `AddAccessoryButtonOptions` | ✓ | Button configuration object. |
+| `options.id` | `string` | ✓ | Unique identifier for the button. Used to distinguish which button was tapped in the event listener. |
+| `options.title` | `string` | ✓ | Label text displayed on the button. |
+| `options.icon.name` | `string` | ✓ | Icon name. Use design-system icon tokens. |
+
+## Returns
+
+- `Promise<void>` — resolves once the button has been added.
+
+## Permission
+
+No permission required — `partner.addAccessoryButton` is not bound to any `PermissionName`. For how other namespaces handle permissions, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { partner } from '@apps-in-toss/web-framework';
+
+await partner.addAccessoryButton({
+  id: 'btn-favorite',
+  title: 'Favorite',
+  icon: { name: 'icon-star-mono' },
+});
+```
+
+### Realistic — tap event and cleanup
+
+```tsx
+import { partner, tdsEvent } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function ProductDetailPage() {
+  useEffect(() => {
+    const BUTTON_ID = 'btn-favorite';
+
+    partner.addAccessoryButton({
+      id: BUTTON_ID,
+      title: 'Favorite',
+      icon: { name: 'icon-star-mono' },
+    });
+
+    const unsubscribe = tdsEvent.addEventListener(
+      'navigationAccessoryEvent',
+      (event) => {
+        if (event.id === BUTTON_ID) {
+          console.log('Favorite button tapped');
+        }
+      },
+    );
+
+    return () => {
+      // Clean up the button and listener when leaving the screen.
+      partner.removeAccessoryButton();
+      unsubscribe();
+    };
+  }, []);
+
+  return <main>{/* page content */}</main>;
+}
+```
+
+## Try it live
+
+Run `partner.addAccessoryButton` in the Partner page of sdk-example.
+
+<TryItLink group="partner" method="addAccessoryButton" />
+
+## Related APIs
+
+- [`partner.removeAccessoryButton`](./removeAccessoryButton) — remove the accessory button from the top navigation bar.
+
+## Related guides
+
+- _(coming soon)_ Guides — navigation accessory button UX patterns
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
