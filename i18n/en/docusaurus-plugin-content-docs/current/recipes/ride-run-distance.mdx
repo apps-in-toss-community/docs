@@ -1,0 +1,110 @@
+---
+id: ride-run-distance
+title: Ride/run distance measurement
+sidebar_label: Ride/run distance
+slug: /recipes/ride-run-distance
+description: Subscribe to location updates with startUpdateLocation and accumulate distance with a Haversine helper. Includes cleanup on unmount.
+---
+
+# Ride/run distance measurement
+
+`startUpdateLocation` delivers continuous location callbacks. Accumulate the Haversine distance between each successive coordinate pair to track total distance in real time.
+
+## Haversine distance helper
+
+```ts
+function haversineMeters(
+  lat1: number, lon1: number,
+  lat2: number, lon2: number,
+): number {
+  const R = 6371000; // Earth radius in metres
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.asin(Math.sqrt(a));
+}
+```
+
+## Distance accumulator hook
+
+```tsx
+import { startUpdateLocation, Accuracy } from '@apps-in-toss/web-framework';
+import { useEffect, useRef, useState } from 'react';
+
+export function useRunDistance() {
+  const [totalMeters, setTotalMeters] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const prevCoordsRef = useRef<{ latitude: number; longitude: number } | null>(null);
+
+  useEffect(() => {
+    let stop: (() => void) | undefined;
+    let cancelled = false;
+
+    (async () => {
+      const status = await startUpdateLocation.getPermission();
+      if (status === 'denied') {
+        setError('Please allow location access in Settings.');
+        return;
+      }
+      if (status === 'notDetermined') {
+        await startUpdateLocation.openPermissionDialog();
+      }
+      if (cancelled) return;
+
+      stop = startUpdateLocation({
+        onEvent: ({ coords }) => {
+          const prev = prevCoordsRef.current;
+          if (prev) {
+            const dist = haversineMeters(
+              prev.latitude, prev.longitude,
+              coords.latitude, coords.longitude,
+            );
+            setTotalMeters((m) => m + dist);
+          }
+          prevCoordsRef.current = { latitude: coords.latitude, longitude: coords.longitude };
+        },
+        onError: () => setError('Location update failed.'),
+        options: {
+          accuracy: Accuracy.High,
+          timeInterval: 1000,
+          distanceInterval: 5, // ignore moves under 5 m to suppress GPS noise
+        },
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, []);
+
+  return { totalMeters, error };
+}
+```
+
+- `distanceInterval: 5` suppresses GPS jitter by ignoring moves under 5 metres.
+- The cleanup function always calls `stop?.()` on unmount — skipping this leaves the subscription running in the background and drains the battery.
+
+## Display component
+
+```tsx
+export function RunTracker() {
+  const { totalMeters, error } = useRunDistance();
+
+  if (error) return <p role="alert">{error}</p>;
+
+  const km = (totalMeters / 1000).toFixed(2);
+  return <p>Distance: <strong>{km} km</strong></p>;
+}
+```
+
+## Related APIs
+
+- [`startUpdateLocation`](/api/location/startUpdateLocation) — subscribe to continuous location updates.
+
+## Related guides
+
+- [Guides — Location permission and fallback](/guides/location-permission-fallback) — handling `notDetermined`/`denied` states and accuracy fallback UX.

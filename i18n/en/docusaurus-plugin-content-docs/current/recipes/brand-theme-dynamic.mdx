@@ -1,0 +1,80 @@
+---
+id: brand-theme-dynamic
+title: Brand theme dynamic application
+sidebar_label: Brand theme dynamic
+slug: /recipes/brand-theme-dynamic
+description: Read brandPrimaryColor and brandDisplayName from getAppsInTossGlobals and inject them as CSS variables and document title at mount time.
+---
+
+# Brand theme dynamic application
+
+`getAppsInTossGlobals()` synchronously returns the deployed mini-app's brand metadata. This pattern reads the primary colour and display name and applies them across the app.
+
+## Inject CSS variables
+
+```tsx
+import { getAppsInTossGlobals } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+export function BrandThemeProvider({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    const { brandPrimaryColor, brandDisplayName } = getAppsInTossGlobals();
+    document.documentElement.style.setProperty('--brand-primary', brandPrimaryColor);
+    document.title = brandDisplayName;
+  }, []);
+
+  return <>{children}</>;
+}
+```
+
+Setting `--brand-primary` on `:root` makes the brand colour available anywhere in the component tree via `var(--brand-primary)`.
+
+## Derive additional colour tokens
+
+```tsx
+import { getAppsInTossGlobals } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function hexToRgb(hex: string): [number, number, number] | null {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!m) return null;
+  return [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
+}
+
+export function BrandThemeProvider({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    const { brandPrimaryColor } = getAppsInTossGlobals();
+    const root = document.documentElement;
+    root.style.setProperty('--brand-primary', brandPrimaryColor);
+
+    const rgb = hexToRgb(brandPrimaryColor);
+    if (rgb) {
+      const [r, g, b] = rgb;
+      // 10 % opacity variant — useful for backgrounds and hover states
+      root.style.setProperty('--brand-primary-10', `rgba(${r}, ${g}, ${b}, 0.1)`);
+    }
+  }, []);
+
+  return <>{children}</>;
+}
+```
+
+## Using the CSS variables
+
+```css
+.primary-button {
+  background: var(--brand-primary);
+  color: #fff;
+}
+
+.primary-button:hover {
+  background: var(--brand-primary-10);
+  color: var(--brand-primary);
+}
+```
+
+`getAppsInTossGlobals()` is synchronous — no `async/await` needed. Calling it inside `useEffect` runs it once after the first render, avoiding any flash of unstyled content.
+
+## Related APIs
+
+- [`getAppsInTossGlobals`](/api/environment/getAppsInTossGlobals) — returns deployment ID, brand display name, icon, and primary colour.

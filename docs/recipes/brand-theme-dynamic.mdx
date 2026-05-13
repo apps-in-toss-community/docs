@@ -1,0 +1,83 @@
+---
+image: /og/recipes-brand-theme-dynamic.png
+id: brand-theme-dynamic
+title: 브랜드 테마 동적 적용 패턴
+sidebar_label: 브랜드 테마 동적 적용
+slug: /recipes/brand-theme-dynamic
+description: getAppsInTossGlobals로 brandPrimaryColor와 brandDisplayName을 읽어 CSS 변수와 문서 타이틀에 주입하는 패턴.
+---
+
+# 브랜드 테마 동적 적용 패턴
+
+`getAppsInTossGlobals()`는 배포된 미니앱의 브랜드 정보를 동기적으로 반환한다. 브랜드 주색상(`brandPrimaryColor`)과 표시명(`brandDisplayName`)을 읽어 앱 전체에 적용하는 패턴이다.
+
+## CSS 변수로 색상 주입
+
+```tsx
+import { getAppsInTossGlobals } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+export function BrandThemeProvider({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    const { brandPrimaryColor, brandDisplayName } = getAppsInTossGlobals();
+    document.documentElement.style.setProperty('--brand-primary', brandPrimaryColor);
+    document.title = brandDisplayName;
+  }, []);
+
+  return <>{children}</>;
+}
+```
+
+`--brand-primary`를 CSS 변수로 주입하면 컴포넌트 트리 어디서든 `var(--brand-primary)`로 브랜드 색상을 참조할 수 있다.
+
+## 파생 색상 계산
+
+주색상 하나로 여러 변형 색상을 만들 수 있다:
+
+```tsx
+import { getAppsInTossGlobals } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function hexToRgb(hex: string): [number, number, number] | null {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!m) return null;
+  return [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
+}
+
+export function BrandThemeProvider({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    const { brandPrimaryColor } = getAppsInTossGlobals();
+    const root = document.documentElement;
+    root.style.setProperty('--brand-primary', brandPrimaryColor);
+
+    const rgb = hexToRgb(brandPrimaryColor);
+    if (rgb) {
+      const [r, g, b] = rgb;
+      // 10% 투명도 버전 — 배경, 호버 상태 등
+      root.style.setProperty('--brand-primary-10', `rgba(${r}, ${g}, ${b}, 0.1)`);
+    }
+  }, []);
+
+  return <>{children}</>;
+}
+```
+
+## CSS 변수 사용
+
+```css
+.primary-button {
+  background: var(--brand-primary);
+  color: #fff;
+}
+
+.primary-button:hover {
+  background: var(--brand-primary-10);
+  color: var(--brand-primary);
+}
+```
+
+`getAppsInTossGlobals()`는 동기 함수이므로 `async/await` 없이 바로 읽을 수 있다. `useEffect` 안에서 호출하면 렌더링 후 한 번만 실행되어 깜빡임 없이 적용된다.
+
+## 관련 API
+
+- [`getAppsInTossGlobals`](/api/environment/getAppsInTossGlobals) — 배포 ID·브랜드 표시명·아이콘·색상 등 글로벌 정보를 반환합니다.

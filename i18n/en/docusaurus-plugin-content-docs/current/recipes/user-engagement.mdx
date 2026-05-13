@@ -1,0 +1,68 @@
+---
+id: user-engagement
+title: User engagement patterns
+sidebar_label: User engagement
+slug: /recipes/user-engagement
+description: Call requestReview right after a positive user event, throttled with a localStorage cooldown so it only fires at most once per week.
+---
+
+# User engagement patterns
+
+`requestReview()` triggers the host app's store review dialog. Whether the OS actually shows it is platform-controlled — the only lever you have is **when** you call it. Call it at the moment the user is most satisfied.
+
+## When to call it
+
+| Good moments | Avoid |
+|---|---|
+| Right after completing an order/mission/goal | Immediately on app launch |
+| On the Nth return visit or Nth completion | Right after an error |
+| After a reward is received | During a screen transition |
+
+## Throttled call with localStorage cooldown
+
+```tsx
+import { requestReview } from '@apps-in-toss/web-framework';
+
+const REVIEW_COOLDOWN_KEY = 'review_last_requested_at';
+const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+async function maybeRequestReview() {
+  try {
+    const raw = localStorage.getItem(REVIEW_COOLDOWN_KEY);
+    const lastAt = raw ? Number(raw) : 0;
+    if (Date.now() - lastAt < COOLDOWN_MS) return; // still in cooldown
+
+    await requestReview();
+    localStorage.setItem(REVIEW_COOLDOWN_KEY, String(Date.now()));
+  } catch {
+    // non-fatal — ignore
+  }
+}
+```
+
+If a request was already made within the last 7 days, this returns early. The OS enforces its own short-term deduplication on top, so this app-level guard is a belt-and-suspenders measure.
+
+## Attach to a positive event
+
+```tsx
+async function onMissionComplete(completedCount: number) {
+  // Ask for a review on the 3rd and 10th completions
+  if (completedCount === 3 || completedCount === 10) {
+    await maybeRequestReview();
+  }
+}
+```
+
+If you want "exactly once, at the first positive moment" rather than a count-based trigger, a single localStorage flag is enough:
+
+```tsx
+async function onFirstRewardReceived() {
+  if (localStorage.getItem('review_requested')) return;
+  await requestReview();
+  localStorage.setItem('review_requested', '1');
+}
+```
+
+## Related APIs
+
+- [`requestReview`](/api/navigation/requestReview) — trigger the app store review dialog.

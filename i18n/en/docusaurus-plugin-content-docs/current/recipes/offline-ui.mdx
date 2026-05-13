@@ -1,0 +1,103 @@
+---
+id: offline-ui
+title: Offline-aware UI patterns
+sidebar_label: Offline-aware UI
+slug: /recipes/offline-ui
+description: Poll getNetworkStatus on an interval to detect offline state, surface a banner, and gate network requests when the device is offline.
+---
+
+# Offline-aware UI patterns
+
+`getNetworkStatus()` returns the current connection state in a single call. There is no event subscription API, so polling is used to detect changes.
+
+## useNetworkStatus hook
+
+```tsx
+import { getNetworkStatus } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+type NetworkStatus = 'OFFLINE' | 'WIFI' | '2G' | '3G' | '4G' | '5G' | 'WWAN' | 'UNKNOWN';
+
+export function useNetworkStatus(intervalMs = 5000) {
+  const [status, setStatus] = useState<NetworkStatus | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    async function check() {
+      try {
+        const s = await getNetworkStatus();
+        if (active) setStatus(s);
+      } catch {
+        // keep previous value on transient error
+      }
+    }
+
+    check(); // immediate first check
+    const id = setInterval(check, intervalMs);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+  }, [intervalMs]);
+
+  return status;
+}
+```
+
+The `active` flag prevents calling `setState` after the component unmounts. Adjust `intervalMs` to trade off freshness against battery impact.
+
+## Offline banner
+
+```tsx
+import { useNetworkStatus } from './useNetworkStatus';
+
+export function OfflineBanner() {
+  const status = useNetworkStatus();
+  const isOffline = status === 'OFFLINE';
+
+  if (!isOffline) return null;
+
+  return (
+    <div
+      role="alert"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        padding: '8px 16px',
+        background: '#222',
+        color: '#fff',
+        textAlign: 'center',
+        fontSize: 14,
+        zIndex: 9999,
+      }}
+    >
+      No internet connection. Please reconnect and try again.
+    </div>
+  );
+}
+```
+
+## Gate network requests
+
+For a quick one-shot check without the hook:
+
+```tsx
+import { getNetworkStatus } from '@apps-in-toss/web-framework';
+
+async function fetchWithNetworkGuard(url: string) {
+  const status = await getNetworkStatus();
+  if (status === 'OFFLINE') {
+    throw new Error('Device is offline. Please try again later.');
+  }
+  return fetch(url);
+}
+```
+
+`'WWAN'` and `'UNKNOWN'` both mean "connected but type unknown" — treat them as online. Avoid bandwidth-heavy operations (e.g. HD video streaming) on these statuses.
+
+## Related APIs
+
+- [`getNetworkStatus`](/api/environment/getNetworkStatus) — returns the current network connection status.

@@ -1,0 +1,111 @@
+---
+image: /og/recipes-ride-run-distance.png
+id: ride-run-distance
+title: 라이딩/러닝 거리 측정 패턴
+sidebar_label: 라이딩/러닝 거리 측정
+slug: /recipes/ride-run-distance
+description: startUpdateLocation으로 위치를 구독하고 Haversine 공식으로 누적 이동 거리를 계산하는 패턴. unmount 시 구독 해제까지 포함.
+---
+
+# 라이딩/러닝 거리 측정 패턴
+
+`startUpdateLocation`은 콜백 기반 위치 구독을 제공한다. 콜백마다 직전 좌표와의 Haversine 거리를 구해 누적하면 이동 거리를 실시간으로 계산할 수 있다.
+
+## Haversine 거리 헬퍼
+
+```ts
+function haversineMeters(
+  lat1: number, lon1: number,
+  lat2: number, lon2: number,
+): number {
+  const R = 6371000; // 지구 반지름 (m)
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.asin(Math.sqrt(a));
+}
+```
+
+## 거리 누적 훅
+
+```tsx
+import { startUpdateLocation, Accuracy } from '@apps-in-toss/web-framework';
+import { useEffect, useRef, useState } from 'react';
+
+export function useRunDistance() {
+  const [totalMeters, setTotalMeters] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const prevCoordsRef = useRef<{ latitude: number; longitude: number } | null>(null);
+
+  useEffect(() => {
+    let stop: (() => void) | undefined;
+    let cancelled = false;
+
+    (async () => {
+      const status = await startUpdateLocation.getPermission();
+      if (status === 'denied') {
+        setError('설정에서 위치 권한을 허용해 주세요.');
+        return;
+      }
+      if (status === 'notDetermined') {
+        await startUpdateLocation.openPermissionDialog();
+      }
+      if (cancelled) return;
+
+      stop = startUpdateLocation({
+        onEvent: ({ coords }) => {
+          const prev = prevCoordsRef.current;
+          if (prev) {
+            const dist = haversineMeters(
+              prev.latitude, prev.longitude,
+              coords.latitude, coords.longitude,
+            );
+            setTotalMeters((m) => m + dist);
+          }
+          prevCoordsRef.current = { latitude: coords.latitude, longitude: coords.longitude };
+        },
+        onError: () => setError('위치 갱신에 실패했어요.'),
+        options: {
+          accuracy: Accuracy.High,
+          timeInterval: 1000,
+          distanceInterval: 5,  // 5m 미만 이동은 무시 → GPS 노이즈 차단
+        },
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, []);
+
+  return { totalMeters, error };
+}
+```
+
+- `distanceInterval: 5`로 5m 미만 이동은 무시해 GPS 노이즈를 억제한다.
+- 컴포넌트 unmount 시 cleanup에서 `stop?.()`을 호출해 반드시 구독을 해제한다. 해제하지 않으면 백그라운드에서 위치 갱신이 계속 돌아 배터리가 빠르게 소모된다.
+
+## 화면 표시 예시
+
+```tsx
+export function RunTracker() {
+  const { totalMeters, error } = useRunDistance();
+
+  if (error) return <p role="alert">{error}</p>;
+
+  const km = (totalMeters / 1000).toFixed(2);
+  return <p>이동 거리: <strong>{km} km</strong></p>;
+}
+```
+
+## 관련 API
+
+- [`startUpdateLocation`](/api/location/startUpdateLocation) — 위치 변화를 콜백으로 구독합니다.
+
+## 관련 가이드
+
+- [Guides — 위치 권한 요청과 fallback](/guides/location-permission-fallback) — `notDetermined`/`denied`/정확도 분기와 fallback UX 패턴.

@@ -1,0 +1,81 @@
+---
+id: haptic-feedback
+title: Haptic feedback patterns
+sidebar_label: Haptic feedback
+slug: /recipes/haptic-feedback
+description: A useHaptic wrapper that maps semantic event names to HapticFeedbackType values, with no-op safety outside the Toss app.
+---
+
+# Haptic feedback patterns
+
+Haptic feedback only produces real vibration inside the Toss app. In a browser dev environment it logs to the console with no vibration, so you can call it unconditionally without environment guards.
+
+## useHaptic hook
+
+```tsx
+import { generateHapticFeedback } from '@apps-in-toss/web-framework';
+import { useCallback } from 'react';
+
+type HapticEvent = 'tap' | 'success' | 'error' | 'celebrate';
+
+const HAPTIC_MAP: Record<HapticEvent, Parameters<typeof generateHapticFeedback>[0]['type']> = {
+  tap:       'tickWeak',
+  success:   'success',
+  error:     'error',
+  celebrate: 'confetti',
+};
+
+export function useHaptic() {
+  const trigger = useCallback(async (event: HapticEvent) => {
+    try {
+      await generateHapticFeedback({ type: HAPTIC_MAP[event] });
+    } catch {
+      // vibration failure is non-fatal — ignore
+    }
+  }, []);
+
+  return trigger;
+}
+```
+
+`HapticEvent` uses domain-friendly names so you don't scatter raw `HapticFeedbackType` strings everywhere. Adding a new event means updating `HAPTIC_MAP` in one place.
+
+## Suggested event mapping
+
+| Situation | Recommended type |
+|---|---|
+| Button tap | `tickWeak` |
+| Form submit / success | `success` |
+| Error / validation failure | `error` |
+| Level up / celebration | `confetti` |
+| Drag enter / picker change | `softMedium` |
+
+## Usage example
+
+```tsx
+import { useHaptic } from './useHaptic';
+
+export function SubmitButton({ onSubmit }: { onSubmit: () => Promise<void> }) {
+  const haptic = useHaptic();
+
+  const handleClick = async () => {
+    await haptic('tap');
+    try {
+      await onSubmit();
+      await haptic('success');
+    } catch {
+      await haptic('error');
+    }
+  };
+
+  return (
+    <button type="button" onClick={handleClick}>
+      Submit
+    </button>
+  );
+}
+```
+
+## Related APIs
+
+- [`generateHapticFeedback`](/api/haptic/generateHapticFeedback) — trigger haptic feedback by type.
