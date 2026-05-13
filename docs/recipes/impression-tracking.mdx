@@ -1,0 +1,129 @@
+---
+image: /og/recipes-impression-tracking.png
+id: impression-tracking
+title: 노출 이벤트 수집 패턴
+sidebar_label: 노출 이벤트 수집
+slug: /recipes/impression-tracking
+description: Analytics.impression과 IntersectionObserver로 배너·카드 노출을 수집하는 최소 스니펫과 재사용 가능한 useImpression 훅.
+---
+
+# 노출 이벤트 수집 패턴
+
+`Analytics.impression`은 `log_type: 'impression'`으로 미리 고정된 얇은 래퍼입니다. 컴포넌트가 마운트되는 순간이 아니라 **사용자 화면에 실제로 보이는 순간**을 기록해야 할 때 씁니다. `IntersectionObserver`와 조합하면 스크롤로 지나가는 배너·카드의 노출을 정확히 잡을 수 있습니다.
+
+## 최소 호출
+
+```tsx
+import { Analytics } from '@apps-in-toss/web-framework';
+import { useEffect, useRef } from 'react';
+
+function PromoBanner({ bannerId }: { bannerId: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          Analytics.impression({ log_name: 'promo_banner_impression', banner_id: bannerId });
+          observer.unobserve(el); // 한 번만 기록
+        }
+      },
+      { threshold: 0.5 },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [bannerId]);
+
+  return <div ref={ref}>프로모션 배너</div>;
+}
+```
+
+`threshold: 0.5` — 요소의 50% 이상이 화면에 들어올 때 발화합니다. 배너 높이가 짧아 0.5가 즉시 충족되는 경우라면 `0.8` 등으로 조정하세요. `observer.unobserve(el)` 호출로 중복 기록을 막습니다.
+
+## 재사용 가능한 `useImpression` 훅
+
+여러 리스트 아이템에 같은 패턴을 붙여야 한다면 훅으로 추상화합니다.
+
+```tsx
+import { Analytics } from '@apps-in-toss/web-framework';
+import { useEffect, useRef } from 'react';
+
+type Primitive = string | number | boolean | null;
+
+interface ImpressionParams {
+  log_name: string;
+  [key: string]: Primitive;
+}
+
+interface UseImpressionOptions {
+  threshold?: number;
+}
+
+/**
+ * ref가 붙은 요소가 뷰포트에 진입하면 Analytics.impression을 1회 발화합니다.
+ */
+function useImpression<T extends HTMLElement>(
+  params: ImpressionParams,
+  { threshold = 0.5 }: UseImpressionOptions = {},
+) {
+  const ref = useRef<T>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          Analytics.impression(params);
+          observer.unobserve(el);
+        }
+      },
+      { threshold },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+    // params는 안정적인 객체로 전달하거나 useMemo로 메모이제이션하세요.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threshold]);
+
+  return ref;
+}
+
+// 사용 예
+function ProductCard({ productId, position }: { productId: string; position: number }) {
+  const ref = useImpression<HTMLDivElement>({
+    log_name: 'product_card_impression',
+    product_id: productId,
+    position,
+  });
+
+  return <div ref={ref}>상품 카드</div>;
+}
+```
+
+## log_name 일관성 유지
+
+노출 이벤트는 클릭률(CTR) 계산의 분모입니다. 클릭 이벤트의 `log_name`과 쌍을 이루도록 네이밍하면 집계가 쉬워집니다.
+
+```ts
+// analytics-events.ts
+export const Events = {
+  PRODUCT_CARD_IMPRESSION: 'product_card_impression',
+  PRODUCT_CARD_CLICK: 'product_card_click',
+  PROMO_BANNER_IMPRESSION: 'promo_banner_impression',
+  PROMO_BANNER_CLICK: 'promo_banner_click',
+} as const;
+```
+
+## 관련 API
+
+- [`Analytics.impression`](/api/analytics/impression) — 노출 이벤트를 기록합니다.
+- [`Analytics.click`](/api/analytics/click) — 클릭 이벤트를 기록합니다.
+- [`Analytics.screen`](/api/analytics/screen) — 화면 진입 이벤트를 기록합니다.
+- [Guides — 이벤트 로깅 패턴](/guides/event-logging) — `log_type` 선택 기준과 `log_name` 컨벤션.

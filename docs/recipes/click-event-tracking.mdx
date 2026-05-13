@@ -1,0 +1,100 @@
+---
+image: /og/recipes-click-event-tracking.png
+id: click-event-tracking
+title: 클릭 이벤트 수집 패턴
+sidebar_label: 클릭 이벤트 수집
+slug: /recipes/click-event-tracking
+description: Analytics.click으로 버튼·카드 클릭을 수집하는 최소 스니펫과 재사용 가능한 TrackClick 컴포넌트.
+---
+
+# 클릭 이벤트 수집 패턴
+
+`Analytics.click`은 `log_type: 'click'`으로 미리 고정된 얇은 래퍼입니다. 클릭 외에 다른 `log_type`이 필요하지 않다면 `eventLog`를 직접 쓰는 것보다 의도가 코드에서 명확히 드러납니다.
+
+## 최소 호출
+
+```tsx
+import { Analytics } from '@apps-in-toss/web-framework';
+
+function SignupButton() {
+  const handleClick = () => {
+    Analytics.click({ log_name: 'cta_signup_click', page: 'home' });
+  };
+
+  return (
+    <button type="button" onClick={handleClick}>
+      시작하기
+    </button>
+  );
+}
+```
+
+`Analytics.click`은 fire-and-forget입니다. `await`으로 UI 렌더를 블로킹하지 마세요.
+
+## 재사용 가능한 `<TrackClick>` 래퍼
+
+같은 화면에 추적할 버튼이 여러 개라면, `log_name`을 prop으로 받는 HOC 하나로 래핑하면 실수 없이 일관된 이름을 유지할 수 있습니다.
+
+```tsx
+import { Analytics } from '@apps-in-toss/web-framework';
+import { type ReactElement, cloneElement } from 'react';
+
+type Primitive = string | number | boolean | null;
+
+interface TrackClickProps {
+  logName: string;
+  params?: Record<string, Primitive>;
+  children: ReactElement<{ onClick?: React.MouseEventHandler }>;
+}
+
+/**
+ * 자식 요소의 onClick을 가로채 Analytics.click을 fire-and-forget으로 호출합니다.
+ * 원본 onClick은 그대로 유지됩니다.
+ */
+function TrackClick({ logName, params = {}, children }: TrackClickProps) {
+  const originalOnClick = children.props.onClick;
+
+  return cloneElement(children, {
+    onClick: (e: React.MouseEvent) => {
+      Analytics.click({ log_name: logName, ...params });
+      originalOnClick?.(e);
+    },
+  });
+}
+
+// 사용 예
+function ProductCard({ productId }: { productId: string }) {
+  return (
+    <TrackClick logName="product_card_click" params={{ product_id: productId }}>
+      <button type="button">상품 보기</button>
+    </TrackClick>
+  );
+}
+```
+
+## log_name 일관성 유지
+
+`log_name`은 대시보드에서 이벤트를 집계하는 키입니다. 중간에 이름이 바뀌면 히스토리가 끊깁니다. 도메인별로 상수를 한 파일에 모아두면 오타와 이름 drift를 방지할 수 있습니다.
+
+```ts
+// analytics-events.ts
+export const Events = {
+  CTA_SIGNUP_CLICK: 'cta_signup_click',
+  PRODUCT_CARD_CLICK: 'product_card_click',
+  PROMO_BANNER_CLICK: 'promo_banner_click',
+} as const;
+```
+
+```tsx
+import { Analytics } from '@apps-in-toss/web-framework';
+import { Events } from './analytics-events';
+
+Analytics.click({ log_name: Events.PRODUCT_CARD_CLICK, product_id: '123' });
+```
+
+## 관련 API
+
+- [`Analytics.click`](/api/analytics/click) — 클릭 이벤트를 기록합니다.
+- [`Analytics.screen`](/api/analytics/screen) — 화면 진입 이벤트를 기록합니다.
+- [`Analytics.impression`](/api/analytics/impression) — 노출 이벤트를 기록합니다.
+- [Guides — 이벤트 로깅 패턴](/guides/event-logging) — `log_type` 선택 기준과 `log_name` 컨벤션.

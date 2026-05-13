@@ -245,7 +245,13 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Recipes',
       collapsed: false,
-      items: ['recipes/copy-paste-ux', 'recipes/user-settings-persistence'],
+      items: [
+        'recipes/click-event-tracking',
+        'recipes/copy-paste-ux',
+        'recipes/impression-tracking',
+        'recipes/screen-entry-tracking',
+        'recipes/user-settings-persistence',
+      ],
     },
     {
       type: 'category',

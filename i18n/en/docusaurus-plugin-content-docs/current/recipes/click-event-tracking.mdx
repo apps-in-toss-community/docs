@@ -1,0 +1,99 @@
+---
+id: click-event-tracking
+title: Click event tracking
+sidebar_label: Click event tracking
+slug: /recipes/click-event-tracking
+description: Minimal snippet and a reusable TrackClick component for collecting button and card clicks with Analytics.click.
+---
+
+# Click event tracking
+
+`Analytics.click` is a thin wrapper with `log_type: 'click'` pre-set. When you only need click tracking and not another `log_type`, prefer it over calling `eventLog` directly — the intent is immediately clear from the call site.
+
+## Minimal call
+
+```tsx
+import { Analytics } from '@apps-in-toss/web-framework';
+
+function SignupButton() {
+  const handleClick = () => {
+    Analytics.click({ log_name: 'cta_signup_click', page: 'home' });
+  };
+
+  return (
+    <button type="button" onClick={handleClick}>
+      Get started
+    </button>
+  );
+}
+```
+
+`Analytics.click` is fire-and-forget. Don't `await` it if that would block a UI update or navigation.
+
+## Reusable `<TrackClick>` wrapper
+
+When a screen has many tracked buttons, a thin HOC keeps `log_name` consistent and avoids repeating the same pattern inline.
+
+```tsx
+import { Analytics } from '@apps-in-toss/web-framework';
+import { type ReactElement, cloneElement } from 'react';
+
+type Primitive = string | number | boolean | null;
+
+interface TrackClickProps {
+  logName: string;
+  params?: Record<string, Primitive>;
+  children: ReactElement<{ onClick?: React.MouseEventHandler }>;
+}
+
+/**
+ * Intercepts the child's onClick, fires Analytics.click fire-and-forget,
+ * then calls the original onClick unchanged.
+ */
+function TrackClick({ logName, params = {}, children }: TrackClickProps) {
+  const originalOnClick = children.props.onClick;
+
+  return cloneElement(children, {
+    onClick: (e: React.MouseEvent) => {
+      Analytics.click({ log_name: logName, ...params });
+      originalOnClick?.(e);
+    },
+  });
+}
+
+// Usage
+function ProductCard({ productId }: { productId: string }) {
+  return (
+    <TrackClick logName="product_card_click" params={{ product_id: productId }}>
+      <button type="button">View product</button>
+    </TrackClick>
+  );
+}
+```
+
+## Keeping log_name consistent
+
+`log_name` is the key that aggregates events in the dashboard. Renaming it mid-flight breaks historical continuity. Centralise names in a constants file to prevent typos and drift.
+
+```ts
+// analytics-events.ts
+export const Events = {
+  CTA_SIGNUP_CLICK: 'cta_signup_click',
+  PRODUCT_CARD_CLICK: 'product_card_click',
+  PROMO_BANNER_CLICK: 'promo_banner_click',
+} as const;
+```
+
+```tsx
+import { Analytics } from '@apps-in-toss/web-framework';
+import { Events } from './analytics-events';
+
+Analytics.click({ log_name: Events.PRODUCT_CARD_CLICK, product_id: '123' });
+```
+
+## Related APIs
+
+- [`Analytics.click`](/api/analytics/click) — record a click event.
+- [`Analytics.screen`](/api/analytics/screen) — record a screen view event.
+- [`Analytics.impression`](/api/analytics/impression) — record an impression event.
+- [Guides — Event logging patterns](/guides/event-logging) — when to use each `log_type` and `log_name` conventions.

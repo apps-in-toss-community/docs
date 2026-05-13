@@ -1,0 +1,129 @@
+---
+id: impression-tracking
+title: Impression tracking
+sidebar_label: Impression tracking
+slug: /recipes/impression-tracking
+description: Minimal snippet and a reusable useImpression hook for tracking banner and card visibility with Analytics.impression and IntersectionObserver.
+---
+
+# Impression tracking
+
+`Analytics.impression` is a thin wrapper with `log_type: 'impression'` pre-set. Use it to record the moment a component **actually becomes visible** to the user — not just when it mounts. Pair it with `IntersectionObserver` to catch banners and cards that scroll into view.
+
+## Minimal call
+
+```tsx
+import { Analytics } from '@apps-in-toss/web-framework';
+import { useEffect, useRef } from 'react';
+
+function PromoBanner({ bannerId }: { bannerId: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          Analytics.impression({ log_name: 'promo_banner_impression', banner_id: bannerId });
+          observer.unobserve(el); // record once only
+        }
+      },
+      { threshold: 0.5 },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [bannerId]);
+
+  return <div ref={ref}>Promo banner</div>;
+}
+```
+
+`threshold: 0.5` fires when 50 % of the element is visible. Adjust to `0.8` for tall elements that enter the viewport nearly fully. `observer.unobserve(el)` prevents duplicate events on subsequent scroll jitter.
+
+## Reusable `useImpression` hook
+
+When many list items need the same pattern, extract it into a hook.
+
+```tsx
+import { Analytics } from '@apps-in-toss/web-framework';
+import { useEffect, useRef } from 'react';
+
+type Primitive = string | number | boolean | null;
+
+interface ImpressionParams {
+  log_name: string;
+  [key: string]: Primitive;
+}
+
+interface UseImpressionOptions {
+  threshold?: number;
+}
+
+/**
+ * Fires Analytics.impression once when the element attached to the returned
+ * ref enters the viewport.
+ */
+function useImpression<T extends HTMLElement>(
+  params: ImpressionParams,
+  { threshold = 0.5 }: UseImpressionOptions = {},
+) {
+  const ref = useRef<T>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          Analytics.impression(params);
+          observer.unobserve(el);
+        }
+      },
+      { threshold },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+    // Pass a stable params object or memoize with useMemo at the call site.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threshold]);
+
+  return ref;
+}
+
+// Usage
+function ProductCard({ productId, position }: { productId: string; position: number }) {
+  const ref = useImpression<HTMLDivElement>({
+    log_name: 'product_card_impression',
+    product_id: productId,
+    position,
+  });
+
+  return <div ref={ref}>Product card</div>;
+}
+```
+
+## Keeping log_name consistent
+
+Impression events are the denominator when calculating CTR. Naming them as a pair with the corresponding click event makes aggregation straightforward.
+
+```ts
+// analytics-events.ts
+export const Events = {
+  PRODUCT_CARD_IMPRESSION: 'product_card_impression',
+  PRODUCT_CARD_CLICK: 'product_card_click',
+  PROMO_BANNER_IMPRESSION: 'promo_banner_impression',
+  PROMO_BANNER_CLICK: 'promo_banner_click',
+} as const;
+```
+
+## Related APIs
+
+- [`Analytics.impression`](/api/analytics/impression) — record an impression event.
+- [`Analytics.click`](/api/analytics/click) — record a click event.
+- [`Analytics.screen`](/api/analytics/screen) — record a screen view event.
+- [Guides — Event logging patterns](/guides/event-logging) — when to use each `log_type` and `log_name` conventions.
