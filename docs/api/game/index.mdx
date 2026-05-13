@@ -1,0 +1,69 @@
+---
+image: /og/api-game.png
+id: game-overview
+title: game
+sidebar_label: Overview
+slug: /api/game
+description: 토스게임센터 프로필 조회, 리더보드, 프로모션 리워드 지급 등 게임 관련 SDK 네임스페이스입니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `game`
+
+토스게임센터 연동에 필요한 함수 모음입니다. 게임 프로필 조회, 리더보드 점수 제출·열기, 프로모션 리워드 지급, 익명 키 발급을 지원합니다. 모든 함수는 `Promise`를 반환하며, 별도의 권한(`PermissionName`) 없이 호출할 수 있습니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 메서드
+
+| 메서드 | 반환 타입 | 용도 |
+| --- | --- | --- |
+| [`getGameCenterGameProfile`](/api/game/getGameCenterGameProfile) | `Promise<GameCenterGameProfileResponse \| undefined>` | 토스게임센터 프로필(닉네임, 프로필 이미지)을 조회합니다. |
+| [`getUserKeyForGame`](/api/game/getUserKeyForGame) | `Promise<...>` | **Deprecated.** 게임용 익명 키를 발급합니다. `getAnonymousKey` 사용을 권장합니다. |
+| [`grantPromotionReward`](/api/game/grantPromotionReward) | `Promise<GrantPromotionRewardResult>` | 모든 카테고리 미니앱에서 프로모션 코드를 사용해 리워드를 지급합니다. |
+| [`grantPromotionRewardForGame`](/api/game/grantPromotionRewardForGame) | `Promise<GrantPromotionRewardResult>` | **Deprecated.** 게임 카테고리 미니앱에서 프로모션 리워드를 지급합니다. `grantPromotionReward` 사용을 권장합니다. |
+| [`openGameCenterLeaderboard`](/api/game/openGameCenterLeaderboard) | `Promise<void>` | 게임센터 리더보드 웹뷰를 엽니다. |
+| [`submitGameCenterLeaderBoardScore`](/api/game/submitGameCenterLeaderBoardScore) | `Promise<SubmitGameCenterLeaderBoardScoreResponse \| undefined>` | 리더보드에 게임 점수를 제출합니다. |
+
+## 권한
+
+권한이 필요하지 않습니다. `game` 네임스페이스의 모든 함수는 별도의 `PermissionName`에 바인딩되지 않으며, 토스 세션(계정 연결)이 처리됩니다. `getPermission()` / `openPermissionDialog()` 유틸도 노출하지 않습니다.
+
+## 최소 지원 버전
+
+게임센터 API는 **토스 앱 5.221.0 이상**(안드로이드·iOS 동일)이 필요합니다. 버전이 낮으면 `undefined`를 반환하거나 아무 동작도 하지 않습니다.
+
+```ts
+import { isMinVersionSupported } from '@apps-in-toss/web-framework';
+
+if (!isMinVersionSupported('5.221.0')) {
+  // 사용자에게 앱 업데이트 안내
+}
+```
+
+## Deprecated 함수 마이그레이션
+
+| 구버전 | 신버전 | 비고 |
+| --- | --- | --- |
+| `getUserKeyForGame` | `getAnonymousKey` | 타입·동작 동일 |
+| `grantPromotionRewardForGame` | `grantPromotionReward` | 게임 전용 → 전체 카테고리 확장 |
+
+## UX 가이드
+
+- **프로필이 없을 수 있습니다.** `getGameCenterGameProfile`은 `statusCode: 'PROFILE_NOT_FOUND'`를 반환할 수 있습니다. 이 경우 프로필 생성 안내 UI를 보여주세요.
+- **리더보드 점수는 float 문자열로.** `submitGameCenterLeaderBoardScore`의 `score`는 `"123.45"` 형태의 문자열로 전달해야 합니다.
+- **리워드 에러 코드를 핸들링하세요.** `grantPromotionReward` / `grantPromotionRewardForGame` 반환값에는 에러 코드가 포함될 수 있습니다. 각 메서드 페이지에서 코드 목록을 확인하세요.
+- **버전 게이트를 먼저 확인하세요.** `undefined` 반환은 앱 버전이 낮다는 신호입니다 — `isMinVersionSupported`로 선행 체크하면 사용자에게 더 명확한 안내가 가능합니다.
+
+## 직접 실행해 보기
+
+sdk-example의 Game 페이지에서 모든 메서드를 직접 실행해 볼 수 있습니다.
+
+<TryItLink group="game" />
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.

@@ -1,0 +1,100 @@
+---
+id: openGameCenterLeaderboard
+title: openGameCenterLeaderboard
+sidebar_label: openGameCenterLeaderboard
+description: Open the Toss Game Center leaderboard web view.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `openGameCenterLeaderboard`
+
+Opens the Toss Game Center leaderboard web view so the user can view rankings. Does nothing and returns `undefined` when the Toss app version is below the minimum supported version (5.221.0).
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { openGameCenterLeaderboard } from '@apps-in-toss/web-framework';
+
+declare function openGameCenterLeaderboard(): Promise<void>;
+```
+
+## Parameters
+
+None.
+
+## Returns
+
+- `Promise<void>` — Resolves after the leaderboard web view is opened.
+- Returns `undefined` without doing anything when the app version is below 5.221.0.
+
+## Permission
+
+No permission required. Account binding is handled by the Toss session.
+
+## Examples
+
+### Minimal
+
+```tsx
+import { openGameCenterLeaderboard } from '@apps-in-toss/web-framework';
+
+await openGameCenterLeaderboard();
+```
+
+### Realistic — version gate before opening
+
+```tsx
+import { isMinVersionSupported, openGameCenterLeaderboard } from '@apps-in-toss/web-framework';
+
+async function handleLeaderboardOpen() {
+  if (!isMinVersionSupported('5.221.0')) {
+    // Show an update prompt to the user.
+    console.warn('Toss app 5.221.0 or later is required.');
+    return;
+  }
+  await openGameCenterLeaderboard();
+}
+```
+
+### Realistic — open leaderboard after score submission
+
+```tsx
+import {
+  submitGameCenterLeaderBoardScore,
+  openGameCenterLeaderboard,
+} from '@apps-in-toss/web-framework';
+
+async function submitAndViewLeaderboard(score: string) {
+  const result = await submitGameCenterLeaderBoardScore({ score });
+
+  if (result?.statusCode === 'SUCCESS') {
+    await openGameCenterLeaderboard();
+  } else {
+    console.error('Score submission failed:', result?.statusCode);
+  }
+}
+```
+
+## Try it live
+
+Run the `openGameCenterLeaderboard` card on the Game page in sdk-example.
+
+<TryItLink group="game" method="openGameCenterLeaderboard" />
+
+## Related APIs
+
+- [`submitGameCenterLeaderBoardScore`](./submitGameCenterLeaderBoardScore) — Submit a score before opening the leaderboard.
+- [`getGameCenterGameProfile`](./getGameCenterGameProfile) — Fetch the Game Center profile.
+
+## Related guides
+
+- _(coming soon)_ Recipes — Post-game leaderboard integration patterns
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

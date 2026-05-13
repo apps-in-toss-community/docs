@@ -1,0 +1,101 @@
+---
+image: /og/api-game-openGameCenterLeaderboard.png
+id: openGameCenterLeaderboard
+title: openGameCenterLeaderboard
+sidebar_label: openGameCenterLeaderboard
+description: 게임센터 리더보드 웹뷰를 엽니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `openGameCenterLeaderboard`
+
+게임센터 리더보드 웹뷰를 열어 사용자가 순위를 확인할 수 있게 합니다. 토스 앱 버전이 최소 지원 버전(5.221.0)보다 낮으면 아무 동작도 하지 않고 `undefined`를 반환합니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+```ts
+import { openGameCenterLeaderboard } from '@apps-in-toss/web-framework';
+
+declare function openGameCenterLeaderboard(): Promise<void>;
+```
+
+## 파라미터
+
+없음.
+
+## 반환값
+
+- `Promise<void>` — 리더보드 웹뷰를 열고 resolve합니다.
+- 앱 버전이 최소 지원 버전(5.221.0)보다 낮으면 아무 동작도 하지 않고 `undefined`를 반환합니다.
+
+## 권한
+
+권한이 필요하지 않습니다. 토스 세션(계정 연결)이 처리합니다.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { openGameCenterLeaderboard } from '@apps-in-toss/web-framework';
+
+await openGameCenterLeaderboard();
+```
+
+### 실전 예제 — 버전 체크 후 리더보드 열기
+
+```tsx
+import { isMinVersionSupported, openGameCenterLeaderboard } from '@apps-in-toss/web-framework';
+
+async function handleLeaderboardOpen() {
+  if (!isMinVersionSupported('5.221.0')) {
+    // 사용자에게 업데이트 안내를 표시하세요.
+    console.warn('토스 앱 5.221.0 이상이 필요합니다.');
+    return;
+  }
+  await openGameCenterLeaderboard();
+}
+```
+
+### 실전 예제 — 점수 제출 후 리더보드 열기
+
+```tsx
+import {
+  submitGameCenterLeaderBoardScore,
+  openGameCenterLeaderboard,
+} from '@apps-in-toss/web-framework';
+
+async function submitAndViewLeaderboard(score: string) {
+  const result = await submitGameCenterLeaderBoardScore({ score });
+
+  if (result?.statusCode === 'SUCCESS') {
+    await openGameCenterLeaderboard();
+  } else {
+    console.error('점수 제출 실패:', result?.statusCode);
+  }
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Game 페이지에서 `openGameCenterLeaderboard` 카드를 실행해 결과를 확인할 수 있습니다.
+
+<TryItLink group="game" method="openGameCenterLeaderboard" />
+
+## 관련 API
+
+- [`submitGameCenterLeaderBoardScore`](./submitGameCenterLeaderBoardScore) — 리더보드에 점수를 제출합니다.
+- [`getGameCenterGameProfile`](./getGameCenterGameProfile) — 게임센터 프로필을 조회합니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Recipes — "게임 종료 후 리더보드 연동 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.

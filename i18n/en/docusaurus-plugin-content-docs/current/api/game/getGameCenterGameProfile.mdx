@@ -1,0 +1,130 @@
+---
+id: getGameCenterGameProfile
+title: getGameCenterGameProfile
+sidebar_label: getGameCenterGameProfile
+description: Fetch the Toss Game Center profile for the current user.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `getGameCenterGameProfile`
+
+Fetches the current user's Toss Game Center profile — nickname and profile image URL. Returns `statusCode: 'PROFILE_NOT_FOUND'` when the user has not yet created a profile.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { getGameCenterGameProfile } from '@apps-in-toss/web-framework';
+
+type GameCenterGameProfileResponse =
+  | { statusCode: 'PROFILE_NOT_FOUND' }
+  | { statusCode: 'SUCCESS'; nickname: string; profileImageUri: string };
+
+declare function getGameCenterGameProfile(): Promise<GameCenterGameProfileResponse | undefined>;
+```
+
+## Parameters
+
+None.
+
+## Returns
+
+- `Promise<GameCenterGameProfileResponse | undefined>`
+  - `{ statusCode: 'SUCCESS'; nickname: string; profileImageUri: string }` — Profile found. Includes nickname and profile image URL.
+  - `{ statusCode: 'PROFILE_NOT_FOUND' }` — The user has not created a Game Center profile.
+  - `undefined` — The Toss app version is below the minimum supported version (5.221.0).
+
+## Permission
+
+No permission required. Account binding is handled by the Toss session. `getPermission()` / `openPermissionDialog()` utilities are not exposed.
+
+## Examples
+
+### Minimal
+
+```tsx
+import { getGameCenterGameProfile } from '@apps-in-toss/web-framework';
+
+const result = await getGameCenterGameProfile();
+
+if (!result) {
+  console.warn('App version is below the minimum supported version.');
+} else if (result.statusCode === 'PROFILE_NOT_FOUND') {
+  console.log('No Game Center profile found. Show a profile creation prompt.');
+} else {
+  console.log('Nickname:', result.nickname);
+  console.log('Profile image:', result.profileImageUri);
+}
+```
+
+### Realistic — profile card component
+
+```tsx
+import { getGameCenterGameProfile } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+type ProfileState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'not_found' }
+  | { status: 'success'; nickname: string; profileImageUri: string }
+  | { status: 'unsupported' };
+
+function GameProfileCard() {
+  const [profile, setProfile] = useState<ProfileState>({ status: 'idle' });
+
+  useEffect(() => {
+    setProfile({ status: 'loading' });
+    getGameCenterGameProfile().then((result) => {
+      if (!result) {
+        setProfile({ status: 'unsupported' });
+      } else if (result.statusCode === 'PROFILE_NOT_FOUND') {
+        setProfile({ status: 'not_found' });
+      } else {
+        setProfile({
+          status: 'success',
+          nickname: result.nickname,
+          profileImageUri: result.profileImageUri,
+        });
+      }
+    });
+  }, []);
+
+  if (profile.status === 'loading') return <p>Loading profile…</p>;
+  if (profile.status === 'unsupported') return <p>Please update the Toss app.</p>;
+  if (profile.status === 'not_found') return <p>Create a Game Center profile to get started!</p>;
+  if (profile.status === 'success') {
+    return (
+      <div>
+        <img src={profile.profileImageUri} alt="Profile" />
+        <p>{profile.nickname}</p>
+      </div>
+    );
+  }
+  return null;
+}
+```
+
+## Try it live
+
+Run the `getGameCenterGameProfile` card on the Game page in sdk-example.
+
+<TryItLink group="game" method="getGameCenterGameProfile" />
+
+## Related APIs
+
+- [`submitGameCenterLeaderBoardScore`](./submitGameCenterLeaderBoardScore) — Submit a score to the leaderboard.
+- [`openGameCenterLeaderboard`](./openGameCenterLeaderboard) — Open the Game Center leaderboard web view.
+- [`getUserKeyForGame`](./getUserKeyForGame) — (Deprecated) Issue an anonymous key for game sessions.
+
+## Related guides
+
+- _(coming soon)_ Recipes — Game Center profile integration patterns
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

@@ -1,0 +1,119 @@
+---
+id: submitGameCenterLeaderBoardScore
+title: submitGameCenterLeaderBoardScore
+sidebar_label: submitGameCenterLeaderBoardScore
+description: Submit a game score to the Toss Game Center leaderboard.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `submitGameCenterLeaderBoardScore`
+
+Submits the user's game score to the Toss Game Center leaderboard. The response includes a status code you can use to show appropriate feedback — success, profile missing, or a parsing issue.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { submitGameCenterLeaderBoardScore } from '@apps-in-toss/web-framework';
+
+interface SubmitGameCenterLeaderBoardScoreResponse {
+  statusCode: 'SUCCESS' | 'LEADERBOARD_NOT_FOUND' | 'PROFILE_NOT_FOUND' | 'UNPARSABLE_SCORE';
+}
+
+declare function submitGameCenterLeaderBoardScore(params: {
+  score: string;
+}): Promise<SubmitGameCenterLeaderBoardScoreResponse | undefined>;
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `score` | `string` | ✓ | The score to submit. Must be a float-formatted numeric string, e.g. `"123.45"` or `"9999"`. |
+
+:::caution Score format
+`score` must be a **string representation of a float**. Passing a `number` type causes a TypeScript error. Convert with `String(score)` or `score.toString()`.
+:::
+
+## Returns
+
+- `Promise<SubmitGameCenterLeaderBoardScoreResponse | undefined>`
+  - `{ statusCode: 'SUCCESS' }` — Score submitted successfully.
+  - `{ statusCode: 'LEADERBOARD_NOT_FOUND' }` — No leaderboard found for the current `gameId`.
+  - `{ statusCode: 'PROFILE_NOT_FOUND' }` — The user has no Game Center profile. Check with [`getGameCenterGameProfile`](./getGameCenterGameProfile) first.
+  - `{ statusCode: 'UNPARSABLE_SCORE' }` — The score string could not be parsed. Ensure it is a float-formatted string.
+  - `undefined` — App version is below the minimum supported version (5.221.0).
+
+## Permission
+
+No permission required. Account binding is handled by the Toss session.
+
+## Examples
+
+### Minimal
+
+```tsx
+import { submitGameCenterLeaderBoardScore } from '@apps-in-toss/web-framework';
+
+const result = await submitGameCenterLeaderBoardScore({ score: '1234.5' });
+
+if (!result) {
+  console.warn('App version is below the minimum supported version.');
+} else if (result.statusCode === 'SUCCESS') {
+  console.log('Score submitted!');
+} else {
+  console.error('Submission failed:', result.statusCode);
+}
+```
+
+### Realistic — submit score then open leaderboard
+
+```tsx
+import {
+  getGameCenterGameProfile,
+  submitGameCenterLeaderBoardScore,
+  openGameCenterLeaderboard,
+} from '@apps-in-toss/web-framework';
+
+async function onGameOver(finalScore: number) {
+  // Guard: profile must exist before submitting.
+  const profile = await getGameCenterGameProfile();
+  if (!profile || profile.statusCode === 'PROFILE_NOT_FOUND') {
+    console.log('No Game Center profile — cannot submit score.');
+    return;
+  }
+
+  const result = await submitGameCenterLeaderBoardScore({
+    score: String(finalScore),
+  });
+
+  if (result?.statusCode === 'SUCCESS') {
+    await openGameCenterLeaderboard();
+  } else {
+    console.error('Score submission failed:', result?.statusCode);
+  }
+}
+```
+
+## Try it live
+
+Run the `submitGameCenterLeaderBoardScore` card on the Game page in sdk-example.
+
+<TryItLink group="game" method="submitGameCenterLeaderBoardScore" />
+
+## Related APIs
+
+- [`getGameCenterGameProfile`](./getGameCenterGameProfile) — Verify the user has a profile before submitting.
+- [`openGameCenterLeaderboard`](./openGameCenterLeaderboard) — Open the leaderboard after submission.
+
+## Related guides
+
+- _(coming soon)_ Recipes — Post-game leaderboard integration patterns
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

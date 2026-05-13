@@ -1,0 +1,126 @@
+---
+id: grantPromotionRewardForGame
+title: grantPromotionRewardForGame
+sidebar_label: grantPromotionRewardForGame
+description: "(Deprecated) Grant a promotion reward in game-category mini-apps. Use grantPromotionReward instead."
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `grantPromotionRewardForGame`
+
+:::caution Deprecated
+`grantPromotionRewardForGame` is deprecated. Use [`grantPromotionReward`](./grantPromotionReward) instead — it works in all mini-app categories and uses the same error codes.
+:::
+
+Grants a point reward to the user using a promotion code. Restricted to game-category mini-apps. Calling from any other category returns error code `"40000"`.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { grantPromotionRewardForGame } from '@apps-in-toss/web-framework';
+
+type GrantPromotionRewardForGameResult =
+  | { key: string }
+  | { code: string; [key: string]: unknown }
+  | { errorCode: string; message: string }
+  | 'ERROR'
+  | undefined;
+
+declare function grantPromotionRewardForGame(params: {
+  params: {
+    promotionCode: string;
+    amount: number;
+  };
+}): Promise<GrantPromotionRewardForGameResult>;
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `params` | `object` | ✓ | Wrapper object containing reward details. |
+| `params.promotionCode` | `string` | ✓ | The pre-registered promotion code. |
+| `params.amount` | `number` | ✓ | Points to grant. |
+
+## Returns
+
+- `{ key: string }` — Grant succeeded. `key` is the reward key.
+- `{ errorCode: string; message: string }` — Grant failed. Error codes:
+  - `"40000"` — Called from a non-game-category mini-app.
+  - `"4100"` — Promotion not found.
+  - `"4104"` — Promotion is paused.
+  - `"4105"` — Promotion has ended.
+  - `"4108"` — Promotion is not approved.
+  - `"4109"` — Promotion is not active.
+  - `"4110"` — Reward cannot be granted or revoked.
+  - `"4112"` — Insufficient promotion funds.
+  - `"4113"` — Already granted or revoked.
+  - `"4114"` — Exceeds the per-grant amount limit.
+- `'ERROR'` — Unknown error.
+- `undefined` — App version is below the minimum supported version.
+
+## Permission
+
+No permission required. Account binding is handled by the Toss session. Only succeeds when called from a game-category mini-app.
+
+## Migration
+
+```ts
+// Old (game-category only)
+import { grantPromotionRewardForGame } from '@apps-in-toss/web-framework';
+const result = await grantPromotionRewardForGame({
+  params: { promotionCode: 'GAME_EVENT', amount: 1000 },
+});
+
+// Recommended (all categories)
+import { grantPromotionReward } from '@apps-in-toss/web-framework';
+const result = await grantPromotionReward({
+  params: { promotionCode: 'GAME_EVENT', amount: 1000 },
+});
+```
+
+## Examples
+
+### Minimal
+
+```tsx
+import { grantPromotionRewardForGame } from '@apps-in-toss/web-framework';
+
+const result = await grantPromotionRewardForGame({
+  params: { promotionCode: 'GAME_EVENT_2024', amount: 1000 },
+});
+
+if (!result) {
+  console.warn('App version is below the minimum supported version.');
+} else if (result === 'ERROR') {
+  console.error('Unknown error while granting reward.');
+} else if ('key' in result) {
+  console.log('Reward granted! Key:', result.key);
+} else if ('errorCode' in result) {
+  console.error('Grant failed:', result.errorCode, result.message);
+}
+```
+
+## Try it live
+
+Run the `grantPromotionRewardForGame` card on the Game page in sdk-example.
+
+<TryItLink group="game" method="grantPromotionRewardForGame" />
+
+## Related APIs
+
+- [`grantPromotionReward`](./grantPromotionReward) — Recommended successor, works in all categories.
+- [`getGameCenterGameProfile`](./getGameCenterGameProfile) — Fetch the Game Center profile.
+
+## Related guides
+
+- _(coming soon)_ Recipes — Promotion reward grant patterns
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
