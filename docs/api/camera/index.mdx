@@ -1,0 +1,55 @@
+---
+image: /og/api-camera.png
+id: camera-overview
+title: camera
+sidebar_label: Overview
+slug: /api/camera
+description: 카메라 촬영과 앨범 사진 조회를 제공하는 SDK 네임스페이스입니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `camera`
+
+카메라로 이미지를 촬영하거나 기기 앨범에서 사진 목록을 가져오는 함수 모음입니다. 두 함수 모두 권한이 필요하지만 서로 다른 `PermissionName`을 사용합니다 — `openCamera`는 `camera`, `fetchAlbumPhotos`는 `photos`.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 메서드
+
+| 메서드 | 반환 타입 | 용도 |
+| --- | --- | --- |
+| [`fetchAlbumPhotos`](/api/camera/fetchAlbumPhotos) | `Promise<ImageResponse[]>` | 기기 앨범에서 사진 목록을 가져옵니다. |
+| [`openCamera`](/api/camera/openCamera) | `Promise<ImageResponse>` | 카메라를 실행해 사용자가 촬영한 이미지를 반환합니다. |
+
+## 권한
+
+두 함수 모두 `PermissionFunctionWithDialog` 형태이며 `getPermission()` / `openPermissionDialog()` 유틸이 함수 객체에 직접 붙어있습니다.
+
+| 메서드 | PermissionName |
+| --- | --- |
+| `openCamera` | `camera` |
+| `fetchAlbumPhotos` | `photos` |
+
+- 권한이 **`denied`** 상태이면 호출 시 실패합니다. `try/catch`로 감싸세요.
+- 아직 결정되지 않은 상태(`notDetermined`)라면 `openPermissionDialog()`로 다이얼로그를 띄우세요.
+
+상세 처리 패턴은 [Guides — 권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
+
+## UX 가이드
+
+- **이미지 크기를 제어하세요.** `maxWidth`로 적절한 해상도를 지정하면 네트워크 업로드와 메모리 사용을 줄일 수 있습니다.
+- **Base64 옵션은 신중히.** `base64: true`는 파일 시스템 접근 없이 바로 표시할 수 있어 편하지만, 큰 이미지는 메모리와 JSON 직렬화 비용이 큽니다.
+- **권한 다이얼로그는 사용자 트리거 직후에.** 페이지 로드 시점이 아니라 사용자가 "사진 선택" 버튼을 누른 직후에 권한을 확인·요청하세요.
+
+## 직접 실행해 보기
+
+sdk-example의 Camera 페이지에서 두 메서드를 직접 실행해 볼 수 있습니다.
+
+<TryItLink group="camera" />
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.

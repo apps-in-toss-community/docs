@@ -3,14 +3,14 @@ id: game-overview
 title: game
 sidebar_label: Overview
 slug: /api/game
-description: SDK namespace for Toss Game Center — profile, leaderboard, and promotion rewards.
+description: SDK namespace for Toss Game Center — profile, leaderboard, promotion rewards, and contact-based viral sharing.
 ---
 
 import TryItLink from '@site/src/components/TryItLink';
 
 # `game`
 
-Functions for Toss Game Center integration. Covers game profile lookup, leaderboard score submission and display, promotion reward grants, and anonymous key issuance. All functions return a `Promise` and require no explicit permission (`PermissionName`).
+Functions for Toss Game Center integration. Covers game profile lookup, leaderboard score submission and display, promotion reward grants, anonymous key issuance, and contacts-based viral sharing (`contactsViral`). Most return a `Promise` (exception: `contactsViral` returns a cleanup function). Only `contactsViral` requires the `contacts` permission.
 
 :::info Unofficial docs
 This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
@@ -20,6 +20,7 @@ This page is community-written. The SDK behavior itself is defined by the publis
 
 | Method | Return type | Purpose |
 | --- | --- | --- |
+| [`contactsViral`](/api/game/contactsViral) | `() => void` | Open the contacts-based viral sharing reward module. Results arrive via the event callback. |
 | [`getGameCenterGameProfile`](/api/game/getGameCenterGameProfile) | `Promise<GameCenterGameProfileResponse \| undefined>` | Fetch the Toss Game Center profile (nickname, avatar). |
 | [`getUserKeyForGame`](/api/game/getUserKeyForGame) | `Promise<...>` | **Deprecated.** Issue an anonymous key for game sessions. Use `getAnonymousKey` instead. |
 | [`grantPromotionReward`](/api/game/grantPromotionReward) | `Promise<GrantPromotionRewardResult>` | Grant a promotion reward in any mini-app category. |
@@ -29,7 +30,9 @@ This page is community-written. The SDK behavior itself is defined by the publis
 
 ## Permission
 
-No permission required. All functions in the `game` namespace are not bound to any `PermissionName`. Account binding is handled by the Toss session. `getPermission()` / `openPermissionDialog()` utilities are not exposed.
+Only `contactsViral` requires the `contacts` permission. The other functions are not bound to any `PermissionName` (account binding is handled by the Toss session) and do not expose `getPermission()` / `openPermissionDialog()` utilities.
+
+`contactsViral` itself does not expose permission helpers — use [`fetchContacts.getPermission()`](/api/contacts/fetchContacts), which shares the same `contacts` permission, to pre-check.
 
 ## Minimum supported version
 
