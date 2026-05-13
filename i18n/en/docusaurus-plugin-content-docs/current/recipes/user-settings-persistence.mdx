@@ -1,0 +1,201 @@
+---
+id: user-settings-persistence
+title: User settings persistence (serialization / migration / defaults)
+sidebar_label: User settings persistence
+slug: /recipes/user-settings-persistence
+description: Short snippets for serializing, migrating, and providing defaults when saving and loading user settings with storage.setItem/getItem.
+---
+
+# User settings persistence (serialization / migration / defaults)
+
+`Storage` is a string key-value store. Saving objects almost always requires JSON serialization, schema versioning, and default handling. Four short snippets cover the essentials.
+
+## Snippet 1 — JSON serialization helpers
+
+Centralize the repetitive `JSON.stringify`/`JSON.parse` + `try/catch` in two helpers.
+
+```tsx
+import { Storage } from '@apps-in-toss/web-framework';
+
+async function getJSON<T>(key: string, fallback: T): Promise<T> {
+  const raw = await Storage.getItem(key);
+  if (raw === null) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    // Corrupted value — fall back to default
+    return fallback;
+  }
+}
+
+async function setJSON<T>(key: string, value: T): Promise<void> {
+  try {
+    await Storage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    // Quota exceeded, disk error, etc. Log and move on.
+    console.error(`storage.setItem(${key}) failed`, error);
+  }
+}
+```
+
+`getJSON` treats both a missing key (`null`) and a parse failure as "use the fallback". `setJSON` swallows errors and logs — a settings persist failure rarely warrants stopping the whole app.
+
+## Snippet 2 — Schema version + migration
+
+When a key name or value shape changes, follow "read → transform → write new → delete old".
+
+```tsx
+import { Storage } from '@apps-in-toss/web-framework';
+
+interface SettingsV1 {
+  darkMode: boolean;
+}
+
+interface SettingsV2 {
+  theme: 'light' | 'dark';
+  language: string;
+}
+
+const SETTINGS_KEY = 'settings:v2';
+const LEGACY_KEY = 'settings:v1';
+const DEFAULT_SETTINGS: SettingsV2 = { theme: 'light', language: 'ko' };
+
+async function loadSettings(): Promise<SettingsV2> {
+  // 1. Return v2 immediately if it exists
+  const v2Raw = await Storage.getItem(SETTINGS_KEY);
+  if (v2Raw !== null) {
+    try {
+      return { ...DEFAULT_SETTINGS, ...(JSON.parse(v2Raw) as Partial<SettingsV2>) };
+    } catch {
+      return DEFAULT_SETTINGS;
+    }
+  }
+
+  // 2. Migrate from v1 if it exists
+  const v1Raw = await Storage.getItem(LEGACY_KEY);
+  if (v1Raw !== null) {
+    let migrated = DEFAULT_SETTINGS;
+    try {
+      const v1 = JSON.parse(v1Raw) as SettingsV1;
+      migrated = { ...DEFAULT_SETTINGS, theme: v1.darkMode ? 'dark' : 'light' };
+    } catch {
+      // Parse failed — migrate with defaults
+    }
+    await Storage.setItem(SETTINGS_KEY, JSON.stringify(migrated));
+    await Storage.removeItem(LEGACY_KEY);
+    return migrated;
+  }
+
+  // 3. First-time user
+  return DEFAULT_SETTINGS;
+}
+
+async function saveSettings(settings: SettingsV2): Promise<void> {
+  try {
+    await Storage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch (error) {
+    console.error('saveSettings failed', error);
+  }
+}
+```
+
+Encoding the version in the key name (`settings:v2`) makes it immediately clear which schema is in use when the next migration comes around.
+
+## Snippet 3 — `useSettings` React hook
+
+Wrap the helpers in a hook for clean component usage.
+
+```tsx
+import { Storage } from '@apps-in-toss/web-framework';
+import { useCallback, useEffect, useState } from 'react';
+
+interface SettingsV2 {
+  theme: 'light' | 'dark';
+  language: string;
+}
+
+const SETTINGS_KEY = 'settings:v2';
+const DEFAULT_SETTINGS: SettingsV2 = { theme: 'light', language: 'ko' };
+
+function useSettings() {
+  const [settings, setSettings] = useState<SettingsV2>(DEFAULT_SETTINGS);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    Storage.getItem(SETTINGS_KEY).then((raw) => {
+      if (cancelled) return;
+      if (raw !== null) {
+        try {
+          setSettings({ ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<SettingsV2>) });
+        } catch {
+          // Parse failed — keep defaults
+        }
+      }
+      setReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const update = useCallback(async (patch: Partial<SettingsV2>) => {
+    setSettings((prev) => {
+      const next = { ...prev, ...patch };
+      // Optimistic update, then persist asynchronously
+      Storage.setItem(SETTINGS_KEY, JSON.stringify(next)).catch((err) => {
+        console.error('useSettings: persist failed', err);
+      });
+      return next;
+    });
+  }, []);
+
+  return { settings, ready, update };
+}
+
+// Usage
+function ThemeToggle() {
+  const { settings, ready, update } = useSettings();
+  if (!ready) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={() => update({ theme: settings.theme === 'light' ? 'dark' : 'light' })}
+    >
+      Current: {settings.theme}
+    </button>
+  );
+}
+```
+
+The `ready` flag lets you suppress a brief flicker where the default value renders before the storage read completes.
+
+## Snippet 4 — When to use `clearItems` (and when not to)
+
+`clearItems` deletes **every key** the mini-app has stored in one call. It's a good fit for sign-out, but keep in mind that it also removes keys written by other features in the same mini-app.
+
+```tsx
+import { Storage } from '@apps-in-toss/web-framework';
+
+// Sign-out — safe to wipe everything
+async function signOut() {
+  await fetch('/api/sign-out', { method: 'POST' });
+  await Storage.clearItems(); // removes settings, cache, session keys — all of them
+}
+
+// Reset only settings — use removeItem instead
+async function resetSettingsOnly() {
+  await Storage.removeItem('settings:v2');
+  // Other keys (e.g. 'game.highScore') are left untouched
+}
+```
+
+Use `clearItems` when the user intent is clear and a full wipe is correct (e.g. sign-out). For partial resets, call `removeItem` per key instead.
+
+## Related APIs
+
+- [`Storage.setItem`](/api/storage/setItem) — store a string value at a key.
+- [`Storage.getItem`](/api/storage/getItem) — read a stored value. Returns `null` when missing.
+- [`Storage.removeItem`](/api/storage/removeItem) — delete a single key.
+- [`Storage.clearItems`](/api/storage/clearItems) — delete every key the mini-app has stored.
