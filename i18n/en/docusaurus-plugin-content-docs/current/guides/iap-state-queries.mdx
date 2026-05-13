@@ -1,0 +1,225 @@
+---
+id: iap-state-queries
+title: IAP state queries — managing products, orders, and subscriptions in one place
+sidebar_label: IAP state queries
+slug: /guides/iap-state-queries
+description: Calling getProductItemList, getPendingOrders, getCompletedOrRefundedOrders, and getSubscriptionInfo together at app entry to manage products, pending-order recovery, refund sync, and subscription state in one place.
+---
+
+# IAP state queries — managing products, orders, and subscriptions in one place
+
+The IAP payment sequence itself lives in [Guides — IAP payment flow](/guides/iap-payment-flow). This guide covers the four queries that sit **outside** that flow — product list, pending orders, completed/refunded history, subscription state — and the order in which to call them at app entry (or when the user opens "My orders"), plus where each result belongs.
+
+## What each method answers
+
+| Method | Question | Source | Frequency |
+| --- | --- | --- | --- |
+| [`getProductItemList`](/api/iap/getProductItemList) | "Which SKUs/prices are live right now?" | SKUs registered in the console | On product screen entry. The console is the source of truth. |
+| [`getPendingOrders`](/api/iap/getPendingOrders) | "Any paid-but-not-finalized orders?" | Toss payment system | **Every entry** (including re-entry). The recovery trigger. |
+| [`getCompletedOrRefundedOrders`](/api/iap/getCompletedOrRefundedOrders) | "Completed/refunded orders in the last N days?" | Toss payment system | On "My orders" entry, or on entry for refund sync. |
+| [`getSubscriptionInfo`](/api/iap/getSubscriptionInfo) | "Is this subscription still active? When does it expire?" | Toss payment system | On entry to subscription-gated features. For renewal/refund reflection. |
+
+Key: **all four are called outside the payment flow** — never inside the `createOneTimePurchaseOrder` / `createSubscriptionPurchaseOrder` callbacks.
+
+## Standard entry-time sequence
+
+Handle the four queries together at mini-app entry (or on the "My orders" screen).
+
+```tsx
+import { IAP } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function IAPStateBootstrap() {
+  useEffect(() => {
+    (async () => {
+      // 1. Refresh the product list — prices may have changed or SKUs may have been added.
+      const { products } = await IAP.getProductItemList();
+      productStore.set(products);
+
+      // 2. Recover pending orders — see the IAP payment flow guide for the full pattern.
+      const { orders } = await IAP.getPendingOrders();
+      for (const order of orders) {
+        const ok = await fulfillOnServer(order.orderId); // idempotent server fulfillment
+        if (ok) await IAP.completeProductGrant({ params: { orderId: order.orderId } });
+      }
+
+      // 3. Sync refunds — only orders changed since last sync.
+      const since = lastSyncedAt ?? Date.now() - 7 * 24 * 60 * 60 * 1000;
+      const { orders: history } = await IAP.getCompletedOrRefundedOrders({
+        params: { fromTimestamp: since },
+      });
+      for (const order of history) {
+        if (order.status === 'REFUNDED') {
+          await revokeGrantOnServer(order.orderId);
+        }
+      }
+      lastSyncedAt = Date.now();
+    })().catch(console.warn);
+  }, []);
+
+  return null;
+}
+```
+
+The component handles all four at entry. The ordering is intentional:
+
+1. **Product list first** — if a price changed or a SKU was disabled in the console, the rendered screen should reflect that before the user sees anything.
+2. **Pending order recovery** — the user may have closed the app right after payment and before `completeProductGrant`. Self-heal on the next entry. (See [IAP payment flow — Recovery](/guides/iap-payment-flow#recovery--handling-pending-orders).)
+3. **Refund sync** — if the user refunded through Toss, the grant must be revoked on your server. **Skip this and refunded users keep their access.**
+4. **Subscription state** is per-screen (see below), not part of entry bootstrap.
+
+`catch(console.warn)` is intentional — a single failure shouldn't block the other three. Genuine failures retry on the next entry.
+
+## `getProductItemList` — console is the source of truth
+
+```ts
+const { products } = await IAP.getProductItemList();
+// Render products[].sku, products[].price, products[].name directly.
+```
+
+**Do not hardcode SKUs/prices in the client.** Changes in the console then apply instantly without a redeploy, and new products surface automatically. Hardcoding leads to starting a purchase at a price the console no longer offers — confusing for the user.
+
+```tsx
+// ❌ Bad: hardcoded on the client
+const PRODUCTS = [{ sku: 'premium-1month', price: 4900 }];
+
+// ✅ Good: console is the source of truth
+const { products } = await IAP.getProductItemList();
+```
+
+A per-entry call is the default, but if you transition screens a lot, **session-level cache** (app start to exit) once is enough. Refresh once more right before a purchase starts, since cache may go stale.
+
+## `getPendingOrders` — every entry
+
+```ts
+const { orders } = await IAP.getPendingOrders();
+```
+
+**Call this on every entry.** Any user who closes the app between payment, `processProductGrant` server fulfillment, and `completeProductGrant` will surface here. The full recovery pattern with idempotent server fulfillment lives in [IAP payment flow — Recovery](/guides/iap-payment-flow#recovery--handling-pending-orders).
+
+Additional notes:
+
+- **An empty array is the norm.** Expect empty, and only run the fallback when it isn't.
+- **The call itself is light.** Per-entry call is fine.
+- **The same order keeps showing up until `completeProductGrant`.** Idempotent fulfillment + always reaching `completeProductGrant` clears it.
+
+## `getCompletedOrRefundedOrders` — refund sync
+
+```ts
+const { orders } = await IAP.getCompletedOrRefundedOrders({
+  params: { fromTimestamp: lastSyncedAt },
+});
+
+for (const order of orders) {
+  switch (order.status) {
+    case 'COMPLETED':
+      // Make sure the grant exists on your server. If not, backfill (idempotent).
+      break;
+    case 'REFUNDED':
+      // **Always** revoke the grant on your server.
+      await revokeGrantOnServer(order.orderId);
+      break;
+  }
+}
+```
+
+Calling without `fromTimestamp` returns full history. **Pass the last-synced timestamp** and only fetch the delta to keep this cheap. Persist `lastSyncedAt` to localStorage and ratchet forward on each entry.
+
+### The "My orders" screen
+
+Beyond the entry sync, the user's "My orders" screen uses the same method with a wider window. There's no SDK-level pagination — one call returns every order in the requested window.
+
+```tsx
+function OrderHistoryPage() {
+  const [orders, setOrders] = useState<Order[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const result = await IAP.getCompletedOrRefundedOrders({
+        params: { fromTimestamp: Date.now() - 90 * 24 * 60 * 60 * 1000 }, // last 90 days
+      });
+      setOrders(result.orders);
+    })().catch(console.warn);
+  }, []);
+
+  return <OrderList orders={orders} />;
+}
+```
+
+The UI should distinguish the two statuses — `COMPLETED` is the normal row, `REFUNDED` carries an explicit "Refunded" label.
+
+## `getSubscriptionInfo` — subscription state
+
+```ts
+const { subscription } = await IAP.getSubscriptionInfo({
+  params: { orderId },
+});
+// subscription.isAccessible, expiresAt, isAutoRenew, ...
+```
+
+Call when the user enters a subscription-gated feature (premium screen, etc.). If the user has cancelled auto-renew or been refunded on Toss's side, `isAccessible === false` reflects that immediately.
+
+```tsx
+function PremiumGate({ orderId, children }: { orderId: string; children: ReactNode }) {
+  const [accessible, setAccessible] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const { subscription } = await IAP.getSubscriptionInfo({ params: { orderId } });
+      setAccessible(subscription.isAccessible);
+      if (!subscription.isAccessible) {
+        await revokeGrantOnServer(orderId);
+      }
+    })().catch(() => setAccessible(false));
+  }, [orderId]);
+
+  if (accessible === null) return <Loading />;
+  if (!accessible) return <UpgradePrompt />;
+  return <>{children}</>;
+}
+```
+
+### Track renewals separately
+
+`isAccessible` only tells you "accessible right now." Whether a **renewal payment** has happened (monthly auto-pay, etc.) is best tracked by polling `getCompletedOrRefundedOrders` for new order IDs, or by reacting to Toss IAP webhooks on your server.
+
+## Call frequency and caching
+
+| Method | Frequency | Cacheable? |
+| --- | --- | --- |
+| `getProductItemList` | Once on entry + refresh right before a purchase | Session cache OK (app entry to exit). |
+| `getPendingOrders` | Every entry | No cache — always fresh. |
+| `getCompletedOrRefundedOrders` | Once on entry + on "My orders" entry | Delta-fetch with `fromTimestamp`. |
+| `getSubscriptionInfo` | On entry to subscription-gated screens | Short cache (1–5 min) OK, invalidate right after Toss refunds/renewals. |
+
+## Common-mistakes checklist
+
+- Hardcoding SKUs/prices on the client? Console price changes won't propagate.
+- Are you calling `getPendingOrders` on entry? Skipping leaks orders permanently after abnormal termination.
+- Does your `getCompletedOrRefundedOrders` `REFUNDED` branch revoke the grant? Skipping lets refunded users keep access.
+- Are you relying solely on your DB for subscription state? Toss-side refunds/cancellations aren't reflected there immediately — call `getSubscriptionInfo` as a tiebreaker.
+- Calling `getCompletedOrRefundedOrders` without `fromTimestamp`? You fetch the whole history every time.
+- Does one query's failure block the others? Isolate with `Promise.allSettled` or per-call `try/catch`.
+
+## Environment differences
+
+- **Real Toss app**: all four calls behave normally. Payment/refund reflect from Toss servers immediately.
+- **devtools mock**: [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) lets you stub product lists, arbitrary pending orders, and arbitrary statuses from the panel. Real payment sync only on-device.
+- **External browser**: all calls throw. Don't use outside the mini-app environment.
+
+## Related APIs
+
+- [`api/iap`](/api/iap) — `iap` namespace overview.
+- [`IAP.getProductItemList`](/api/iap/getProductItemList) — product list.
+- [`IAP.getPendingOrders`](/api/iap/getPendingOrders) — pending-order query.
+- [`IAP.getCompletedOrRefundedOrders`](/api/iap/getCompletedOrRefundedOrders) — completed/refunded history.
+- [`IAP.getSubscriptionInfo`](/api/iap/getSubscriptionInfo) — subscription state.
+- [`IAP.completeProductGrant`](/api/iap/completeProductGrant) — fulfillment-done signal (needed during recovery).
+
+## Related guides
+
+- [Guides — IAP payment flow](/guides/iap-payment-flow) — the `createOneTimePurchaseOrder` / `createSubscriptionPurchaseOrder` flow with `processProductGrant` and `completeProductGrant`. This guide focuses on state queries *outside* the payment flow.
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — upstream SDK package.
