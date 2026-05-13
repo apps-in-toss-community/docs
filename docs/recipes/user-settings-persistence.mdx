@@ -1,0 +1,202 @@
+---
+image: /og/recipes-user-settings-persistence.png
+id: user-settings-persistence
+title: 사용자 설정 저장 패턴 (직렬화·마이그레이션·기본값)
+sidebar_label: 사용자 설정 저장
+slug: /recipes/user-settings-persistence
+description: storage.setItem/getItem으로 사용자 설정을 저장하고 읽을 때 직렬화/역직렬화, 스키마 마이그레이션, 기본값 처리를 한 곳에서 다루는 짧은 스니펫.
+---
+
+# 사용자 설정 저장 패턴 (직렬화·마이그레이션·기본값)
+
+`Storage`는 문자열 key-value 저장소다. 객체를 저장할 때는 JSON 직렬화 + 스키마 버전 관리 + 기본값 처리가 거의 항상 필요하다. 네 개의 짧은 스니펫으로 정리한다.
+
+## Snippet 1 — JSON 직렬화 헬퍼
+
+반복되는 `JSON.stringify`/`JSON.parse` + `try/catch` 를 한 곳으로 모은다.
+
+```tsx
+import { Storage } from '@apps-in-toss/web-framework';
+
+async function getJSON<T>(key: string, fallback: T): Promise<T> {
+  const raw = await Storage.getItem(key);
+  if (raw === null) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    // 형식이 깨진 경우 기본값으로 폴백
+    return fallback;
+  }
+}
+
+async function setJSON<T>(key: string, value: T): Promise<void> {
+  try {
+    await Storage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    // quota 초과·디스크 오류 등. 앱이 멈추지 않도록 로깅만.
+    console.error(`storage.setItem(${key}) failed`, error);
+  }
+}
+```
+
+`getJSON`은 키 부재(`null`)와 파싱 실패 모두 `fallback`으로 처리한다. `setJSON`은 오류를 삼키고 로깅만 한다 — 설정 저장 실패가 앱 전체를 멈춰야 할 이유는 드물다.
+
+## Snippet 2 — 스키마 버전 + 마이그레이션
+
+키 이름이나 값 구조를 바꿀 때는 "읽고 → 변환하고 → 새 키에 쓰고 → 옛 키 삭제" 순서로.
+
+```tsx
+import { Storage } from '@apps-in-toss/web-framework';
+
+interface SettingsV1 {
+  darkMode: boolean;
+}
+
+interface SettingsV2 {
+  theme: 'light' | 'dark';
+  language: string;
+}
+
+const SETTINGS_KEY = 'settings:v2';
+const LEGACY_KEY = 'settings:v1';
+const DEFAULT_SETTINGS: SettingsV2 = { theme: 'light', language: 'ko' };
+
+async function loadSettings(): Promise<SettingsV2> {
+  // 1. v2 키가 있으면 바로 반환
+  const v2Raw = await Storage.getItem(SETTINGS_KEY);
+  if (v2Raw !== null) {
+    try {
+      return { ...DEFAULT_SETTINGS, ...(JSON.parse(v2Raw) as Partial<SettingsV2>) };
+    } catch {
+      return DEFAULT_SETTINGS;
+    }
+  }
+
+  // 2. v1 키가 있으면 마이그레이션
+  const v1Raw = await Storage.getItem(LEGACY_KEY);
+  if (v1Raw !== null) {
+    let migrated = DEFAULT_SETTINGS;
+    try {
+      const v1 = JSON.parse(v1Raw) as SettingsV1;
+      migrated = { ...DEFAULT_SETTINGS, theme: v1.darkMode ? 'dark' : 'light' };
+    } catch {
+      // 파싱 실패 → 기본값으로 마이그레이션
+    }
+    await Storage.setItem(SETTINGS_KEY, JSON.stringify(migrated));
+    await Storage.removeItem(LEGACY_KEY);
+    return migrated;
+  }
+
+  // 3. 첫 사용자
+  return DEFAULT_SETTINGS;
+}
+
+async function saveSettings(settings: SettingsV2): Promise<void> {
+  try {
+    await Storage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch (error) {
+    console.error('saveSettings failed', error);
+  }
+}
+```
+
+`settings:v2` 처럼 키 이름에 버전을 담아두면, 다음 마이그레이션에서 어떤 스키마인지 명확히 알 수 있다.
+
+## Snippet 3 — `useSettings` React 훅
+
+위 헬퍼를 React 훅으로 감싸면 컴포넌트에서 깔끔하게 쓸 수 있다.
+
+```tsx
+import { Storage } from '@apps-in-toss/web-framework';
+import { useCallback, useEffect, useState } from 'react';
+
+interface SettingsV2 {
+  theme: 'light' | 'dark';
+  language: string;
+}
+
+const SETTINGS_KEY = 'settings:v2';
+const DEFAULT_SETTINGS: SettingsV2 = { theme: 'light', language: 'ko' };
+
+function useSettings() {
+  const [settings, setSettings] = useState<SettingsV2>(DEFAULT_SETTINGS);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    Storage.getItem(SETTINGS_KEY).then((raw) => {
+      if (cancelled) return;
+      if (raw !== null) {
+        try {
+          setSettings({ ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<SettingsV2>) });
+        } catch {
+          // 파싱 실패 → 기본값 유지
+        }
+      }
+      setReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const update = useCallback(async (patch: Partial<SettingsV2>) => {
+    setSettings((prev) => {
+      const next = { ...prev, ...patch };
+      // 낙관적 업데이트 후 비동기 저장
+      Storage.setItem(SETTINGS_KEY, JSON.stringify(next)).catch((err) => {
+        console.error('useSettings: persist failed', err);
+      });
+      return next;
+    });
+  }, []);
+
+  return { settings, ready, update };
+}
+
+// 사용 예
+function ThemeToggle() {
+  const { settings, ready, update } = useSettings();
+  if (!ready) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={() => update({ theme: settings.theme === 'light' ? 'dark' : 'light' })}
+    >
+      현재: {settings.theme === 'light' ? '라이트' : '다크'}
+    </button>
+  );
+}
+```
+
+`ready` 플래그로 저장소 읽기가 끝나기 전에 기본값이 잠깐 렌더링되는 플리커를 제어할 수 있다.
+
+## Snippet 4 — `clearItems` 사용 시점과 주의사항
+
+`clearItems`는 미니앱이 저장한 **모든 키**를 한 번에 삭제한다. 로그아웃 시 깨끗하게 비우는 데 적합하지만, 같은 미니앱 안에서 다른 기능이 저장한 키도 함께 사라진다는 점을 명심한다.
+
+```tsx
+import { Storage } from '@apps-in-toss/web-framework';
+
+// 로그아웃 — 모든 키를 비워도 안전한 시점
+async function signOut() {
+  await fetch('/api/sign-out', { method: 'POST' });
+  await Storage.clearItems(); // 설정·캐시·세션 키 전부 삭제
+}
+
+// 설정만 초기화 — clearItems 대신 removeItem을 쓴다
+async function resetSettingsOnly() {
+  await Storage.removeItem('settings:v2');
+  // 다른 기능이 저장한 키(예: 'game.highScore')는 그대로 남는다
+}
+```
+
+"로그아웃"처럼 사용자 의도가 명확하고 모든 상태를 비워야 하는 경우에는 `clearItems`, 부분 초기화가 필요할 때는 `removeItem`을 키별로 호출한다.
+
+## 관련 API
+
+- [`Storage.setItem`](/api/storage/setItem) — 키에 문자열 값을 저장합니다.
+- [`Storage.getItem`](/api/storage/getItem) — 저장된 값을 읽습니다. 없으면 `null`.
+- [`Storage.removeItem`](/api/storage/removeItem) — 단일 키를 삭제합니다.
+- [`Storage.clearItems`](/api/storage/clearItems) — 미니앱이 저장한 모든 키를 삭제합니다.
