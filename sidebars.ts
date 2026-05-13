@@ -35,6 +35,18 @@ const sidebars: SidebarsConfig = {
         },
         {
           type: 'category',
+          label: 'auth',
+          collapsed: false,
+          items: [
+            'api/auth/auth-overview',
+            'api/auth/appLogin',
+            'api/auth/appsInTossSignTossCert',
+            'api/auth/getAnonymousKey',
+            'api/auth/getIsTossLoginIntegratedService',
+          ],
+        },
+        {
+          type: 'category',
           label: 'camera',
           collapsed: false,
           items: ['api/camera/openCamera'],

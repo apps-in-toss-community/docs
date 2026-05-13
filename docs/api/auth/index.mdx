@@ -1,0 +1,49 @@
+---
+image: /og/api-auth.png
+id: auth-overview
+title: auth
+sidebar_label: Overview
+slug: /api/auth
+description: 토스 로그인, 인증서 서명, 익명 키 조회 등 인증 관련 기능을 제공하는 SDK 네임스페이스입니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `auth`
+
+토스 로그인 흐름, 토스 인증서(Toss Cert) 서명, 익명 키 조회, 토스 로그인 연동 여부 확인 등 미니앱의 인증 기능을 담당하는 함수 모음입니다. 모든 함수는 `Promise`를 반환합니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 메서드
+
+| 메서드 | 반환 타입 | 용도 |
+| --- | --- | --- |
+| [`appLogin`](/api/auth/appLogin) | `Promise<{ authorizationCode: string; referrer: 'DEFAULT' \| 'SANDBOX' }>` | 토스 인증으로 로그인합니다. 인가 코드를 반환합니다. |
+| [`appsInTossSignTossCert`](/api/auth/appsInTossSignTossCert) | `Promise<void>` | 토스 인증서를 사용해 서명합니다. `appLogin` 이후 호출해야 합니다. |
+| [`getAnonymousKey`](/api/auth/getAnonymousKey) | `Promise<{ type: 'HASH'; hash: string } \| 'ERROR' \| undefined>` | 로그인 없이 사용자를 식별하는 익명 키를 반환합니다. |
+| [`getIsTossLoginIntegratedService`](/api/auth/getIsTossLoginIntegratedService) | `Promise<boolean \| undefined>` | 사용자가 토스 로그인을 연동했는지 여부를 확인합니다. |
+
+## 권한
+
+`auth` 네임스페이스의 함수들은 별도의 `PermissionName`에 바인딩되지 않습니다 — `.getPermission()` / `.openPermissionDialog()` 유틸을 노출하지 않습니다. `appLogin` 호출 시 사용자 동의 화면이 자동으로 표시됩니다. 다른 네임스페이스에서 권한을 처리하는 방식은 [Guides — 권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
+
+## UX 가이드
+
+- **`appLogin`은 명시적 사용자 액션 후 호출하세요.** 로그인 버튼 탭, 결제 시작 등 사용자가 의도한 시점에 호출하는 것이 원칙입니다. 화면 진입 즉시 자동 호출은 사용자 경험상 권장하지 않습니다.
+- **인가 코드는 즉시 서버로 전달하세요.** `appLogin`이 반환하는 `authorizationCode`는 단기 유효 토큰입니다. 클라이언트에 장기 보관하지 말고 즉시 서버 측 인증 흐름으로 넘기세요.
+- **`appsInTossSignTossCert` 호출 전에 `appLogin`을 먼저 완료하세요.** 로그인되지 않은 상태에서 인증서 서명을 요청하면 흐름이 실패할 수 있습니다.
+- **`getAnonymousKey`의 `undefined` 반환은 버전 미지원입니다.** `isMinVersionSupported`로 최소 버전을 먼저 확인하거나, `undefined`/`'ERROR'` 케이스를 모두 처리하세요.
+- **`getIsTossLoginIntegratedService`는 마이그레이션 용도입니다.** 기존 토스 로그인 사용자를 게임 식별자로 전환하는 시나리오 등에서 활용합니다.
+
+## 직접 실행해 보기
+
+sdk-example의 Auth 페이지에서 메서드를 직접 실행해 볼 수 있습니다.
+
+<TryItLink group="auth" />
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.

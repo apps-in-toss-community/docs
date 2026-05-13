@@ -1,0 +1,124 @@
+---
+id: appsInTossSignTossCert
+title: appsInTossSignTossCert
+sidebar_label: appsInTossSignTossCert
+description: Sign with the Toss Cert certificate for identity verification or electronic signature.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `appsInTossSignTossCert`
+
+Sign with the Toss Cert certificate to perform identity verification, simple authentication, or electronic signature. Pass the `txId` (Transaction ID) issued by your server — the SDK presents the cert-selection and signing UI. The `Promise` resolves when signing is complete.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { appsInTossSignTossCert } from '@apps-in-toss/web-framework';
+
+interface AppsInTossSignTossCertParams {
+  txId: string;
+}
+
+declare function appsInTossSignTossCert(
+  params: AppsInTossSignTossCertParams
+): Promise<void>;
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `params` | `AppsInTossSignTossCertParams` | ✓ | Parameter object for signing. |
+| `params.txId` | `string` | ✓ | Transaction ID issued by your server for this signing session. |
+
+## Returns
+
+- `Promise<void>` — resolves when signing completes successfully.
+- Rejects if the user cancels or an error occurs — wrap in `try/catch`.
+
+## Permission
+
+No permission required — `appsInTossSignTossCert` is not bound to any `PermissionName`. For how other namespaces handle permissions, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+:::caution Requires `appLogin` first
+`appsInTossSignTossCert` assumes the user is already logged in. Calling it without a completed login session may cause the flow to fail. Always call [`appLogin`](./appLogin) first.
+:::
+
+## Examples
+
+### Minimal
+
+```tsx
+import { appsInTossSignTossCert } from '@apps-in-toss/web-framework';
+
+async function handleSign(txId: string) {
+  await appsInTossSignTossCert({ txId });
+  console.log('Signing complete.');
+}
+```
+
+### Realistic — login then sign
+
+```tsx
+import { appLogin, appsInTossSignTossCert } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+// Replace `fetchTxId` with your actual server API.
+declare function fetchTxId(): Promise<string>;
+
+function SignButton() {
+  const [status, setStatus] = useState<string | null>(null);
+
+  const handleClick = async () => {
+    try {
+      // 1. Log in
+      const { authorizationCode, referrer } = await appLogin();
+      console.log('Login complete:', { authorizationCode, referrer });
+
+      // 2. Obtain a txId from your server
+      const txId = await fetchTxId();
+
+      // 3. Sign with Toss Cert
+      await appsInTossSignTossCert({ txId });
+      setStatus('Signing complete.');
+    } catch (error) {
+      setStatus('Signing failed — please try again.');
+      console.error(error);
+    }
+  };
+
+  return (
+    <>
+      <button type="button" onClick={handleClick}>
+        Sign with Toss Cert
+      </button>
+      {status && <p>{status}</p>}
+    </>
+  );
+}
+```
+
+## Try it live
+
+Run the `appsInTossSignTossCert` card on the Auth page in sdk-example.
+
+<TryItLink group="auth" method="appsInTossSignTossCert" />
+
+## Related APIs
+
+- [`appLogin`](./appLogin) — Start the Toss login flow. Must be completed before calling `appsInTossSignTossCert`.
+- [`getIsTossLoginIntegratedService`](./getIsTossLoginIntegratedService) — Check whether the user has integrated Toss login.
+
+## Related guides
+
+- _(coming soon)_ Guides — "Toss login flow"
+- [Guides — Permissions pattern](/guides/permissions-pattern) — Permission handling in other namespaces (for reference; `appsInTossSignTossCert` requires no permission).
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

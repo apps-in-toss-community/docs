@@ -1,0 +1,118 @@
+---
+id: appLogin
+title: appLogin
+sidebar_label: appLogin
+description: Start the Toss login flow. Returns an authorization code and referrer.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `appLogin`
+
+Initiates the Toss authentication flow and signs the user in. Calling this function automatically surfaces the user consent screen. On completion it returns an `authorizationCode` and a `referrer` — pass the code to your server immediately to complete the authentication flow.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { appLogin } from '@apps-in-toss/web-framework';
+
+declare function appLogin(): Promise<{
+  authorizationCode: string;
+  referrer: 'DEFAULT' | 'SANDBOX';
+}>;
+```
+
+## Parameters
+
+None.
+
+## Returns
+
+`Promise<{ authorizationCode: string; referrer: 'DEFAULT' | 'SANDBOX' }>`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `authorizationCode` | `string` | A short-lived authorization code to forward to your server. |
+| `referrer` | `'DEFAULT' \| 'SANDBOX'` | Login entry-point context. `'SANDBOX'` indicates a development or test environment. |
+
+## Permission
+
+No permission required — `appLogin` is not bound to any `PermissionName`. The user consent screen is shown automatically when the function is called. For how other namespaces handle permissions, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { appLogin } from '@apps-in-toss/web-framework';
+
+async function handleLogin() {
+  const { authorizationCode, referrer } = await appLogin();
+
+  // Forward authorizationCode and referrer to your server.
+  console.log('authorizationCode:', authorizationCode, 'referrer:', referrer);
+}
+```
+
+### Realistic — login button with error handling
+
+```tsx
+import { appLogin } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+// Replace `sendToServer` with your actual API client.
+declare function sendToServer(params: { authorizationCode: string; referrer: string }): Promise<void>;
+
+function LoginButton() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleClick = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { authorizationCode, referrer } = await appLogin();
+      await sendToServer({ authorizationCode, referrer });
+    } catch (err) {
+      setError('Login failed — please try again.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <button type="button" onClick={handleClick} disabled={loading}>
+        {loading ? 'Logging in…' : 'Log in with Toss'}
+      </button>
+      {error && <p>{error}</p>}
+    </>
+  );
+}
+```
+
+## Try it live
+
+Run the `appLogin` card on the Auth page in sdk-example.
+
+<TryItLink group="auth" method="appLogin" />
+
+## Related APIs
+
+- [`appsInTossSignTossCert`](./appsInTossSignTossCert) — Sign with the Toss Cert certificate. Call after `appLogin`.
+- [`getIsTossLoginIntegratedService`](./getIsTossLoginIntegratedService) — Check whether the user has integrated Toss login.
+- [`getAnonymousKey`](./getAnonymousKey) — Retrieve an anonymous identifier without requiring login.
+
+## Related guides
+
+- _(coming soon)_ Guides — "Toss login flow"
+- [Guides — Permissions pattern](/guides/permissions-pattern) — Permission handling in other namespaces (for reference; `appLogin` requires no permission).
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

@@ -1,0 +1,127 @@
+---
+id: getIsTossLoginIntegratedService
+title: getIsTossLoginIntegratedService
+sidebar_label: getIsTossLoginIntegratedService
+description: Check whether the user has integrated Toss login with the mini-app.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `getIsTossLoginIntegratedService`
+
+Checks whether the current user has linked their Toss login to this mini-app. Primarily used when migrating existing Toss login users to a different identity system (e.g., a game identifier). Returns `undefined` when the app version is below the minimum supported version. Throws when called from a mini-app that has not configured `oauth2ClientId`.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { getIsTossLoginIntegratedService } from '@apps-in-toss/web-framework';
+
+declare function getIsTossLoginIntegratedService(): Promise<boolean | undefined>;
+```
+
+## Parameters
+
+None.
+
+## Returns
+
+`Promise<boolean | undefined>`
+
+| Value | Meaning |
+| --- | --- |
+| `true` | The user has integrated Toss login. |
+| `false` | The user has not integrated Toss login. |
+| `undefined` | The app version is below the minimum supported version. |
+
+:::caution Throws on misconfiguration
+If the mini-app has not configured `oauth2ClientId`, calling this function throws `{ message: "oauth2ClientId 설정이 필요합니다." }`. Always wrap in `try/catch`.
+:::
+
+## Permission
+
+No permission required — `getIsTossLoginIntegratedService` is not bound to any `PermissionName`. For how other namespaces handle permissions, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { getIsTossLoginIntegratedService } from '@apps-in-toss/web-framework';
+
+async function checkTossLogin() {
+  try {
+    const result = await getIsTossLoginIntegratedService();
+
+    if (result === undefined) {
+      console.warn('App version is too old — update required.');
+      return;
+    }
+
+    if (result) {
+      console.log('User has integrated Toss login.');
+    } else {
+      console.log('User has not integrated Toss login.');
+    }
+  } catch (error) {
+    console.error(error);
+  }
+}
+```
+
+### Realistic — migration branch logic
+
+```tsx
+import { getIsTossLoginIntegratedService } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+type MigrationState = 'checking' | 'integrated' | 'not-integrated' | 'unsupported' | 'error';
+
+function MigrationManager() {
+  const [state, setState] = useState<MigrationState>('checking');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const result = await getIsTossLoginIntegratedService();
+        if (result === undefined) {
+          setState('unsupported');
+        } else {
+          setState(result ? 'integrated' : 'not-integrated');
+        }
+      } catch {
+        setState('error');
+      }
+    })();
+  }, []);
+
+  if (state === 'checking') return <p>Checking…</p>;
+  if (state === 'integrated') return <p>Toss login linked — migration available.</p>;
+  if (state === 'not-integrated') return <p>Toss login not linked — prompt new registration.</p>;
+  if (state === 'unsupported') return <p>Please update the app.</p>;
+  return <p>An error occurred — please try again.</p>;
+}
+```
+
+## Try it live
+
+Run the `getIsTossLoginIntegratedService` card on the Auth page in sdk-example.
+
+<TryItLink group="auth" method="getIsTossLoginIntegratedService" />
+
+## Related APIs
+
+- [`appLogin`](./appLogin) — Start the Toss login flow.
+- [`getAnonymousKey`](./getAnonymousKey) — Retrieve an anonymous identifier without requiring login.
+
+## Related guides
+
+- _(coming soon)_ Guides — "Toss login flow"
+- [Guides — Permissions pattern](/guides/permissions-pattern) — Permission handling in other namespaces (for reference; `getIsTossLoginIntegratedService` requires no permission).
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

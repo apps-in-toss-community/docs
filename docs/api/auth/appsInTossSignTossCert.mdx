@@ -1,0 +1,125 @@
+---
+image: /og/api-auth-appsInTossSignTossCert.png
+id: appsInTossSignTossCert
+title: appsInTossSignTossCert
+sidebar_label: appsInTossSignTossCert
+description: 토스 인증서를 사용해 전자서명 또는 본인확인을 수행합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `appsInTossSignTossCert`
+
+토스 인증서(Toss Cert)를 사용해 전자서명, 본인확인, 간편인증을 수행합니다. 서버에서 발급한 `txId`(Transaction ID)를 파라미터로 전달하면 사용자가 인증서를 선택하고 서명하는 UI 흐름이 시작됩니다. 서명이 완료되면 `Promise`가 resolve됩니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+```ts
+import { appsInTossSignTossCert } from '@apps-in-toss/web-framework';
+
+interface AppsInTossSignTossCertParams {
+  txId: string;
+}
+
+declare function appsInTossSignTossCert(
+  params: AppsInTossSignTossCertParams
+): Promise<void>;
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `params` | `AppsInTossSignTossCertParams` | ✓ | 서명에 필요한 파라미터 객체. |
+| `params.txId` | `string` | ✓ | 서버에서 발급한 Transaction ID. 토스인증서 본인확인·간편인증·전자서명 흐름에서 사용됩니다. |
+
+## 반환값
+
+- `Promise<void>` — 서명이 완료되면 resolve.
+- 사용자가 서명을 취소하거나 오류가 발생하면 reject됩니다. `try/catch`로 감싸세요.
+
+## 권한
+
+권한이 필요하지 않습니다 — `appsInTossSignTossCert`는 별도의 `PermissionName`에 바인딩되지 않습니다. 다른 네임스페이스에서 권한을 처리하는 방식은 [Guides — 권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
+
+:::caution `appLogin` 선행 필요
+`appsInTossSignTossCert`는 사용자가 이미 로그인된 상태를 가정합니다. 로그인되지 않은 상태에서 호출하면 흐름이 실패할 수 있습니다. 반드시 [`appLogin`](./appLogin)을 먼저 완료한 후 호출하세요.
+:::
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { appsInTossSignTossCert } from '@apps-in-toss/web-framework';
+
+async function handleSign(txId: string) {
+  await appsInTossSignTossCert({ txId });
+  console.log('서명이 완료되었어요.');
+}
+```
+
+### 실전 예제 — 로그인 후 인증서 서명
+
+```tsx
+import { appLogin, appsInTossSignTossCert } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+// `fetchTxId`는 앱의 실제 서버 API로 대체하세요.
+declare function fetchTxId(): Promise<string>;
+
+function SignButton() {
+  const [status, setStatus] = useState<string | null>(null);
+
+  const handleClick = async () => {
+    try {
+      // 1. 로그인
+      const { authorizationCode, referrer } = await appLogin();
+      console.log('로그인 완료:', { authorizationCode, referrer });
+
+      // 2. 서버에서 txId 발급
+      const txId = await fetchTxId();
+
+      // 3. 토스 인증서 서명
+      await appsInTossSignTossCert({ txId });
+      setStatus('서명이 완료되었어요.');
+    } catch (error) {
+      setStatus('서명에 실패했어요. 다시 시도해 주세요.');
+      console.error(error);
+    }
+  };
+
+  return (
+    <>
+      <button type="button" onClick={handleClick}>
+        토스 인증서로 서명
+      </button>
+      {status && <p>{status}</p>}
+    </>
+  );
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Auth 페이지에서 `appsInTossSignTossCert` 카드를 실행해 결과를 확인할 수 있습니다.
+
+<TryItLink group="auth" method="appsInTossSignTossCert" />
+
+## 관련 API
+
+- [`appLogin`](./appLogin) — 토스 로그인 흐름을 시작합니다. `appsInTossSignTossCert` 호출 전에 완료해야 합니다.
+- [`getIsTossLoginIntegratedService`](./getIsTossLoginIntegratedService) — 사용자의 토스 로그인 연동 여부를 확인합니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Guides — "토스 로그인 흐름"
+- [Guides — 권한 처리 패턴](/guides/permissions-pattern) — 다른 네임스페이스의 권한 흐름 (참고용; `appsInTossSignTossCert`는 권한이 필요하지 않습니다).
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.
