@@ -24,6 +24,24 @@ const sidebars: SidebarsConfig = {
       items: [
         {
           type: 'category',
+          label: 'ads',
+          collapsed: false,
+          items: [
+            'api/ads/ads-overview',
+            'api/ads/attach',
+            'api/ads/attachBanner',
+            'api/ads/destroy',
+            'api/ads/destroyAll',
+            'api/ads/initialize',
+            'api/ads/isAppsInTossAdMobLoaded',
+            'api/ads/loadAppsInTossAdMob',
+            'api/ads/loadFullScreenAd',
+            'api/ads/showAppsInTossAdMob',
+            'api/ads/showFullScreenAd',
+          ],
+        },
+        {
+          type: 'category',
           label: 'analytics',
           collapsed: false,
           items: [

@@ -1,0 +1,135 @@
+---
+image: /og/api-ads-attachBanner.png
+id: attachBanner
+title: TossAds.attachBanner
+sidebar_label: TossAds.attachBanner
+description: Attaches a banner ad slot to a DOM element and returns a destroy handle.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `TossAds.attachBanner`
+
+Attaches a banner ad slot to a DOM element and returns a result object containing a `destroy` function. This is the recommended replacement for the deprecated [`TossAds.attach`](./attach).
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+`attachBanner` is exposed as a member of the `TossAds` namespace object.
+
+```ts
+import { TossAds } from '@apps-in-toss/web-framework';
+
+declare const TossAds: {
+  attachBanner: ((
+    adGroupId: string,
+    target: string | HTMLElement,
+    options?: AttachBannerOptions,
+  ) => AttachBannerResult) & {
+    isSupported: () => boolean;
+  };
+};
+
+interface AttachBannerOptions {
+  theme?: 'auto' | 'light' | 'dark';
+  tone?: 'blackAndWhite' | 'grey';
+  variant?: 'card' | 'expanded';
+  callbacks?: BannerSlotCallbacks;
+}
+
+interface AttachBannerResult {
+  destroy: () => void;
+}
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `adGroupId` | `string` | ✓ | Ad group unit ID issued from the console. |
+| `target` | `string \| HTMLElement` | ✓ | DOM element or CSS selector string to insert the ad into. |
+| `options` | `AttachBannerOptions` | — | Theme, tone, layout variant, and callback options. |
+| `options.theme` | `'auto' \| 'light' \| 'dark'` | — | Ad theme. |
+| `options.tone` | `'blackAndWhite' \| 'grey'` | — | Ad color tone. |
+| `options.variant` | `'card' \| 'expanded'` | — | Ad layout variant. |
+| `options.callbacks` | `BannerSlotCallbacks` | — | Callbacks for rendered, viewable, clicked, impression, and failed events. |
+
+## Returns
+
+- `AttachBannerResult` — `{ destroy: () => void }`. Call `destroy` to remove the slot from the DOM.
+
+## Permission
+
+No permission required — `TossAds.attachBanner` is not bound to a `PermissionName`. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { TossAds } from '@apps-in-toss/web-framework';
+
+const { destroy } = TossAds.attachBanner('ad-group-id-here', '#ad-container');
+
+// Remove the slot when no longer needed
+destroy();
+```
+
+### Realistic — banner ad in a React component
+
+```tsx
+import { TossAds } from '@apps-in-toss/web-framework';
+import { useEffect, useRef } from 'react';
+
+const AD_GROUP_ID = 'ad-group-id-here';
+
+function AdBanner() {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    if (!TossAds.attachBanner.isSupported()) return;
+
+    const { destroy } = TossAds.attachBanner(AD_GROUP_ID, containerRef.current, {
+      theme: 'auto',
+      callbacks: {
+        onAdRendered: (payload) => {
+          console.log('Ad rendered', payload.slotId);
+        },
+        onAdFailedToRender: (payload) => {
+          console.error('Ad failed to render', payload.error.message);
+        },
+      },
+    });
+
+    // Clean up the slot on component unmount
+    return destroy;
+  }, []);
+
+  return <div ref={containerRef} />;
+}
+```
+
+## Try it live
+
+Open the Ads page in sdk-example to try ad-related APIs live.
+
+<TryItLink group="ads" method="attachBanner" />
+
+## Related APIs
+
+- [`TossAds.initialize`](./initialize) — initializes the TossAds SDK. Must be called first.
+- [`TossAds.attach`](./attach) — deprecated predecessor function.
+- [`TossAds.destroy`](./destroy) — destroys a banner ad by slot ID.
+- [`TossAds.destroyAll`](./destroyAll) — destroys all banner ad slots.
+
+## Related guides
+
+- _(coming soon)_ Guides — "Ads integration pattern"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

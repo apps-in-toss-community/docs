@@ -1,0 +1,144 @@
+---
+image: /og/api-ads-loadFullScreenAd.png
+id: loadFullScreenAd
+title: loadFullScreenAd
+sidebar_label: loadFullScreenAd
+description: Pre-loads a full-screen ad.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `loadFullScreenAd`
+
+Pre-loads a full-screen ad. After receiving the `loaded` event, call [`showFullScreenAd`](./showFullScreenAd) to display it to the user. This is a separate full-screen ad namespace from GoogleAdMob.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+`loadFullScreenAd` is exported directly from `@apps-in-toss/web-framework`.
+
+```ts
+import { loadFullScreenAd } from '@apps-in-toss/web-framework';
+
+declare const loadFullScreenAd: ((args: {
+  onEvent: (data: LoadFullScreenAdEvent) => void;
+  onError: (error: Error) => void;
+  options?: LoadFullScreenAdOptions;
+}) => () => void) & {
+  isSupported: () => boolean;
+};
+
+interface LoadFullScreenAdOptions {
+  adGroupId: string;
+}
+
+interface LoadFullScreenAdEvent {
+  type: 'loaded';
+}
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `args.onEvent` | `(data: LoadFullScreenAdEvent) => void` | ✓ | Event handler. `type: 'loaded'` means the ad is ready to show. |
+| `args.onError` | `(error: Error) => void` | ✓ | Called when the ad fails to load. |
+| `args.options` | `LoadFullScreenAdOptions` | — | Ad options including `adGroupId`. |
+| `args.options.adGroupId` | `string` | — | Ad group unit ID issued from the console. |
+
+## Returns
+
+- `() => void` — cleanup function. Call it to unsubscribe from events.
+
+## Permission
+
+No permission required — `loadFullScreenAd` is not bound to a `PermissionName`. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { loadFullScreenAd } from '@apps-in-toss/web-framework';
+
+const cleanup = loadFullScreenAd({
+  onEvent: (event) => {
+    if (event.type === 'loaded') {
+      console.log('Full-screen ad loaded');
+    }
+  },
+  onError: (error) => {
+    console.error('Full-screen ad failed to load', error);
+  },
+});
+
+// Unsubscribe when done
+cleanup();
+```
+
+### Realistic — load on view entry, enable button when ready
+
+```tsx
+import { loadFullScreenAd, showFullScreenAd } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+const AD_GROUP_ID = 'ad-group-id-here';
+
+function FullScreenAdSection() {
+  const [adReady, setAdReady] = useState(false);
+
+  useEffect(() => {
+    if (!loadFullScreenAd.isSupported()) return;
+
+    const cleanup = loadFullScreenAd({
+      options: { adGroupId: AD_GROUP_ID },
+      onEvent: (event) => {
+        if (event.type === 'loaded') {
+          setAdReady(true);
+        }
+      },
+      onError: (error) => {
+        console.error('Full-screen ad failed to load', error);
+      },
+    });
+
+    return cleanup;
+  }, []);
+
+  const handleShow = () => {
+    showFullScreenAd({
+      options: { adGroupId: AD_GROUP_ID },
+      onEvent: (event) => console.log('Ad event', event),
+      onError: console.error,
+    });
+  };
+
+  return (
+    <button type="button" onClick={handleShow} disabled={!adReady}>
+      Show full-screen ad
+    </button>
+  );
+}
+```
+
+## Try it live
+
+Open the Ads page in sdk-example to try full-screen ad APIs live.
+
+<TryItLink group="ads" method="loadFullScreenAd" />
+
+## Related APIs
+
+- [`showFullScreenAd`](./showFullScreenAd) — shows the loaded full-screen ad.
+- [`GoogleAdMob.loadAppsInTossAdMob`](./loadAppsInTossAdMob) — Google AdMob full-screen ad load function.
+
+## Related guides
+
+- _(coming soon)_ Guides — "Ads integration pattern"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

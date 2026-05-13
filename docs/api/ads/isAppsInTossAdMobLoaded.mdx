@@ -1,0 +1,127 @@
+---
+image: /og/api-ads-isAppsInTossAdMobLoaded.png
+id: isAppsInTossAdMobLoaded
+title: GoogleAdMob.isAppsInTossAdMobLoaded
+sidebar_label: GoogleAdMob.isAppsInTossAdMobLoaded
+description: Google AdMob 광고가 성공적으로 로드되었는지 확인합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `GoogleAdMob.isAppsInTossAdMobLoaded`
+
+`loadAppsInTossAdMob`으로 광고가 성공적으로 로드되었는지 비동기로 확인합니다. 광고 노출 전 상태를 체크하거나, `loaded` 이벤트를 놓친 경우의 폴백으로 사용합니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+`isAppsInTossAdMobLoaded`는 `GoogleAdMob` 네임스페이스 객체의 멤버로 노출됩니다.
+
+```ts
+import { GoogleAdMob } from '@apps-in-toss/web-framework';
+
+declare const GoogleAdMob: {
+  isAppsInTossAdMobLoaded: ((args: IsAdMobLoadedOptions) => Promise<boolean>) & {
+    isSupported: () => boolean;
+  };
+};
+
+interface IsAdMobLoadedOptions {
+  adGroupId: string;
+}
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `args.adGroupId` | `string` | ✓ | 로드 여부를 확인할 광고 그룹 단위 ID. |
+
+## 반환값
+
+- `Promise<boolean>` — 광고가 로드되어 노출 가능한 상태이면 `true`, 그렇지 않으면 `false`.
+
+## 권한
+
+권한이 필요하지 않습니다 — `GoogleAdMob.isAppsInTossAdMobLoaded`는 별도의 `PermissionName`에 바인딩되지 않습니다. 권한이 필요한 다른 네임스페이스의 일반적인 처리 흐름은 [Guides — 권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { GoogleAdMob } from '@apps-in-toss/web-framework';
+
+const isLoaded = await GoogleAdMob.isAppsInTossAdMobLoaded({
+  adGroupId: 'ad-group-id-here',
+});
+
+if (isLoaded) {
+  console.log('광고 준비 완료');
+}
+```
+
+### 실전 예제 — 버튼 활성화 상태를 로드 여부로 제어
+
+```tsx
+import { GoogleAdMob } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+const AD_GROUP_ID = 'ad-group-id-here';
+
+function AdButton() {
+  const [canShow, setCanShow] = useState(false);
+
+  useEffect(() => {
+    if (!GoogleAdMob.isAppsInTossAdMobLoaded.isSupported()) return;
+
+    let cancelled = false;
+    GoogleAdMob.isAppsInTossAdMobLoaded({ adGroupId: AD_GROUP_ID })
+      .then((loaded) => {
+        if (!cancelled) setCanShow(loaded);
+      })
+      .catch(console.error);
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleClick = () => {
+    if (!canShow) return;
+    GoogleAdMob.showAppsInTossAdMob({
+      options: { adGroupId: AD_GROUP_ID },
+      onEvent: (event) => console.log('광고 이벤트', event),
+      onError: console.error,
+    });
+  };
+
+  return (
+    <button type="button" onClick={handleClick} disabled={!canShow}>
+      {canShow ? '광고 보기' : '광고 로딩 중...'}
+    </button>
+  );
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Ads 페이지에서 GoogleAdMob 워크플로를 직접 실행해 볼 수 있습니다.
+
+<TryItLink group="ads" method="isAppsInTossAdMobLoaded" />
+
+## 관련 API
+
+- [`GoogleAdMob.loadAppsInTossAdMob`](./loadAppsInTossAdMob) — 광고를 미리 로드합니다.
+- [`GoogleAdMob.showAppsInTossAdMob`](./showAppsInTossAdMob) — 로드된 광고를 사용자에게 노출합니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Guides — "광고 통합 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.

@@ -1,0 +1,145 @@
+---
+image: /og/api-ads-showAppsInTossAdMob.png
+id: showAppsInTossAdMob
+title: GoogleAdMob.showAppsInTossAdMob
+sidebar_label: GoogleAdMob.showAppsInTossAdMob
+description: Shows the pre-loaded Google AdMob full-screen ad to the user.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `GoogleAdMob.showAppsInTossAdMob`
+
+Shows the Google AdMob full-screen ad that was pre-loaded by `loadAppsInTossAdMob`. Only call this after receiving the `loaded` event from `loadAppsInTossAdMob`.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+`showAppsInTossAdMob` is exposed as a member of the `GoogleAdMob` namespace object.
+
+```ts
+import { GoogleAdMob } from '@apps-in-toss/web-framework';
+
+declare const GoogleAdMob: {
+  showAppsInTossAdMob: ((args: {
+    onEvent: (data: ShowAdMobEvent) => void;
+    onError: (error: Error) => void;
+    options?: ShowAdMobOptions;
+  }) => () => void) & {
+    isSupported: () => boolean;
+  };
+};
+
+interface ShowAdMobOptions {
+  adGroupId: string;
+}
+
+type ShowAdMobEvent =
+  | { type: 'requested' }
+  | { type: 'clicked' }
+  | { type: 'dismissed' }
+  | { type: 'failedToShow' }
+  | { type: 'impression' }
+  | { type: 'show' }
+  | { type: 'userEarnedReward'; data: { unitType: string; unitAmount: number } };
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `args.onEvent` | `(data: ShowAdMobEvent) => void` | ✓ | Event handler. Receives `requested`, `clicked`, `dismissed`, `impression`, `show`, `failedToShow`, and `userEarnedReward` events. |
+| `args.onError` | `(error: Error) => void` | ✓ | Called when showing the ad fails. |
+| `args.options` | `ShowAdMobOptions` | — | Ad options. |
+| `args.options.adGroupId` | `string` | — | The same ad group unit ID used with `loadAppsInTossAdMob`. |
+
+## Returns
+
+- `() => void` — cleanup function. Call it to unsubscribe from events.
+
+## Permission
+
+No permission required — `GoogleAdMob.showAppsInTossAdMob` is not bound to a `PermissionName`. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { GoogleAdMob } from '@apps-in-toss/web-framework';
+
+GoogleAdMob.showAppsInTossAdMob({
+  onEvent: (event) => {
+    console.log('Ad event', event.type);
+  },
+  onError: (error) => {
+    console.error('Ad show failed', error);
+  },
+});
+```
+
+### Realistic — navigate after ad is dismissed
+
+```tsx
+import { GoogleAdMob } from '@apps-in-toss/web-framework';
+import { useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+const AD_GROUP_ID = 'ad-group-id-here';
+
+function RewardPage() {
+  const navigate = useNavigate();
+
+  const handleShowAd = useCallback(() => {
+    if (!GoogleAdMob.showAppsInTossAdMob.isSupported()) return;
+
+    GoogleAdMob.showAppsInTossAdMob({
+      options: { adGroupId: AD_GROUP_ID },
+      onEvent: (event) => {
+        switch (event.type) {
+          case 'dismissed':
+            navigate('/reward-result');
+            break;
+          case 'userEarnedReward':
+            console.log('Reward earned', event.data);
+            break;
+          case 'failedToShow':
+            console.warn('Ad failed to show');
+            break;
+        }
+      },
+      onError: (error) => {
+        console.error('Ad show error', error);
+      },
+    });
+  }, [navigate]);
+
+  return (
+    <button type="button" onClick={handleShowAd}>
+      Watch rewarded ad
+    </button>
+  );
+}
+```
+
+## Try it live
+
+Open the Ads page in sdk-example to try the GoogleAdMob workflow live.
+
+<TryItLink group="ads" method="showAppsInTossAdMob" />
+
+## Related APIs
+
+- [`GoogleAdMob.loadAppsInTossAdMob`](./loadAppsInTossAdMob) — pre-loads the ad. Must be called first.
+- [`GoogleAdMob.isAppsInTossAdMobLoaded`](./isAppsInTossAdMobLoaded) — checks whether the ad has been loaded.
+
+## Related guides
+
+- _(coming soon)_ Guides — "Ads integration pattern"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

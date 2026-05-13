@@ -1,0 +1,147 @@
+---
+image: /og/api-ads-loadAppsInTossAdMob.png
+id: loadAppsInTossAdMob
+title: GoogleAdMob.loadAppsInTossAdMob
+sidebar_label: GoogleAdMob.loadAppsInTossAdMob
+description: Pre-loads a Google AdMob full-screen ad.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `GoogleAdMob.loadAppsInTossAdMob`
+
+Pre-loads a Google AdMob full-screen ad so it can be displayed instantly when needed. After receiving the `loaded` event, call [`GoogleAdMob.showAppsInTossAdMob`](./showAppsInTossAdMob) to show the ad to the user.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+`loadAppsInTossAdMob` is exposed as a member of the `GoogleAdMob` namespace object.
+
+```ts
+import { GoogleAdMob } from '@apps-in-toss/web-framework';
+
+declare const GoogleAdMob: {
+  loadAppsInTossAdMob: ((args: {
+    onEvent: (data: LoadAdMobEvent) => void;
+    onError: (error: Error) => void;
+    options?: LoadAdMobOptions;
+  }) => () => void) & {
+    isSupported: () => boolean;
+  };
+};
+
+interface LoadAdMobOptions {
+  adGroupId: string;
+}
+
+type LoadAdMobEvent = {
+  type: 'loaded';
+  data: AdMobLoadResult;
+};
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `args.onEvent` | `(data: LoadAdMobEvent) => void` | ✓ | Event handler for ad load events. When `type: 'loaded'` is received the ad is ready. |
+| `args.onError` | `(error: Error) => void` | ✓ | Called when the ad fails to load. |
+| `args.options` | `LoadAdMobOptions` | — | Ad options including `adGroupId`. |
+| `args.options.adGroupId` | `string` | — | Ad group unit ID issued from the console. |
+
+## Returns
+
+- `() => void` — cleanup function. Call it to unsubscribe from events when the ad is no longer needed.
+
+## Permission
+
+No permission required — `GoogleAdMob.loadAppsInTossAdMob` is not bound to a `PermissionName`. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { GoogleAdMob } from '@apps-in-toss/web-framework';
+
+const cleanup = GoogleAdMob.loadAppsInTossAdMob({
+  onEvent: (event) => {
+    if (event.type === 'loaded') {
+      console.log('Ad loaded', event.data);
+    }
+  },
+  onError: (error) => {
+    console.error('Ad failed to load', error);
+  },
+});
+
+// Unsubscribe when done
+cleanup();
+```
+
+### Realistic — load on view entry, show after ready
+
+```tsx
+import { GoogleAdMob } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+const AD_GROUP_ID = 'ad-group-id-here';
+
+function AdPage() {
+  const [adReady, setAdReady] = useState(false);
+
+  useEffect(() => {
+    if (!GoogleAdMob.loadAppsInTossAdMob.isSupported()) return;
+
+    const cleanup = GoogleAdMob.loadAppsInTossAdMob({
+      options: { adGroupId: AD_GROUP_ID },
+      onEvent: (event) => {
+        if (event.type === 'loaded') {
+          setAdReady(true);
+        }
+      },
+      onError: (error) => {
+        console.error('Ad failed to load', error);
+      },
+    });
+
+    return cleanup;
+  }, []);
+
+  const handleShowAd = () => {
+    GoogleAdMob.showAppsInTossAdMob({
+      options: { adGroupId: AD_GROUP_ID },
+      onEvent: (event) => console.log('Ad event', event),
+      onError: (error) => console.error('Ad show failed', error),
+    });
+  };
+
+  return (
+    <button type="button" onClick={handleShowAd} disabled={!adReady}>
+      Show ad
+    </button>
+  );
+}
+```
+
+## Try it live
+
+Open the Ads page in sdk-example to try the GoogleAdMob workflow live.
+
+<TryItLink group="ads" method="loadAppsInTossAdMob" />
+
+## Related APIs
+
+- [`GoogleAdMob.showAppsInTossAdMob`](./showAppsInTossAdMob) — shows the loaded ad to the user.
+- [`GoogleAdMob.isAppsInTossAdMobLoaded`](./isAppsInTossAdMobLoaded) — checks whether the ad has been loaded.
+
+## Related guides
+
+- _(coming soon)_ Guides — "Ads integration pattern"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

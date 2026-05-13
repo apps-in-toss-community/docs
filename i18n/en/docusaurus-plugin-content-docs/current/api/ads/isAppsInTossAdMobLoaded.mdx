@@ -1,0 +1,127 @@
+---
+image: /og/api-ads-isAppsInTossAdMobLoaded.png
+id: isAppsInTossAdMobLoaded
+title: GoogleAdMob.isAppsInTossAdMobLoaded
+sidebar_label: GoogleAdMob.isAppsInTossAdMobLoaded
+description: Checks whether a Google AdMob ad has been successfully loaded.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `GoogleAdMob.isAppsInTossAdMobLoaded`
+
+Asynchronously checks whether a `loadAppsInTossAdMob` call has successfully loaded an ad. Use this to gate the show button or as a fallback when the `loaded` event was missed.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+`isAppsInTossAdMobLoaded` is exposed as a member of the `GoogleAdMob` namespace object.
+
+```ts
+import { GoogleAdMob } from '@apps-in-toss/web-framework';
+
+declare const GoogleAdMob: {
+  isAppsInTossAdMobLoaded: ((args: IsAdMobLoadedOptions) => Promise<boolean>) & {
+    isSupported: () => boolean;
+  };
+};
+
+interface IsAdMobLoadedOptions {
+  adGroupId: string;
+}
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `args.adGroupId` | `string` | ✓ | The ad group unit ID to check. |
+
+## Returns
+
+- `Promise<boolean>` — resolves to `true` if an ad is loaded and ready to show, `false` otherwise.
+
+## Permission
+
+No permission required — `GoogleAdMob.isAppsInTossAdMobLoaded` is not bound to a `PermissionName`. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { GoogleAdMob } from '@apps-in-toss/web-framework';
+
+const isLoaded = await GoogleAdMob.isAppsInTossAdMobLoaded({
+  adGroupId: 'ad-group-id-here',
+});
+
+if (isLoaded) {
+  console.log('Ad is ready to show');
+}
+```
+
+### Realistic — gate button state on load status
+
+```tsx
+import { GoogleAdMob } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+const AD_GROUP_ID = 'ad-group-id-here';
+
+function AdButton() {
+  const [canShow, setCanShow] = useState(false);
+
+  useEffect(() => {
+    if (!GoogleAdMob.isAppsInTossAdMobLoaded.isSupported()) return;
+
+    let cancelled = false;
+    GoogleAdMob.isAppsInTossAdMobLoaded({ adGroupId: AD_GROUP_ID })
+      .then((loaded) => {
+        if (!cancelled) setCanShow(loaded);
+      })
+      .catch(console.error);
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleClick = () => {
+    if (!canShow) return;
+    GoogleAdMob.showAppsInTossAdMob({
+      options: { adGroupId: AD_GROUP_ID },
+      onEvent: (event) => console.log('Ad event', event),
+      onError: console.error,
+    });
+  };
+
+  return (
+    <button type="button" onClick={handleClick} disabled={!canShow}>
+      {canShow ? 'Show ad' : 'Loading ad...'}
+    </button>
+  );
+}
+```
+
+## Try it live
+
+Open the Ads page in sdk-example to try the GoogleAdMob workflow live.
+
+<TryItLink group="ads" method="isAppsInTossAdMobLoaded" />
+
+## Related APIs
+
+- [`GoogleAdMob.loadAppsInTossAdMob`](./loadAppsInTossAdMob) — pre-loads the ad.
+- [`GoogleAdMob.showAppsInTossAdMob`](./showAppsInTossAdMob) — shows the loaded ad.
+
+## Related guides
+
+- _(coming soon)_ Guides — "Ads integration pattern"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
