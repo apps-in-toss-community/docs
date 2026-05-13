@@ -1,0 +1,55 @@
+---
+image: /og/api-camera.png
+id: camera-overview
+title: camera
+sidebar_label: Overview
+slug: /api/camera
+description: SDK namespace for capturing photos with the camera and reading the device album.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `camera`
+
+Functions for capturing photos with the device camera or reading the photo album. Both require a permission, but they map to different `PermissionName` values — `openCamera` → `camera`, `fetchAlbumPhotos` → `photos`.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Methods
+
+| Method | Return type | Purpose |
+| --- | --- | --- |
+| [`fetchAlbumPhotos`](/api/camera/fetchAlbumPhotos) | `Promise<ImageResponse[]>` | Fetch a list of photos from the device album. |
+| [`openCamera`](/api/camera/openCamera) | `Promise<ImageResponse>` | Open the camera and return the captured image. |
+
+## Permission
+
+Both functions are `PermissionFunctionWithDialog` callables and expose `getPermission()` / `openPermissionDialog()` directly on the function object.
+
+| Method | PermissionName |
+| --- | --- |
+| `openCamera` | `camera` |
+| `fetchAlbumPhotos` | `photos` |
+
+- A `denied` status causes the call to fail — wrap in `try/catch`.
+- For `notDetermined`, prompt the user via `openPermissionDialog()` before calling.
+
+See [Guides — Permissions pattern](/guides/permissions-pattern) for the full flow.
+
+## UX guidance
+
+- **Cap image dimensions.** Setting `maxWidth` to a reasonable value reduces network upload and memory use.
+- **Use Base64 sparingly.** `base64: true` avoids file-system reads but is expensive for large images.
+- **Prompt for permission on user action.** Trigger the dialog after a "Pick a photo" tap, not on page load.
+
+## Try it live
+
+Both methods are available on the Camera page in sdk-example.
+
+<TryItLink group="camera" />
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

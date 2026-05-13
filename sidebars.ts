@@ -68,7 +68,11 @@ const sidebars: SidebarsConfig = {
           type: 'category',
           label: 'camera',
           collapsed: false,
-          items: ['api/camera/openCamera'],
+          items: [
+            'api/camera/camera-overview',
+            'api/camera/fetchAlbumPhotos',
+            'api/camera/openCamera',
+          ],
         },
         {
           type: 'category',
@@ -84,12 +88,7 @@ const sidebars: SidebarsConfig = {
           type: 'category',
           label: 'contacts',
           collapsed: false,
-          items: [
-            'api/contacts/contacts-overview',
-            'api/contacts/contactsViral',
-            'api/contacts/fetchAlbumPhotos',
-            'api/contacts/fetchContacts',
-          ],
+          items: ['api/contacts/fetchContacts'],
         },
         {
           type: 'category',
@@ -140,6 +139,7 @@ const sidebars: SidebarsConfig = {
           collapsed: false,
           items: [
             'api/game/game-overview',
+            'api/game/contactsViral',
             'api/game/getGameCenterGameProfile',
             'api/game/getUserKeyForGame',
             'api/game/grantPromotionReward',

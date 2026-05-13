@@ -99,10 +99,10 @@ const GROUP_MAP: Record<string, string> = {
   Storage: 'storage',
   // contacts
   fetchContacts: 'contacts',
-  fetchAlbumPhotos: 'contacts',
-  contactsViral: 'contacts',
-  // camera
+  // camera — `fetchAlbumPhotos` is documented here (and rendered on
+  // sdk-example's CameraPage) even though the SDK re-exports it flat.
   openCamera: 'camera',
+  fetchAlbumPhotos: 'camera',
   // environment
   env: 'environment',
   getLocale: 'environment',
@@ -138,13 +138,14 @@ const GROUP_MAP: Record<string, string> = {
   TossAds: 'ads',
   loadFullScreenAd: 'ads',
   showFullScreenAd: 'ads',
-  // game
+  // game — `contactsViral` lives on sdk-example's GamePage so it docs here too.
   getGameCenterGameProfile: 'game',
   openGameCenterLeaderboard: 'game',
   submitGameCenterLeaderBoardScore: 'game',
   getUserKeyForGame: 'game',
   grantPromotionReward: 'game',
   grantPromotionRewardForGame: 'game',
+  contactsViral: 'game',
   // events
   appsInTossEvent: 'events',
   tdsEvent: 'events',

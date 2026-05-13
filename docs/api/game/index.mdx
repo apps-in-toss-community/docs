@@ -4,14 +4,14 @@ id: game-overview
 title: game
 sidebar_label: Overview
 slug: /api/game
-description: 토스게임센터 프로필 조회, 리더보드, 프로모션 리워드 지급 등 게임 관련 SDK 네임스페이스입니다.
+description: 토스게임센터 프로필 조회, 리더보드, 프로모션 리워드 지급, 친구 공유 리워드 등 게임 관련 SDK 네임스페이스입니다.
 ---
 
 import TryItLink from '@site/src/components/TryItLink';
 
 # `game`
 
-토스게임센터 연동에 필요한 함수 모음입니다. 게임 프로필 조회, 리더보드 점수 제출·열기, 프로모션 리워드 지급, 익명 키 발급을 지원합니다. 모든 함수는 `Promise`를 반환하며, 별도의 권한(`PermissionName`) 없이 호출할 수 있습니다.
+토스게임센터 연동에 필요한 함수 모음입니다. 게임 프로필 조회, 리더보드 점수 제출·열기, 프로모션 리워드 지급, 익명 키 발급, 연락처 기반 친구 공유 리워드(`contactsViral`)를 지원합니다. 대부분 `Promise`를 반환하며(예외: `contactsViral`은 cleanup 함수 반환), `contactsViral`만 `contacts` 권한이 필요합니다.
 
 :::info 비공식 문서
 이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
@@ -21,6 +21,7 @@ import TryItLink from '@site/src/components/TryItLink';
 
 | 메서드 | 반환 타입 | 용도 |
 | --- | --- | --- |
+| [`contactsViral`](/api/game/contactsViral) | `() => void` | 연락처 기반 친구 공유 리워드 모듈을 엽니다. 이벤트 콜백으로 결과를 받습니다. |
 | [`getGameCenterGameProfile`](/api/game/getGameCenterGameProfile) | `Promise<GameCenterGameProfileResponse \| undefined>` | 토스게임센터 프로필(닉네임, 프로필 이미지)을 조회합니다. |
 | [`getUserKeyForGame`](/api/game/getUserKeyForGame) | `Promise<...>` | **Deprecated.** 게임용 익명 키를 발급합니다. `getAnonymousKey` 사용을 권장합니다. |
 | [`grantPromotionReward`](/api/game/grantPromotionReward) | `Promise<GrantPromotionRewardResult>` | 모든 카테고리 미니앱에서 프로모션 코드를 사용해 리워드를 지급합니다. |
@@ -30,7 +31,9 @@ import TryItLink from '@site/src/components/TryItLink';
 
 ## 권한
 
-권한이 필요하지 않습니다. `game` 네임스페이스의 모든 함수는 별도의 `PermissionName`에 바인딩되지 않으며, 토스 세션(계정 연결)이 처리됩니다. `getPermission()` / `openPermissionDialog()` 유틸도 노출하지 않습니다.
+`contactsViral`만 `contacts` 권한이 필요합니다. 나머지 함수는 별도의 `PermissionName`에 바인딩되지 않으며, 토스 세션(계정 연결)이 처리됩니다. 게임센터 함수들은 `getPermission()` / `openPermissionDialog()` 유틸도 노출하지 않습니다.
+
+`contactsViral`은 함수 객체에 권한 유틸이 붙어있지 않으므로, 같은 `contacts` 권한을 공유하는 [`fetchContacts.getPermission()`](/api/contacts/fetchContacts)으로 사전 확인하세요.
 
 ## 최소 지원 버전
 
