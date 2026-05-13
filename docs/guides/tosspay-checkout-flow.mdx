@@ -1,0 +1,240 @@
+---
+image: /og/guides-tosspay-checkout-flow.png
+id: tosspay-checkout-flow
+title: 토스페이 결제 흐름 — payToken 발급부터 결제 실행까지
+sidebar_label: 토스페이 결제 흐름
+slug: /guides/tosspay-checkout-flow
+description: iap.checkoutPayment를 사용한 일반 결제 (non-SKU) 흐름 — 서버에서 payToken을 발급하고, 클라이언트가 checkoutPayment를 호출해 토스페이 결제 시트를 띄우고, 콜백으로 성공/실패를 받아 서버에서 검증하는 표준 시퀀스.
+---
+
+# 토스페이 결제 흐름 — payToken 발급부터 결제 실행까지
+
+## 이 가이드와 SKU IAP 가이드의 차이
+
+이 가이드가 다루는 `checkoutPayment`와 SKU IAP 가이드가 다루는 `IAP.createOneTimePurchaseOrder`/`IAP.createSubscriptionPurchaseOrder`는 **서로 다른 결제 경로**입니다. 헷갈리지 않도록 먼저 정리합니다.
+
+| 항목 | `checkoutPayment` (이 가이드) | SKU IAP (`createOneTimePurchaseOrder` 등) |
+| --- | --- | --- |
+| 상품 등록 | 콘솔 SKU 등록 불필요 | 콘솔에 SKU 사전 등록 필요 |
+| 가격 결정 | 자사 서버가 payToken 발급 시 지정 | 콘솔에 등록한 SKU 가격이 고정값 |
+| 결제 단위 | 단발성 임의 항목 (일반 상품·서비스) | 콘솔 SKU 단건/구독 |
+| 클라이언트 역할 | payToken 전달 → 인증 결과 수신 → 서버 검증 | `processProductGrant` 콜백 → `completeProductGrant` |
+| 주문 추적 | 자사 서버의 orderId/payToken 기반 | `IAP.getPendingOrders` 등 토스 측 API |
+
+SKU IAP 흐름은 [Guides — IAP 결제 흐름](/guides/iap-payment-flow)과 [Guides — IAP 상태 조회 패턴](/guides/iap-state-queries)을 참고하세요. 이 가이드는 **`checkoutPayment`만 다룹니다**.
+
+## 전체 시퀀스
+
+```
+[클라이언트 webview]               [자사 서버]                [토스페이 API]
+      │                                │                            │
+      │ 1. 주문 생성 요청 (amount, items)│                            │
+      ├───────────────────────────────►│                            │
+      │                                │ 2. payToken 발급 요청        │
+      │                                ├───────────────────────────►│
+      │                                │◄───────────────────────────┤
+      │                                │   payToken                 │
+      │ 3. payToken 반환               │                            │
+      │◄───────────────────────────────┤                            │
+      │                                │                            │
+      │ 4. checkoutPayment({ payToken })                            │
+      │   ─── 토스페이 결제 시트 표시 ──►                             │
+      │                                │                            │
+      │ 5. 사용자 결제 완료             │                            │
+      │                                │                            │
+      │ 6. { success, reason } resolve │                            │
+      │◄───────────────────────────────────────────────────────────┤
+      │                                │                            │
+      │ 7. 결제 검증 요청 (payToken)    │                            │
+      ├───────────────────────────────►│                            │
+      │                                │ 8. 서버 검증 (status, 금액 확인)│
+      │                                ├───────────────────────────►│
+      │                                │◄───────────────────────────┤
+      │ 9. 최종 상태 반환              │                            │
+      │◄───────────────────────────────┤                            │
+```
+
+핵심:
+
+- **`checkoutPayment`는 인증 단계만 처리합니다** — `success: true`가 돌아와도 결제 처리는 아직 서버에서 해야 합니다.
+- **payToken 발급은 반드시 서버에서** — 클라이언트가 금액·항목을 지정하면 변조 가능. payToken이 금액을 잠그는 역할을 합니다.
+- **서버 검증은 idempotent하게** — 콜백이 중단·재시도되는 상황을 대비해 같은 payToken으로 두 번 검증해도 안전해야 합니다.
+
+## 표준 호출 패턴
+
+```tsx
+import { checkoutPayment } from '@apps-in-toss/web-framework';
+import { useCallback, useState } from 'react';
+
+export function PayButton({ amount }: { amount: number }) {
+  const [status, setStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
+  const [message, setMessage] = useState('');
+
+  const handlePay = useCallback(async () => {
+    setStatus('pending');
+    setMessage('');
+    try {
+      // 단계 1–3: 자사 서버에서 orderId·payToken 발급.
+      const { payToken } = await fetch('/api/payment/create', {
+        method: 'POST',
+        body: JSON.stringify({ amount }),
+        headers: { 'Content-Type': 'application/json' },
+      }).then((res) => res.json());
+
+      // 단계 4–6: 토스페이 결제 시트 → 인증.
+      const { success, reason } = await checkoutPayment({ params: { payToken } });
+
+      if (!success) {
+        setStatus('error');
+        setMessage(reason ?? '결제 인증에 실패했어요.');
+        return;
+      }
+
+      // 단계 7–9: 자사 서버 결제 실행 + 검증.
+      const result = await fetch('/api/payment/execute', {
+        method: 'POST',
+        body: JSON.stringify({ payToken }),
+        headers: { 'Content-Type': 'application/json' },
+      }).then((res) => res.json());
+
+      if (!result.ok) {
+        setStatus('error');
+        setMessage('결제 처리 중 문제가 발생했어요. 고객센터에 문의해 주세요.');
+        return;
+      }
+
+      setStatus('success');
+      setMessage('결제가 완료됐어요.');
+    } catch {
+      setStatus('error');
+      setMessage('네트워크 오류가 발생했어요. 잠시 후 다시 시도해 주세요.');
+    }
+  }, [amount]);
+
+  return (
+    <div>
+      <button type="button" onClick={handlePay} disabled={status === 'pending'}>
+        {status === 'pending' ? '결제 진행 중…' : `${amount.toLocaleString()}원 결제`}
+      </button>
+      {message && <p role="status">{message}</p>}
+    </div>
+  );
+}
+```
+
+## payToken 발급은 반드시 서버에서
+
+클라이언트가 금액·orderId를 직접 토스페이로 전달하면 변조할 수 있습니다. payToken은 **서버가 금액과 orderId를 박아서 발급하는 토큰** — 클라이언트는 이 토큰을 받아 그대로 `checkoutPayment`에 넘길 뿐입니다.
+
+```
+❌ 클라이언트 → 토스페이: amount=10000  (변조 가능)
+✅ 클라이언트 → 자사 서버 → 토스페이: payToken (금액 잠금)
+```
+
+서버 측에서는 orderId를 생성하고, 해당 orderId·금액·항목 정보를 담아 토스페이 API에 payToken 발급을 요청합니다. 발급된 payToken은 그 orderId와 금액에 묶여 변조할 수 없습니다.
+
+## 결제 결과 검증
+
+`checkoutPayment`가 `success: true`를 돌려줬다고 해서 결제가 완료된 것이 아닙니다. **결제 시트에서 사용자 인증이 통과했다는 의미**입니다. 실제 결제 처리는 자사 서버에서 토스페이 API에 별도 요청으로 마무리해야 합니다.
+
+서버 측 검증 예시:
+
+```ts
+// POST /api/payment/execute
+app.post('/api/payment/execute', async (req, res) => {
+  const { payToken } = req.body;
+
+  // 1. payToken으로 토스페이 결제 실행 API 호출 (idempotent).
+  const payment = await tossPay.executePayment({ payToken });
+
+  if (payment.status !== 'DONE') {
+    return res.status(400).json({ ok: false, reason: payment.status });
+  }
+
+  // 2. 금액 검증: DB에 저장한 주문 금액과 실제 결제 금액이 일치하는지 확인.
+  const order = await db.orders.findByPayToken(payToken);
+  if (order.amount !== payment.amount) {
+    // 불일치 — 알람 발송 후 환불 처리.
+    return res.status(400).json({ ok: false, reason: 'AMOUNT_MISMATCH' });
+  }
+
+  // 3. 주문 상태 업데이트 (idempotent — 같은 payToken 재호출은 no-op).
+  await db.orders.upsert({
+    where: { payToken },
+    create: { status: 'PAID', paidAt: new Date() },
+    update: {},
+  });
+
+  res.json({ ok: true });
+});
+```
+
+## 에러 처리
+
+`checkoutPayment`는 다음 결과를 돌려줄 수 있습니다.
+
+| 결과 | 원인 | 권장 UI 메시지 |
+| --- | --- | --- |
+| `success: true` | 인증 성공 | — (서버 검증 후 성공 메시지) |
+| `success: false, reason` | 사용자 취소, 인증 실패 등 | `reason` 값을 표시하거나 "결제를 취소했어요." |
+| Promise reject (네트워크 등) | 예외 발생 | "네트워크 오류가 발생했어요. 다시 시도해 주세요." |
+
+`reason` 필드는 SDK가 반환하는 문자열로, 사용자가 결제 시트를 닫거나 인증을 취소한 경우에 채워집니다. `checkoutPayment.mdx`에 별도의 에러 코드 enum이 문서화되어 있지 않으므로, `reason`을 직접 표시하거나 일반적인 실패 메시지로 대체하세요.
+
+:::caution `reason` 포맷
+`reason`은 SDK 내부 값이라 포맷이 버전마다 바뀔 수 있습니다. UI에서 정확한 문자열 매칭(switch/case)보다는 **있으면 표시, 없으면 일반 메시지**로 처리하는 게 안전합니다.
+:::
+
+## 취소·환불은 별도 경로
+
+미니앱 클라이언트 SDK에는 결제 취소·환불을 직접 호출하는 API가 노출되어 있지 않습니다. 환불이 필요하면:
+
+- 사장님 백오피스(자사 관리 화면)에서 처리하거나,
+- 토스페이 파트너사 대시보드에서 처리하거나,
+- 토스 고객센터를 통해 처리합니다.
+
+미니앱에서는 환불 상태를 주문 조회 API로 읽어 UI에 반영하는 것만 가능합니다.
+
+## SKU IAP와 한눈에 비교
+
+| 항목 | `checkoutPayment` (이 가이드) | `createOneTimePurchaseOrder` / `createSubscriptionPurchaseOrder` |
+| --- | --- | --- |
+| **상품 등록** | 불필요 | 콘솔에 SKU 사전 등록 |
+| **가격 정의 위치** | 자사 서버 (payToken 발급 시) | 콘솔 SKU |
+| **결제 금액 변경** | 서버 로직으로 자유롭게 | 콘솔 변경 후 재등록 |
+| **결제 시작 방법** | `checkoutPayment({ payToken })` | `IAP.createOneTimePurchaseOrder({ options: { sku } })` |
+| **서버 fulfillment 진입점** | `success: true` 후 서버 호출 | `processProductGrant` 콜백 |
+| **주문 추적** | 자사 서버 orderId/payToken | `IAP.getPendingOrders`, `IAP.getCompletedOrRefundedOrders` |
+| **구독 지원** | 없음 (단발성만) | `createSubscriptionPurchaseOrder` |
+| **관련 가이드** | 이 가이드 | [IAP 결제 흐름](/guides/iap-payment-flow), [IAP 상태 조회 패턴](/guides/iap-state-queries) |
+
+## 자주 빠뜨리는 체크리스트
+
+- `checkoutPayment`를 호출하기 **전에** 서버에서 payToken을 발급하고 있나요? 클라이언트에서 금액을 직접 지정하면 변조 위험이 있습니다.
+- `success: true` 이후 **서버 검증을 반드시 거치고 있나요?** 인증 결과만 믿고 결제 완료로 처리하지 마세요.
+- 서버의 결제 실행 API가 **idempotent**한가요? 같은 payToken으로 두 번 호출돼도 이중 결제가 발생하면 안 됩니다.
+- 금액 검증을 서버에서 수행하나요? 토스페이에서 반환한 `payment.amount`와 DB에 저장한 주문 금액을 비교하세요.
+- 에러 케이스에서 사용자에게 **구체적인 메시지**를 보여주고 있나요? "오류" 한 마디보다 "네트워크 오류 / 다시 시도" 안내가 낫습니다.
+- `success: false`를 throw가 아닌 **정상 분기**로 처리하고 있나요? try/catch로만 잡으면 인증 실패를 놓칩니다.
+
+## 환경별 차이
+
+- **실 토스 앱**: 결제 시트가 뜨고 사용자가 인증을 완료하면 `success: true`로 resolve. payToken은 실제 토스페이 API를 통해 발급되어야 합니다.
+- **devtools mock**: [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) mock은 `checkoutPayment`를 즉시 `{ success: true }`로 resolve합니다. 서버 연동 검증은 별도 mock 서버가 필요합니다.
+- **외부 브라우저**: `checkoutPayment` 호출이 throw합니다. 미니앱 환경 밖에서는 사용할 수 없습니다.
+
+## 관련 API
+
+- [`checkoutPayment`](/api/iap/checkoutPayment) — 이 가이드의 메인 API.
+- [`api/iap`](/api/iap) — `iap` 네임스페이스 개요.
+
+## 관련 가이드
+
+아래 두 가이드는 SKU 기반 IAP 경로를 다룹니다. `checkoutPayment`(이 가이드)와는 **다른 결제 경로**입니다 — 함께 섞어 적용하지 마세요.
+
+- [Guides — IAP 결제 흐름](/guides/iap-payment-flow) — `createOneTimePurchaseOrder`/`createSubscriptionPurchaseOrder`와 `processProductGrant`/`completeProductGrant` 시퀀스.
+- [Guides — IAP 상태 조회 패턴](/guides/iap-state-queries) — `getProductItemList`/`getPendingOrders`/`getCompletedOrRefundedOrders`/`getSubscriptionInfo` 네 메서드의 조회 패턴.
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지.

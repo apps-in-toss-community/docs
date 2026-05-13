@@ -1,0 +1,240 @@
+---
+id: tosspay-checkout-flow
+title: TossPay checkout flow — from payToken issuance to payment execution
+sidebar_label: TossPay checkout flow
+slug: /guides/tosspay-checkout-flow
+description: The non-SKU general payment flow using checkoutPayment — mint a payToken server-side, call checkoutPayment to open the TossPay checkout sheet, receive the success/failure callback, then verify server-side.
+---
+
+# TossPay checkout flow — from payToken issuance to payment execution
+
+## How this guide differs from the SKU IAP guides
+
+`checkoutPayment` (this guide) and `IAP.createOneTimePurchaseOrder`/`IAP.createSubscriptionPurchaseOrder` (the SKU IAP guides) describe **two separate payment paths**. A quick comparison before diving in:
+
+| Item | `checkoutPayment` (this guide) | SKU IAP (`createOneTimePurchaseOrder`, etc.) |
+| --- | --- | --- |
+| Product registration | Not required | SKU must be registered in the console |
+| Price definition | Your server sets it when minting the payToken | Fixed price registered to the console SKU |
+| Payment type | One-shot, arbitrary items/amounts | Console SKU one-time or subscription |
+| Client role | Pass payToken → receive auth result → verify server-side | `processProductGrant` callback → `completeProductGrant` |
+| Order tracking | Your server's orderId/payToken | `IAP.getPendingOrders` and other Toss-side APIs |
+
+For the SKU IAP path, see [Guides — IAP payment flow](/guides/iap-payment-flow) and [Guides — IAP state queries](/guides/iap-state-queries). **This guide covers `checkoutPayment` only.**
+
+## Full sequence
+
+```
+[Client webview]                  [Your server]            [TossPay API]
+      │                                │                        │
+      │ 1. Create order (amount, items)│                        │
+      ├───────────────────────────────►│                        │
+      │                                │ 2. Request payToken    │
+      │                                ├───────────────────────►│
+      │                                │◄───────────────────────┤
+      │                                │   payToken             │
+      │ 3. Return payToken             │                        │
+      │◄───────────────────────────────┤                        │
+      │                                │                        │
+      │ 4. checkoutPayment({ payToken })                        │
+      │   ─── TossPay checkout sheet ──►                        │
+      │                                │                        │
+      │ 5. User completes payment      │                        │
+      │                                │                        │
+      │ 6. { success, reason } resolve │                        │
+      │◄───────────────────────────────────────────────────────┤
+      │                                │                        │
+      │ 7. Verify payment (payToken)   │                        │
+      ├───────────────────────────────►│                        │
+      │                                │ 8. Server verify       │
+      │                                │   (status, amount)     │
+      │                                ├───────────────────────►│
+      │                                │◄───────────────────────┤
+      │ 9. Final status                │                        │
+      │◄───────────────────────────────┤                        │
+```
+
+Key points:
+
+- **`checkoutPayment` handles authentication only** — `success: true` does not mean the payment has been settled. You still need a server-side settlement call.
+- **Always mint the payToken server-side** — if the client specifies the amount directly, it can be tampered with. The payToken locks the amount.
+- **Make server verification idempotent** — the callback can be interrupted or retried; re-calling with the same payToken must be safe.
+
+## Standard call pattern
+
+```tsx
+import { checkoutPayment } from '@apps-in-toss/web-framework';
+import { useCallback, useState } from 'react';
+
+export function PayButton({ amount }: { amount: number }) {
+  const [status, setStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
+  const [message, setMessage] = useState('');
+
+  const handlePay = useCallback(async () => {
+    setStatus('pending');
+    setMessage('');
+    try {
+      // Steps 1–3: Mint orderId and payToken on your server.
+      const { payToken } = await fetch('/api/payment/create', {
+        method: 'POST',
+        body: JSON.stringify({ amount }),
+        headers: { 'Content-Type': 'application/json' },
+      }).then((res) => res.json());
+
+      // Steps 4–6: Open TossPay checkout sheet and authenticate.
+      const { success, reason } = await checkoutPayment({ params: { payToken } });
+
+      if (!success) {
+        setStatus('error');
+        setMessage(reason ?? 'Payment authentication failed.');
+        return;
+      }
+
+      // Steps 7–9: Execute and verify payment on your server.
+      const result = await fetch('/api/payment/execute', {
+        method: 'POST',
+        body: JSON.stringify({ payToken }),
+        headers: { 'Content-Type': 'application/json' },
+      }).then((res) => res.json());
+
+      if (!result.ok) {
+        setStatus('error');
+        setMessage('Payment processing failed. Please contact support.');
+        return;
+      }
+
+      setStatus('success');
+      setMessage('Payment complete.');
+    } catch {
+      setStatus('error');
+      setMessage('A network error occurred. Please try again.');
+    }
+  }, [amount]);
+
+  return (
+    <div>
+      <button type="button" onClick={handlePay} disabled={status === 'pending'}>
+        {status === 'pending' ? 'Processing…' : `Pay ${amount.toLocaleString()}`}
+      </button>
+      {message && <p role="status">{message}</p>}
+    </div>
+  );
+}
+```
+
+## Always mint payToken server-side
+
+If the client specifies the amount directly to TossPay, a malicious actor could tamper with it. The payToken is a **server-minted token that locks the amount and orderId** — the client receives it and passes it straight to `checkoutPayment` without modification.
+
+```
+❌ Client → TossPay: amount=10000  (tamperable)
+✅ Client → Your server → TossPay: payToken (amount locked)
+```
+
+On the server, generate an orderId, then request a payToken from TossPay embedding that orderId, amount, and item details. The resulting payToken is bound to those values and cannot be altered.
+
+## Verifying the payment result
+
+`checkoutPayment` resolving with `success: true` means the user passed the authentication step in the checkout sheet — it does **not** mean the payment has been settled. You must still call your server-side payment execution API to complete the transaction.
+
+Example server-side verification:
+
+```ts
+// POST /api/payment/execute
+app.post('/api/payment/execute', async (req, res) => {
+  const { payToken } = req.body;
+
+  // 1. Call TossPay payment execute API (idempotent).
+  const payment = await tossPay.executePayment({ payToken });
+
+  if (payment.status !== 'DONE') {
+    return res.status(400).json({ ok: false, reason: payment.status });
+  }
+
+  // 2. Verify amount: compare DB order amount with actual payment amount.
+  const order = await db.orders.findByPayToken(payToken);
+  if (order.amount !== payment.amount) {
+    // Mismatch — trigger alert and initiate refund.
+    return res.status(400).json({ ok: false, reason: 'AMOUNT_MISMATCH' });
+  }
+
+  // 3. Update order status (idempotent — re-calling with same payToken is a no-op).
+  await db.orders.upsert({
+    where: { payToken },
+    create: { status: 'PAID', paidAt: new Date() },
+    update: {},
+  });
+
+  res.json({ ok: true });
+});
+```
+
+## Error handling
+
+`checkoutPayment` can return the following results:
+
+| Result | Cause | Suggested UI message |
+| --- | --- | --- |
+| `success: true` | Authentication succeeded | — (show success after server verification) |
+| `success: false, reason` | User cancelled, authentication failed, etc. | Display `reason`, or "Payment was cancelled." |
+| Promise reject (network, etc.) | Exception thrown | "A network error occurred. Please try again." |
+
+The `reason` field is a string returned by the SDK — it is populated when the user closes the checkout sheet or authentication fails. No error code enum is documented in `checkoutPayment`; display `reason` directly or fall back to a generic message.
+
+:::caution `reason` format
+`reason` is an SDK-internal value whose format may change between versions. Rather than matching exact strings (switch/case), prefer **display if present, fall back to a generic message** for safety.
+:::
+
+## Cancellations and refunds are handled separately
+
+The mini-app client SDK does not expose a direct API for initiating cancellations or refunds. When a refund is needed:
+
+- Process it through your own back-office (admin panel), or
+- Use the TossPay partner dashboard, or
+- Route it through TossPay customer support.
+
+From the mini-app, you can only read the refund status via an order-query API and reflect it in your UI.
+
+## checkoutPayment vs. SKU IAP at a glance
+
+| Item | `checkoutPayment` (this guide) | `createOneTimePurchaseOrder` / `createSubscriptionPurchaseOrder` |
+| --- | --- | --- |
+| **Product registration** | Not required | Console SKU registration required |
+| **Price defined in** | Your server (when minting payToken) | Console SKU |
+| **Changing the price** | Update server logic freely | Update console and re-register |
+| **How to start payment** | `checkoutPayment({ payToken })` | `IAP.createOneTimePurchaseOrder({ options: { sku } })` |
+| **Server fulfillment entry point** | After `success: true`, call your server | `processProductGrant` callback |
+| **Order tracking** | Your server's orderId/payToken | `IAP.getPendingOrders`, `IAP.getCompletedOrRefundedOrders` |
+| **Subscription support** | No (one-shot only) | `createSubscriptionPurchaseOrder` |
+| **Relevant guide** | This guide | [IAP payment flow](/guides/iap-payment-flow), [IAP state queries](/guides/iap-state-queries) |
+
+## Common-mistakes checklist
+
+- Are you minting the payToken **server-side** before calling `checkoutPayment`? Specifying the amount client-side is a tampering risk.
+- Are you running **server-side verification** after `success: true`? Never treat the authentication result alone as a completed payment.
+- Is your payment-execute API **idempotent**? Re-calling with the same payToken must not cause a double charge.
+- Are you verifying the **amount** server-side? Compare `payment.amount` from TossPay with the order amount in your DB.
+- Are you providing **actionable error messages** to the user? "Network error — please try again" beats a silent failure.
+- Are you handling `success: false` as a **normal branch** (not just a catch)? Relying solely on try/catch will miss authentication failures.
+
+## Environment differences
+
+- **Real Toss app**: The checkout sheet opens and, once the user authenticates, resolves with `success: true`. The payToken must be minted via the actual TossPay API.
+- **devtools mock**: [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) mock immediately resolves `checkoutPayment` with `{ success: true }`. Server integration testing still requires a separate mock server.
+- **External browser**: Calling `checkoutPayment` throws. It cannot be used outside the mini-app environment.
+
+## Related APIs
+
+- [`checkoutPayment`](/api/iap/checkoutPayment) — the main API for this guide.
+- [`api/iap`](/api/iap) — `iap` namespace overview.
+
+## Related guides
+
+The guides below cover the SKU-based IAP path — a **different payment flow** from `checkoutPayment`. Do not mix the two.
+
+- [Guides — IAP payment flow](/guides/iap-payment-flow) — `createOneTimePurchaseOrder`/`createSubscriptionPurchaseOrder` with `processProductGrant`/`completeProductGrant`.
+- [Guides — IAP state queries](/guides/iap-state-queries) — `getProductItemList`/`getPendingOrders`/`getCompletedOrRefundedOrders`/`getSubscriptionInfo` query patterns.
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package.

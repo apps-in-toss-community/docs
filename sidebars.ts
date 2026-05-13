@@ -25,6 +25,7 @@ const sidebars: SidebarsConfig = {
         'guides/location-permission-fallback',
         'guides/navigation-flow',
         'guides/permissions-pattern',
+        'guides/tosspay-checkout-flow',
       ],
     },
     {
