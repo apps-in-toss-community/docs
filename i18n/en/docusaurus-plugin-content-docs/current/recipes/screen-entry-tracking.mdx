@@ -1,0 +1,91 @@
+---
+id: screen-entry-tracking
+title: Screen entry tracking
+sidebar_label: Screen entry tracking
+slug: /recipes/screen-entry-tracking
+description: Minimal snippet and a reusable useScreenView hook for tracking SPA page views with Analytics.screen.
+---
+
+# Screen entry tracking
+
+`Analytics.screen` is a thin wrapper with `log_type: 'screen'` pre-set. Use it to measure how often each page is visited. In a SPA, call it on every route change.
+
+## Minimal call
+
+```tsx
+import { Analytics } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function ProductDetailPage({ productId }: { productId: string }) {
+  useEffect(() => {
+    Analytics.screen({ log_name: 'product_detail_screen', product_id: productId });
+  }, [productId]);
+
+  return <main>Product detail</main>;
+}
+```
+
+Including route parameters in the `useEffect` dependency array ensures the event fires again whenever the same component renders for a different `productId`.
+
+## Reusable `useScreenView` hook
+
+Avoid repeating the same `useEffect` pattern on every screen by abstracting it into a hook.
+
+```tsx
+import { Analytics } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+type Primitive = string | number | boolean | null;
+
+interface ScreenViewParams {
+  log_name: string;
+  [key: string]: Primitive;
+}
+
+/**
+ * Fires Analytics.screen fire-and-forget on mount.
+ * Re-fires when any value in deps changes.
+ */
+function useScreenView(params: ScreenViewParams, deps: readonly unknown[] = []) {
+  useEffect(() => {
+    Analytics.screen(params);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+}
+
+// Usage
+function HomeScreen() {
+  useScreenView({ log_name: 'home_screen' });
+  return <main>Home</main>;
+}
+
+function ProductDetailScreen({ productId, category }: { productId: string; category: string }) {
+  useScreenView(
+    { log_name: 'product_detail_screen', product_id: productId, category },
+    [productId, category],
+  );
+  return <main>Product detail</main>;
+}
+```
+
+Omitting `deps` fires once on mount only. Pass route parameters as the second argument when re-entry tracking is needed.
+
+## Keeping log_name consistent
+
+Screen names are the primary key for retention analysis in the dashboard. A constants file prevents drift.
+
+```ts
+// analytics-events.ts
+export const Screens = {
+  HOME: 'home_screen',
+  PRODUCT_DETAIL: 'product_detail_screen',
+  CART: 'cart_screen',
+} as const;
+```
+
+## Related APIs
+
+- [`Analytics.screen`](/api/analytics/screen) — record a screen view event.
+- [`Analytics.click`](/api/analytics/click) — record a click event.
+- [`Analytics.impression`](/api/analytics/impression) — record an impression event.
+- [Guides — Event logging patterns](/guides/event-logging) — when to use each `log_type` and `log_name` conventions.
