@@ -150,13 +150,14 @@ const GROUP_MAP: Record<string, string> = {
   tdsEvent: 'events',
   graniteEvent: 'events',
   onVisibilityChangedByTransparentServiceWeb: 'events',
-  eventLog: 'events',
   // notification
   requestNotificationAgreement: 'notification',
   // partner
   partner: 'partner',
-  // analytics (from web-analytics)
+  // analytics (from web-analytics) — `eventLog` lives here too, to match
+  // sdk-example's AnalyticsPage which renders the ApiCard.
   Analytics: 'analytics',
+  eventLog: 'analytics',
 };
 
 /**

@@ -4,14 +4,14 @@ id: events-overview
 title: events
 sidebar_label: Overview
 slug: /api/events
-description: 플랫폼 이벤트, TDS 이벤트, Granite 이벤트 구독 및 분석 이벤트 로깅을 위한 SDK 네임스페이스입니다.
+description: 플랫폼 이벤트, TDS 이벤트, Granite 이벤트를 구독하기 위한 SDK 네임스페이스입니다.
 ---
 
 import TryItLink from '@site/src/components/TryItLink';
 
 # `events`
 
-미니앱에서 발생하는 플랫폼 이벤트(앱인토스, TDS, Granite)를 구독하고, 사용자 행동을 분석 시스템에 로깅하는 함수 모음입니다. 이벤트 리스너는 `addEventListener` 호출 시 cleanup 함수를 반환하므로 컴포넌트 unmount 시 반드시 호출해야 합니다.
+미니앱에서 발생하는 플랫폼 이벤트(앱인토스, TDS, Granite)를 구독하는 함수 모음입니다. 이벤트 리스너는 `addEventListener` 호출 시 cleanup 함수를 반환하므로 컴포넌트 unmount 시 반드시 호출해야 합니다. 분석용 로깅은 [`Analytics`](/api/analytics) 네임스페이스를 참고하세요.
 
 :::info 비공식 문서
 이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
@@ -22,7 +22,6 @@ import TryItLink from '@site/src/components/TryItLink';
 | 메서드 | 반환 타입 | 용도 |
 | --- | --- | --- |
 | [`appsInTossEvent.addEventListener`](/api/events/appsInTossEvent.addEventListener) | `() => void` | 앱인토스 플랫폼 이벤트를 구독합니다. |
-| [`eventLog`](/api/events/eventLog) | `Promise<void>` | 분석용 이벤트 로그를 기록합니다. |
 | [`graniteEvent.addEventListener`](/api/events/graniteEvent.addEventListener) | `() => void` | Granite(토스 내부) 이벤트를 구독합니다. `backEvent`, `homeEvent` 지원. |
 | [`onVisibilityChangedByTransparentServiceWeb`](/api/events/onVisibilityChangedByTransparentServiceWeb) | `() => void` | 투명 서비스 웹 컨테이너 표시 여부 변화를 구독합니다. |
 | [`tdsEvent.addEventListener`](/api/events/tdsEvent.addEventListener) | `() => void` | TDS(Toss Design System) 이벤트를 구독합니다. `navigationAccessoryEvent` 지원. |
@@ -58,7 +57,6 @@ function Page() {
 - **cleanup 누락에 주의하세요.** 컴포넌트가 unmount된 뒤에도 이벤트가 발화되면 state 업데이트로 인한 메모리 누수가 발생합니다. `useEffect` 반환값으로 cleanup을 꼭 호출하세요.
 - **`graniteEvent.backEvent`는 하드웨어 뒤로 가기 키 인터셉트에 사용하세요.** 구독 중에는 기본 뒤로 가기 동작이 억제되므로, 직접 내비게이션 로직을 구현해야 합니다.
 - **`tdsEvent.navigationAccessoryEvent`는 `partner.addAccessoryButton`과 세트입니다.** 버튼을 등록하고 이벤트를 구독하는 두 단계가 모두 필요합니다.
-- **`eventLog`는 샌드박스에서 콘솔로 출력됩니다.** 개발 중에는 DevTools 콘솔에서 로그가 정상적으로 기록되는지 확인하세요.
 
 ## 직접 실행해 보기
 

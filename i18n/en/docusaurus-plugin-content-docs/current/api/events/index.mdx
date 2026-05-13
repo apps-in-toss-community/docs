@@ -3,14 +3,14 @@ id: events-overview
 title: events
 sidebar_label: Overview
 slug: /api/events
-description: SDK namespace for subscribing to platform events (appsInToss, TDS, Granite) and logging analytics events.
+description: SDK namespace for subscribing to platform events (appsInToss, TDS, Granite).
 ---
 
 import TryItLink from '@site/src/components/TryItLink';
 
 # `events`
 
-Functions for subscribing to platform events (appsInToss, TDS, Granite) and logging user actions to the analytics system. Every `addEventListener` call returns a cleanup function — always invoke it on component unmount.
+Functions for subscribing to platform events (appsInToss, TDS, Granite). Every `addEventListener` call returns a cleanup function — always invoke it on component unmount. For analytics logging, see the [`Analytics`](/api/analytics) namespace.
 
 :::info Unofficial docs
 This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
@@ -21,7 +21,6 @@ This page is community-written. The SDK behavior itself is defined by the publis
 | Method | Return type | Purpose |
 | --- | --- | --- |
 | [`appsInTossEvent.addEventListener`](/api/events/appsInTossEvent.addEventListener) | `() => void` | Subscribe to Apps in Toss platform events. |
-| [`eventLog`](/api/events/eventLog) | `Promise<void>` | Log an analytics event. |
 | [`graniteEvent.addEventListener`](/api/events/graniteEvent.addEventListener) | `() => void` | Subscribe to Granite (Toss internal) events — `backEvent`, `homeEvent`. |
 | [`onVisibilityChangedByTransparentServiceWeb`](/api/events/onVisibilityChangedByTransparentServiceWeb) | `() => void` | Subscribe to visibility changes of the transparent service web container. |
 | [`tdsEvent.addEventListener`](/api/events/tdsEvent.addEventListener) | `() => void` | Subscribe to TDS (Toss Design System) events — `navigationAccessoryEvent`. |
@@ -57,7 +56,6 @@ function Page() {
 - **Never miss the cleanup.** If the component unmounts with an active subscription, events will still fire and trigger state updates on an unmounted component — this causes memory leaks. Always return the cleanup from `useEffect`.
 - **`graniteEvent.backEvent` intercepts hardware back.** While subscribed, the default back behavior is suppressed. You must implement your own navigation logic inside `onEvent`.
 - **`tdsEvent.navigationAccessoryEvent` pairs with `partner.addAccessoryButton`.** You need both: register the button, then subscribe to click events.
-- **`eventLog` outputs to the console in sandbox.** Verify your logs appear in the DevTools console during development.
 
 ## Try it live
 

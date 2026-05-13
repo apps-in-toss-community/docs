@@ -10,7 +10,7 @@ import TryItLink from '@site/src/components/TryItLink';
 
 # `Analytics`
 
-Namespace for recording screen views, component impressions, and user click events. All three methods accept an optional `LoggerParams` object and return `Promise<void> | undefined`.
+Namespace for recording screen views, component impressions, and user click events. The three `Analytics` methods (`screen`/`impression`/`click`) accept a shared `LoggerParams` object; the standalone [`eventLog`](/api/analytics/eventLog) function supports nine log types via the `log_type` field.
 
 :::info Unofficial docs
 This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
@@ -23,10 +23,11 @@ This page is community-written. The SDK behavior itself is defined by the publis
 | [`Analytics.click`](/api/analytics/click) | `Promise<void> \| undefined` | Record a user tap or click on a UI element. |
 | [`Analytics.impression`](/api/analytics/impression) | `Promise<void> \| undefined` | Record when a UI component enters the viewport. |
 | [`Analytics.screen`](/api/analytics/screen) | `Promise<void> \| undefined` | Record a screen (page) view event. |
+| [`eventLog`](/api/analytics/eventLog) | `Promise<void>` | Log a generic event with an arbitrary key-value payload and one of nine `log_type` values. |
 
 ## Shared parameter type
 
-All three methods accept the same `LoggerParams` type.
+`Analytics.screen`/`impression`/`click` all accept the same `LoggerParams` type. `eventLog` uses a separate `EventLogParams` — see its [page](/api/analytics/eventLog) for the shape.
 
 ```ts
 import { Analytics } from '@apps-in-toss/web-framework';
