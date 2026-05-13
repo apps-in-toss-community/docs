@@ -1,0 +1,231 @@
+---
+id: location-permission-fallback
+title: Location permission and fallback patterns
+sidebar_label: Location permission and fallback
+slug: /guides/location-permission-fallback
+description: The permission-state branching, FINE/COARSE accuracy differences, and fallback UX patterns to wrap around getCurrentLocation and startUpdateLocation calls.
+---
+
+# Location permission and fallback patterns
+
+`getCurrentLocation` and `startUpdateLocation` both share the `geolocation` permission. The calls themselves are simple, but three axes multiply quickly in real mini-apps — permission state (`allowed` / `denied` / `notDetermined`), accuracy tier (`FINE` / `COARSE`), and signal availability (no GPS, indoors) — and "the location feature is occasionally empty" bugs follow. This guide collects the permission and fallback logic to bake around those two methods in one place.
+
+## Decision flow
+
+```
+                        getPermission()
+                              │
+        ┌─────────────────────┼─────────────────────┐
+        │                     │                     │
+   'allowed'           'notDetermined'           'denied'
+        │                     │                     │
+        │            openPermissionDialog()         │
+        │                     │                     │
+        │           ┌─────────┴────────┐            │
+        │       allowed             denied          │
+        │           │                  │            │
+        ▼           ▼                  ▼            ▼
+    measure()    measure()       fallback UI    fallback UI
+                                + "open settings" + "open settings"
+```
+
+Key points:
+
+- **`notDetermined` → promote via dialog first.** You *can* sometimes invoke the measurement call from this state, but the system dialog hovering over your screen while measurement runs underneath is jarring. **Always dialog first.**
+- **`denied` isn't a dead end — it's the fallback entry point.** The user's only recovery path is "re-enable in settings," so build a clear motion there.
+- **Permission state and accuracy are independent.** `Accuracy.Highest` requested doesn't override a "Approximate location" grant — `accessLocation === 'COARSE'` still returns and `coords.accuracy` widens to hundreds of meters. Permission passing doesn't mean the data is precise.
+
+## Standard call sequence
+
+One-shot `getCurrentLocation` example. `startUpdateLocation` takes the same permission gate up front.
+
+```tsx
+import { getCurrentLocation, Accuracy } from '@apps-in-toss/web-framework';
+
+async function safelyGetLocation() {
+  const status = await getCurrentLocation.getPermission();
+
+  if (status === 'denied') {
+    return { kind: 'denied' as const };
+  }
+  if (status === 'notDetermined') {
+    await getCurrentLocation.openPermissionDialog();
+    // The dialog doesn't hand back its result — the next call naturally branches.
+  }
+
+  try {
+    const { coords } = await getCurrentLocation({ accuracy: Accuracy.Balanced });
+    return { kind: 'ok' as const, coords };
+  } catch (error) {
+    // Permission revoked between calls, no GPS signal, or system error.
+    return { kind: 'error' as const, error };
+  }
+}
+```
+
+This function returns one of three tags (`'denied'` / `'ok'` / `'error'`). Callers map each to a different UI.
+
+## UX matrix by `getPermission` result
+
+| State | Meaning | Recommended UX |
+| --- | --- | --- |
+| `allowed` | Already granted | Call directly. |
+| `notDetermined` | Never asked | **On a user action** (e.g., "Show nearby stores" button click), `openPermissionDialog` → call. Don't trigger this on screen entry. |
+| `denied` | Explicitly refused | Don't call (the measurement throws `UnknownError`). Recovery: "Enable in settings" notice + meaningful fallback. |
+
+Triggering the permission dialog on screen entry while the state is `notDetermined` is **the most common anti-pattern** — the user has no idea why permission is needed → refuses → that screen is permanently `denied` for them. **Request permission only at the moment the user wants the feature.**
+
+## Fallback UX for `denied`
+
+Three patterns for keeping a meaningful screen alive without location.
+
+### 1. Fall back to manual input
+
+Delivery address, store search, etc. Provide a form that reaches the same result screen by hand.
+
+```tsx
+function NearbyStores() {
+  const [state, setState] = useState<'idle' | 'denied' | 'ok'>('idle');
+  const [stores, setStores] = useState<Store[]>([]);
+
+  async function locateMe() {
+    const result = await safelyGetLocation();
+    if (result.kind === 'denied') {
+      setState('denied');
+      return;
+    }
+    if (result.kind === 'ok') {
+      setStores(await fetchStoresByCoords(result.coords));
+      setState('ok');
+    }
+  }
+
+  if (state === 'denied') {
+    return (
+      <AddressSearch
+        onSubmit={async (address) => {
+          setStores(await fetchStoresByAddress(address));
+          setState('ok');
+        }}
+      />
+    );
+  }
+
+  return (
+    <>
+      <button type="button" onClick={locateMe}>
+        Show nearby stores
+      </button>
+      <StoreList stores={stores} />
+    </>
+  );
+}
+```
+
+### 2. Fall back to a default region
+
+Regional content recommendations — the screen shouldn't be empty even if precision is poor. Seed with the last-known region, the user profile's address, or a default popular region so the screen always renders.
+
+```tsx
+const [region, setRegion] = useState(profile.region ?? 'Seoul');
+
+useEffect(() => {
+  (async () => {
+    const result = await safelyGetLocation();
+    if (result.kind === 'ok') {
+      setRegion(coordsToRegion(result.coords));
+    }
+    // denied/error: keep the default — the screen never goes blank.
+  })();
+}, []);
+```
+
+### 3. Explicit "open settings" motion
+
+Where the screen genuinely requires location (ride tracking). State the denied condition clearly and guide the user to settings. There's no API to deep-link into the OS settings page, so use a toast/banner reading "Settings → Apps → Location."
+
+```tsx
+if (state === 'denied') {
+  return (
+    <Notice>
+      Location is off, so we can't start tracking.
+      Go to Settings → Apps → Location to enable it.
+    </Notice>
+  );
+}
+```
+
+## Permission revoked between calls
+
+The user can revoke permission from another app between your `getPermission` returning `allowed` and your measurement call landing. Rare but possible. **Always wrap the measurement call in `try/catch`** and route errors to the same fallback — the `'error'` branch in `safelyGetLocation` above.
+
+`startUpdateLocation` fires `onError` if permission is revoked mid-subscription. Stop the subscription there and switch to fallback.
+
+```tsx
+stop = startUpdateLocation({
+  onEvent: ({ coords }) => setCoords(coords),
+  onError: (err) => {
+    stop?.();
+    setState('denied'); // reuse the same fallback path
+  },
+  options: { accuracy: Accuracy.High, timeInterval: 1000, distanceInterval: 5 },
+});
+```
+
+## `Accuracy` vs `accessLocation`
+
+`accuracy` is the measurement error in meters; `accessLocation` is the system permission tier. They're independent.
+
+| Permission (`accessLocation`) | Meaning | Typical `accuracy` |
+| --- | --- | --- |
+| `FINE` | "Precise location" allowed | 5–30m outdoors, 30–100m indoors |
+| `COARSE` | Only "Approximate location" | 100m to several km (block / city level) |
+
+Requesting `Accuracy.Highest` doesn't elevate a `COARSE` grant — you'll get `accessLocation === 'COARSE'` and a large `accuracy` value. So **double-check `accuracy` against your threshold right before using the result**.
+
+```ts
+const { coords } = await getCurrentLocation({ accuracy: Accuracy.Balanced });
+if (coords.accuracy > 500) {
+  setMessage('Location signal is weak. Try again outdoors.');
+}
+```
+
+For screens that effectively require `FINE` (navigation, ride tracking), branch to fallback when `accessLocation === 'COARSE'` or guide the user to upgrade to "Precise location."
+
+## Auto-measuring on screen entry vs after a user action
+
+| Case | Recommended |
+| --- | --- |
+| User tapped a "current location" button | Permission check + measurement inside that click handler. **That click is the user's consent moment.** |
+| Screen is drawn from location automatically (e.g., map) | If `notDetermined`, **don't** open the dialog — seed with a default region / last known location. Request permission only when the user takes a clear action ("Search" / "My location"). |
+| Background tracking is needed | Effectively not feasible in a mini-app — callbacks stop or throttle when foreground is lost. If background is mandatory, explain that separately. |
+
+## Common-mistakes checklist
+
+- Are you calling `openPermissionDialog` on screen entry? If the user refuses without context, the screen is locked for them forever.
+- Does your code still hit the measurement call when state is `denied`? It throws `UnknownError` — handle it in `try/catch`.
+- Do you re-check `accuracy` after permission passes? The user may have granted only `COARSE`.
+- Is `startUpdateLocation`'s cleanup attached to `useEffect`? Skip it and battery drains fast.
+- Does your screen show *something* when permission is denied? A blank page + a toast isn't a fallback.
+
+## Environment differences
+
+- **Real Toss app**: `geolocation` permission goes through two layers — OS permission and the Toss app's own permission. The system dialog may stack above the Toss permission dialog. A single `openPermissionDialog` call covers both.
+- **devtools mock**: the [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) panel lets you flip between `allowed`/`denied`/`notDetermined` directly. The mock coordinate is fixed, so distance/accuracy variation needs a real device.
+- **External browser**: the standard `navigator.geolocation` either throws or runs under a different permission model. Re-verify everything on-device when polyfilled.
+
+## Related APIs
+
+- [`api/location`](/api/location) — `location` namespace overview.
+- [`getCurrentLocation`](/api/location/getCurrentLocation) — one-shot location.
+- [`startUpdateLocation`](/api/location/startUpdateLocation) — subscription to location changes.
+- [`api/permissions`](/api/permissions) — permissions namespace.
+
+## Related guides
+
+- [Guides — Permissions pattern](/guides/permissions-pattern) — the base pattern shared across all permission types (including `geolocation`). This guide focuses on location-specific fallbacks layered on top.
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — upstream SDK package.
+- [`navigator.geolocation`](https://developer.mozilla.org/docs/Web/API/Geolocation) — standard Web API counterpart.
