@@ -55,3 +55,24 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm verify:crosslinks
+
+  # Dry-run SDK coverage drift check. Non-blocking on PRs — the weekly
+  # `sdk-drift` workflow is the enforcement layer (opens/updates a tracking
+  # issue). Surfacing it here gives early feedback when a PR bumps the SDK
+  # devDependency or removes a documented method.
+  coverage-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm coverage:check

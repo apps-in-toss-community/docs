@@ -1,0 +1,109 @@
+name: SDK drift
+
+# Weekly check for drift between the live @apps-in-toss/web-framework surface
+# and what docs/api covers. Runs Mondays 09:00 KST (= 00:00 UTC). On drift the
+# job upserts a single tracking issue labeled `sdk-drift`. Manual trigger
+# available for one-shot regenerations.
+
+on:
+  schedule:
+    - cron: '0 0 * * 1' # Mondays 00:00 UTC = 09:00 KST
+  workflow_dispatch:
+
+concurrency:
+  group: sdk-drift
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Bumps the SDK devDependency to the latest published version in-place
+      # so the drift check sees what the world looks like *now*, not what the
+      # lockfile pins. Lockfile changes are discarded (we don't commit from
+      # this workflow — humans review via the upserted issue).
+      - name: Pull latest @apps-in-toss/web-framework
+        run: |
+          pnpm add -D @apps-in-toss/web-framework@latest
+          echo "Live version: $(node -p "require('@apps-in-toss/web-framework/package.json').version")"
+
+      - run: pnpm coverage:check
+
+      - name: Upsert drift issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          REPORT_PATH=sdk-coverage-report.md
+          if [ ! -f "$REPORT_PATH" ]; then
+            echo "No report produced — skipping issue upsert."
+            exit 0
+          fi
+
+          # Count drift rows. The report has three drift sections; if none has
+          # rows the script wrote only headers — we still want an idempotent
+          # close path for that case.
+          ROWS=$(grep -cE '^\| `' "$REPORT_PATH" || true)
+          echo "Drift rows: $ROWS"
+
+          TITLE='SDK coverage drift'
+          LABEL='sdk-drift'
+
+          # Ensure the label exists (idempotent — `gh label create` errors if
+          # it already exists, so swallow that path).
+          gh label create "$LABEL" --color 'ededed' --description 'Tracked drift between SDK surface and docs/api' 2>/dev/null || true
+
+          EXISTING=$(gh issue list --label "$LABEL" --state open --json number --jq '.[0].number' || echo '')
+
+          BODY=$(cat <<'EOF'
+          This issue is maintained by `.github/workflows/sdk-drift.yml`. It is
+          re-rendered every Monday from the latest published
+          `@apps-in-toss/web-framework`.
+
+          Sections:
+
+          - **Undocumented SDK exports** — new API surface; needs a `docs/api/<group>/<method>.mdx` page (ko + en mirror).
+          - **Orphaned docs pages** — docs page exists but the SDK no longer exports that name.
+          - **Signature changes** — export still exists but its TS signature hash moved since the recorded baseline.
+
+          Refresh the baseline after intentionally adopting new signatures: `pnpm coverage:baseline`.
+
+          ---
+
+          EOF
+          )
+          BODY="${BODY}$(cat "$REPORT_PATH")"
+
+          if [ "$ROWS" -eq 0 ]; then
+            if [ -n "$EXISTING" ]; then
+              gh issue comment "$EXISTING" --body 'Drift cleared — no undocumented exports, no orphans, no signature changes. Closing.'
+              gh issue close "$EXISTING" --reason completed
+            else
+              echo 'No drift, no open issue. Nothing to do.'
+            fi
+            exit 0
+          fi
+
+          if [ -n "$EXISTING" ]; then
+            gh issue edit "$EXISTING" --body "$BODY"
+            echo "Updated issue #$EXISTING"
+          else
+            gh issue create --title "$TITLE" --label "$LABEL" --body "$BODY"
+          fi
