@@ -12,14 +12,10 @@ sidebar_position: 1
 
 ## 무엇을 찾을 수 있나요
 
-- **Getting started** — 처음부터 미니앱 하나를 띄우기까지의 실전 플로우 (작성 예정)
-- **Guides** — 인증, 결제, 권한 같은 흔한 시나리오를 커뮤니티 관점에서 설명 (작성 예정)
-- **API reference** — SDK의 각 메서드를 그룹별로 정리. 파라미터·반환값·예제·관련 가이드를 한 페이지에
-- **Try it 링크** — 각 API 페이지는 [sdk-example](https://sdk-example.aitc.dev/)의 대응 페이지로 바로 이동하는 버튼을 제공합니다
-
-## 첫 예시 페이지
-
-현재 레퍼런스는 스캐폴드 단계입니다. 구조와 패턴을 확인하려면 [`setClipboardText`](./api/clipboard/setClipboardText) 페이지를 참고하세요.
+- **Guides** — 인증·결제·권한·이벤트 구독·광고·뷰럴 등 흔한 시나리오를 "왜/언제" 관점에서 설명. 현재 14편.
+- **API reference** — 16개 네임스페이스의 SDK 메서드를 그룹별로 정리. 파라미터·반환값·예제·관련 가이드를 한 페이지에.
+- **Recipes** — 복사해서 바로 쓰는 짧은 스니펫. 클립보드 UX, 분석 추적, 게임 센터 연동, 환경별 분기 등 27편.
+- **Try it 링크** — 각 API 페이지는 [sdk-example](https://sdk-example.aitc.dev/)의 대응 페이지로 바로 이동하는 버튼을 제공합니다.
 
 ## 커뮤니티
 
