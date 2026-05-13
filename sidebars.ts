@@ -24,6 +24,12 @@ const sidebars: SidebarsConfig = {
       items: [
         {
           type: 'category',
+          label: 'camera',
+          collapsed: false,
+          items: ['api/camera/openCamera'],
+        },
+        {
+          type: 'category',
           label: 'clipboard',
           collapsed: false,
           items: [
