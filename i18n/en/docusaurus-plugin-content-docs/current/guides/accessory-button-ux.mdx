@@ -1,0 +1,236 @@
+---
+id: accessory-button-ux
+title: Navigation accessory button UX patterns
+sidebar_label: Accessory button UX
+slug: /guides/accessory-button-ux
+description: The lifecycle that ties partner.addAccessoryButton, partner.removeAccessoryButton, and tdsEvent.navigationAccessoryEvent together — screen-scoped mount/unmount, single-responsibility IDs, multi-button screens, and state-toggling buttons in one place.
+---
+
+# Navigation accessory button UX patterns
+
+`partner.addAccessoryButton` slots one or two icon+label buttons into the top navigation bar. The call itself is simple, but it has to be **paired with an event subscription** (`tdsEvent.navigationAccessoryEvent`) and **cleanup** (`partner.removeAccessoryButton`) — and bugs come quickly: orphan buttons left over after navigation, the same handler registered twice, or one screen's clicks stolen by another. This guide collects the lifecycle contract plus multi-button and state-toggle patterns in one place.
+
+## Lifecycle at a glance
+
+```
+[Screen mount]                  [Top bar]                   [tdsEvent]
+     │                              │                            │
+     │ partner.addAccessoryButton   │                            │
+     ├─────────────────────────────►│  button rendered           │
+     │                              │                            │
+     │ tdsEvent.addEventListener(   │                            │
+     │   'navigationAccessoryEvent')│                            │
+     ├─────────────────────────────────────────────────────────►│
+     │                              │                            │
+     │                              │ ◄── user tap ─── │         │
+     │                              │                            │
+     │ ◄────────────────────── { id, ... } ──────────────────────┤
+     │                              │                            │
+     │ [run handler if id matches]  │                            │
+     │                              │                            │
+[Screen unmount]                    │                            │
+     │ unsubscribe()                │                            │
+     ├─────────────────────────────────────────────────────────►│
+     │ partner.removeAccessoryButton│                            │
+     ├─────────────────────────────►│  button removed            │
+```
+
+Key contracts:
+
+- **Button add and event subscription are a pair.** `addAccessoryButton` alone with no subscription means the tap goes nowhere. A subscription with no button means the callback never fires.
+- **`id` is the handler's routing key.** A screen may carry multiple buttons or sit next to default container buttons, so always check `event.id === BUTTON_ID` inside the callback.
+- **Cleanup is a pair too.** Call `removeAccessoryButton` and `unsubscribe()` in the same cleanup function. Skip one and you get a stale button or a stale handler.
+
+## Standard call sequence
+
+Tie everything to a `useEffect` mount/unmount.
+
+```tsx
+import { partner, tdsEvent } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+const FAVORITE_BUTTON_ID = 'btn-favorite';
+
+function ProductDetailPage({ productId }: { productId: string }) {
+  useEffect(() => {
+    partner.addAccessoryButton({
+      id: FAVORITE_BUTTON_ID,
+      title: 'Favorite',
+      icon: { name: 'icon-star-mono' },
+    });
+
+    const unsubscribe = tdsEvent.addEventListener(
+      'navigationAccessoryEvent',
+      (event) => {
+        if (event.id !== FAVORITE_BUTTON_ID) return;
+        toggleFavorite(productId);
+      },
+    );
+
+    return () => {
+      partner.removeAccessoryButton();
+      unsubscribe();
+    };
+  }, [productId]);
+
+  return <main>{/* page content */}</main>;
+}
+```
+
+We deliberately don't `await` the `addAccessoryButton` Promise — cleanup is already registered, so even if the component unmounts before the add completes, the next lifecycle pairs it with a remove. If you do need to await (e.g., chaining another SDK call right after), see "Async add and race conditions" below.
+
+## The `id` is a single-responsibility key
+
+Even with a single button on a screen, **factor the id into a constant**:
+
+```ts
+const FAVORITE_BUTTON_ID = 'btn-favorite';
+```
+
+- **Avoids cross-screen collision.** Screen transitions can land two screens' setup/cleanup in the same frame. If a generic id is shared, routing is ambiguous.
+- **Multi-button screens.** Use `'btn-favorite'`, `'btn-share'` and switch inside one callback.
+- **Clear logging/testing.** Pass `event.id` straight into analytics — clicks split cleanly per button.
+
+A service-wide `BUTTON_IDS` namespace prevents collisions structurally:
+
+```ts
+export const BUTTON_IDS = {
+  productFavorite: 'product:favorite',
+  productShare: 'product:share',
+  cartCheckout: 'cart:checkout',
+} as const;
+```
+
+## Multiple buttons on one screen
+
+`addAccessoryButton` registers one button per call. For two, call twice and clean up twice — but note that **`removeAccessoryButton` takes no arguments and only removes the most-recently-added button** (SDK semantics). Don't rely on container-level cleanup at screen transition; **call `removeAccessoryButton` once per button explicitly**.
+
+```tsx
+useEffect(() => {
+  partner.addAccessoryButton({ id: 'btn-share', title: 'Share', icon: { name: 'icon-share-mono' } });
+  partner.addAccessoryButton({ id: 'btn-favorite', title: 'Favorite', icon: { name: 'icon-star-mono' } });
+
+  const unsubscribe = tdsEvent.addEventListener('navigationAccessoryEvent', (event) => {
+    switch (event.id) {
+      case 'btn-share': onShare(); return;
+      case 'btn-favorite': onFavorite(); return;
+    }
+  });
+
+  return () => {
+    partner.removeAccessoryButton();
+    partner.removeAccessoryButton();
+    unsubscribe();
+  };
+}, []);
+```
+
+:::caution `removeAccessoryButton` takes no arguments
+There is no `removeAccessoryButton(id)` form. Two adds → two removes. Skip one and a stale button rides into the next screen.
+:::
+
+## State-toggling buttons
+
+For a slot that swaps label/icon ("Favorite" ↔ "Unfavorite"). Two options:
+
+### 1. Remove then re-add with the same id
+
+Re-calling `addAccessoryButton` with the same `id` may or may not overwrite the existing config — the container's behaviour is unspecified. The guaranteed motion is **`removeAccessoryButton` then `addAccessoryButton`**.
+
+```tsx
+function toggleFavorite() {
+  const next = !isFavorite;
+  setIsFavorite(next);
+  partner.removeAccessoryButton();
+  partner.addAccessoryButton({
+    id: FAVORITE_BUTTON_ID,
+    title: next ? 'Unfavorite' : 'Favorite',
+    icon: { name: next ? 'icon-star-fill' : 'icon-star-mono' },
+  });
+}
+```
+
+### 2. State-driven effect
+
+Tie the `useEffect` to the toggle state; the natural cleanup → re-register handles it. Simple, but each toggle costs one `remove → add` cycle.
+
+```tsx
+useEffect(() => {
+  partner.addAccessoryButton({
+    id: FAVORITE_BUTTON_ID,
+    title: isFavorite ? 'Unfavorite' : 'Favorite',
+    icon: { name: isFavorite ? 'icon-star-fill' : 'icon-star-mono' },
+  });
+  return () => partner.removeAccessoryButton();
+}, [isFavorite]);
+
+// Keep the event subscription on its own one-shot effect.
+useEffect(() => {
+  return tdsEvent.addEventListener('navigationAccessoryEvent', handler);
+}, []);
+```
+
+Splitting the subscription into its own effect keeps it from re-subscribing on every toggle.
+
+## Async add and race conditions
+
+`addAccessoryButton` returns `Promise<void>`. If cleanup runs before the promise resolves — mount immediately followed by unmount — the add takes effect *after* the cleanup, leaving a stale button on the next screen. React 18 strict mode's double-mount triggers this.
+
+Defensive pattern: a cancelled flag.
+
+```tsx
+useEffect(() => {
+  let cancelled = false;
+
+  (async () => {
+    await partner.addAccessoryButton({ id, title, icon });
+    if (cancelled) {
+      partner.removeAccessoryButton(); // recover immediately from the late add
+    }
+  })();
+
+  const unsubscribe = tdsEvent.addEventListener('navigationAccessoryEvent', handler);
+
+  return () => {
+    cancelled = true;
+    partner.removeAccessoryButton();
+    unsubscribe();
+  };
+}, []);
+```
+
+If the late add resolves after `cancelled` flips, the extra remove pairs it with the cleanup's remove.
+
+## Container default buttons
+
+The top navigation bar may already host container-default buttons (share, menu). Their taps don't land in `navigationAccessoryEvent` (different domain), but **screen real estate is limited** — keep accessory buttons to 1–2 at most. Three or more get visually cramped and risk being clipped by future container versions.
+
+## Common-mistakes checklist
+
+- Added the button but skipped the subscription? Taps go to dead air — analytics misses them entirely.
+- Running the handler without checking `event.id`? Other buttons' events fall through.
+- Skipped `removeAccessoryButton` on unmount? A stale button rides into the next screen.
+- Added twice, removed once? Same stale-button outcome.
+- Re-calling `addAccessoryButton` with the same id on every toggle without a remove first? The label may stay stale depending on container behaviour.
+- Using a generic id (`'btn'`, `'fav'`)? Other screens collide — use a service-wide namespace.
+
+## Environment differences
+
+- **Real Toss app**: rendered into the top navigation immediately. Container versions may shift icon tokens / placement slightly.
+- **devtools mock**: the [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) panel renders a virtual top bar with the accessory button. Taps are simulated from the panel.
+- **External browser**: there's no container, so the call throws. Don't use this outside the mini-app environment.
+
+## Related APIs
+
+- [`api/partner`](/api/partner) — `partner` namespace overview.
+- [`partner.addAccessoryButton`](/api/partner/addAccessoryButton) — add a button.
+- [`partner.removeAccessoryButton`](/api/partner/removeAccessoryButton) — remove a button.
+- [`tdsEvent.addEventListener`](/api/events/tdsEvent.addEventListener) — subscribe to `navigationAccessoryEvent`.
+
+## Related guides
+
+- [Guides — Event subscription patterns](/guides/event-subscription) — the shared subscription/cleanup contract for `tdsEvent` and the other event domains.
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — upstream SDK package.
