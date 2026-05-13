@@ -1,0 +1,328 @@
+---
+id: viral-reward-flow
+title: Viral reward setup and event handling patterns
+sidebar_label: Viral reward flow
+slug: /guides/viral-reward-flow
+description: Trigger a friend-invite flow with game.contactsViral, then grant rewards with grantPromotionReward — covering permissions, duplicate-grant prevention, and the junction between Console configuration and client code.
+---
+
+# Viral reward setup and event handling patterns
+
+Viral rewards have three stages. **(a) Invite**: Call `contactsViral` to open the sharing module, where the user picks a friend and sends an invite. **(b) Accept**: The friend accepting the invite is an asynchronous event outside the SDK — the client cannot observe it directly. Your server learns about it via a webhook or by polling at app-entry time. **(c) Grant**: Call `grantPromotionReward` (or the legacy `grantPromotionRewardForGame`) to credit the point reward.
+
+The SDK covers only (a) and (c). Stage (b) is between your server and the Apps in Toss platform.
+
+Console configuration is a prerequisite. Both `moduleId` and `promotionCode` are issued by the Console — the Console is the source of truth, not your code.
+
+## End-to-end sequence at a glance
+
+```
+[Client webview]             [Your server]           [Apps in Toss platform]
+      │                           │                           │
+      │ 1. contactsViral({ moduleId })                        │
+      ├──────────────────────────────────────────────────── ► │
+      │         Sharing module (contact picker)               │
+      │                                                        │
+      │ 2. onEvent({ type: 'sendViral', data })               │
+      │ ◄─────────────────────────────────────────────────── ─┤
+      │   (fires on share completion — amount/unit delivered)  │
+      │                                                        │
+      │       ─── Friend accept: async, outside SDK ───        │
+      │                               │  friend accepts        │
+      │                         │ ◄──────────────────────────  ┤
+      │                         │  server webhook / poll       │
+      │                                                        │
+      │ 3. grantPromotionReward({ promotionCode, amount })    │
+      ├──────────────────────────────────────────────────── ► │
+      │ ◄───────────────────────────────────────────────────── ┤
+      │   { key } (success) or { errorCode } (failure)        │
+      │                                                        │
+      │ 4. Update UI (reward badge, points display)           │
+      │                                                        │
+      │ 5. cleanup() (function returned by contactsViral)     │
+```
+
+Key points:
+
+- **`contactsViral`'s `onEvent('sendViral')` only tells you that the user sent an invite**, not whether the friend accepted.
+- **Your server decides when to call `grantPromotionReward`.** Once the server knows the friend accepted, it notifies the client, which then calls `grantPromotionReward`.
+- **Always call cleanup.** The function returned by `contactsViral` must be called on module close and on component unmount to release resources.
+
+## Step 1 — Configure the promotion in the Console
+
+Before calling `contactsViral`, you need a `moduleId`. Before calling `grantPromotionReward`, you need a `promotionCode`. Both are registered in the Console.
+
+- **`moduleId`**: Issued as a UUID in the Apps in Toss Console > Mini App > Share Reward menu.
+- **`promotionCode`**: The promotion code string registered in the Console. The `amount` you pass to `grantPromotionReward` must stay within the per-grant limit set in the Console (exceeding it returns error code `"4114"`).
+
+Do not hard-code these values. If the Console configuration changes, you will need to redeploy. Inject them via environment variables or a server config endpoint instead.
+
+```ts
+// Pull from environment variables or a server config endpoint
+const VIRAL_MODULE_ID = process.env.VITE_VIRAL_MODULE_ID ?? '';
+const PROMO_CODE = process.env.VITE_PROMO_CODE ?? '';
+const PROMO_AMOUNT = Number(process.env.VITE_PROMO_AMOUNT ?? 0);
+```
+
+## Step 2 — Permission check
+
+`contactsViral` requires the `contacts` permission. The function does not expose `getPermission` / `openPermissionDialog` directly — use `fetchContacts`, which shares the same `contacts` permission.
+
+```ts
+import { fetchContacts, contactsViral } from '@apps-in-toss/web-framework';
+
+async function checkContactsPermission(): Promise<boolean> {
+  const status = await fetchContacts.getPermission();
+  if (status === 'allowed') return true;
+  if (status === 'denied') {
+    // denied can only be recovered in OS Settings.
+    // Show a message guiding the user there.
+    return false;
+  }
+  // Show the dialog only when status is notDetermined.
+  const result = await fetchContacts.openPermissionDialog();
+  return result === 'allowed';
+}
+```
+
+If `contactsViral` is called while the permission is `denied`, the `onError` callback will fire. Call cleanup inside `onError` and show a fallback message.
+
+For the general permission model (check → prompt → invoke, denied handling, environment differences), see [Permissions pattern](/guides/permissions-pattern).
+
+## Step 3 — Call `contactsViral`
+
+```tsx
+import { fetchContacts, contactsViral } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+interface ViralState {
+  sharedCount: number;
+  earnedAmount: number;
+  unit: string;
+}
+
+function ViralShareButton({
+  moduleId,
+  onShareComplete,
+}: {
+  moduleId: string;
+  onShareComplete: () => void;
+}) {
+  const [viralState, setViralState] = useState<ViralState | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  async function handleShare() {
+    const hasPermission = await checkContactsPermission();
+    if (!hasPermission) {
+      setErrorMessage('Contacts permission is required. Please allow it in Settings.');
+      return;
+    }
+
+    const cleanup = contactsViral({
+      options: { moduleId },
+      onEvent: (event) => {
+        if (event.type === 'sendViral') {
+          // Fires on share completion. Friend acceptance is not yet known.
+          setViralState((prev) => ({
+            sharedCount: (prev?.sharedCount ?? 0) + 1,
+            earnedAmount: event.data.rewardAmount,
+            unit: event.data.rewardUnit,
+          }));
+        } else if (event.type === 'close') {
+          // Module dismissed. Check total shares and close reason.
+          console.log(
+            'Close reason:', event.data.closeReason,
+            '/ total shares:', event.data.sentRewardsCount,
+          );
+          // If at least one share was sent, ask the server to check acceptance.
+          if (event.data.sentRewardsCount > 0) {
+            onShareComplete();
+          }
+          cleanup();
+        }
+      },
+      onError: (error) => {
+        setErrorMessage('Something went wrong. Please try again.');
+        console.error(error);
+        cleanup?.();
+      },
+    });
+  }
+
+  return (
+    <div>
+      <button type="button" onClick={handleShare}>
+        Share with a friend and earn a reward
+      </button>
+      {viralState && (
+        <p role="status">
+          Shared with {viralState.sharedCount} friend(s).
+          You will receive {viralState.earnedAmount} {viralState.unit} once they accept.
+        </p>
+      )}
+      {errorMessage && <p role="alert">{errorMessage}</p>}
+    </div>
+  );
+}
+
+async function checkContactsPermission(): Promise<boolean> {
+  const status = await fetchContacts.getPermission();
+  if (status === 'allowed') return true;
+  if (status === 'denied') return false;
+  const result = await fetchContacts.openPermissionDialog();
+  return result === 'allowed';
+}
+```
+
+## Step 4 — Handle the friend-accept event (server side)
+
+Friend acceptance is asynchronous and outside the SDK. There are two ways to detect it:
+
+**Server webhook**: Configure the Apps in Toss Console to deliver a webhook to your server when a friend accepts an invite. Your server records the grant eligibility in the database. The next time the user opens the mini-app, the client asks the server whether a reward is available.
+
+**App-entry polling**: When the user reopens the mini-app (e.g. the day after sharing), ask your server whether there is a pending reward. If yes, call `grantPromotionReward`.
+
+```tsx
+import { useEffect, useState } from 'react';
+
+function RewardClaimSection({ promotionCode, amount }: { promotionCode: string; amount: number }) {
+  const [pendingReward, setPendingReward] = useState(false);
+
+  // On app entry: ask the server whether a reward is claimable.
+  useEffect(() => {
+    fetch('/api/viral/pending-reward')
+      .then((res) => res.json())
+      .then((data: { hasPending: boolean }) => {
+        setPendingReward(data.hasPending);
+      })
+      .catch(console.warn);
+  }, []);
+
+  async function claimReward() {
+    await grantViralReward({ promotionCode, amount });
+    setPendingReward(false);
+  }
+
+  if (!pendingReward) return null;
+
+  return (
+    <div>
+      <p>Your friend accepted the invite! Claim your reward.</p>
+      <button type="button" onClick={claimReward}>
+        Claim reward
+      </button>
+    </div>
+  );
+}
+```
+
+## Step 5 — Call `grantPromotionReward`
+
+```ts
+import { grantPromotionReward } from '@apps-in-toss/web-framework';
+
+async function grantViralReward({
+  promotionCode,
+  amount,
+}: {
+  promotionCode: string;
+  amount: number;
+}) {
+  const result = await grantPromotionReward({
+    params: { promotionCode, amount },
+  });
+
+  if (!result) {
+    // undefined: app version is below the minimum supported version.
+    throw new Error('APP_VERSION_TOO_LOW');
+  }
+
+  if (result === 'ERROR') {
+    throw new Error('UNKNOWN_GRANT_ERROR');
+  }
+
+  if ('key' in result) {
+    // Success. Store result.key server-side as an audit record.
+    return result.key;
+  }
+
+  // errorCode branch
+  if (result.errorCode === '4113') {
+    // "Already granted" — server-side idempotency worked correctly.
+    // Not an error from the user's perspective.
+    return null;
+  }
+
+  throw new Error(`GRANT_FAILED:${result.errorCode}`);
+}
+```
+
+## `grantPromotionReward` vs `grantPromotionRewardForGame`
+
+| | `grantPromotionReward` | `grantPromotionRewardForGame` |
+|---|---|---|
+| **Status** | Recommended | Deprecated |
+| **Supported mini-apps** | All categories | Game category only |
+| **Category error** | None | Returns `"40000"` outside game category |
+| **Error codes** | `"4100"` – `"4114"` | `"40000"` + `"4100"` – `"4114"` |
+| **Function signature** | Identical | Identical |
+
+All new code should use `grantPromotionReward`. Migrating from `grantPromotionRewardForGame` is a one-line change — the parameters and return type are identical.
+
+## Preventing duplicate grants
+
+The platform prevents duplicate grants for the same user and promotion by returning `errorCode: "4113"` (already granted). Even so, preventing redundant calls client-side reduces unnecessary network traffic.
+
+**Server-state approach**: Your server records "this promotion has been granted to this user" in the database. On app entry, the client reads that state to decide whether to show the claim UI. This is the most reliable approach.
+
+**Local-state approach (supplementary)**: Use this only to prevent double-clicks within a single session. The state resets when the app is closed, so this cannot substitute for server state.
+
+```tsx
+const [granted, setGranted] = useState(false);
+
+async function handleClaim() {
+  if (granted) return; // Prevent double-click within session
+  const key = await grantViralReward({ promotionCode, amount });
+  if (key !== null) {
+    setGranted(true);
+    // Record the grant on your server too
+    await fetch('/api/viral/mark-granted', {
+      method: 'POST',
+      body: JSON.stringify({ key }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+}
+```
+
+This is the same idempotent fulfillment philosophy as IAP. For the server-side upsert pattern, see the "processProductGrant callback responsibilities" section in [IAP payment flow](/guides/iap-payment-flow).
+
+## Common-mistakes checklist
+
+- Are you calling the cleanup function returned by `contactsViral` in both the `type: 'close'` handler and the `onError` handler? Missing either leaks resources.
+- Are `moduleId` and `promotionCode` hard-coded in the source? They should come from environment variables or a config endpoint — otherwise a Console change forces a redeploy.
+- Does the `amount` passed to `grantPromotionReward` exceed the per-grant limit set in the Console? If so, you will get error `"4114"`.
+- Are you treating `errorCode: "4113"` (already granted) as a real failure? This code means server-side idempotency worked correctly.
+- Do you have a fallback UI when the `contacts` permission is `denied`? Calling `contactsViral` with a denied permission fires `onError`.
+- Is the UI clearly communicating that "share sent" ≠ "reward received"? Friend acceptance is asynchronous.
+
+## Environment differences
+
+- **Real Toss app**: Real contact list, real share, real `sendViral` event. `grantPromotionReward` calls the live promotion and actually grants points.
+- **devtools mock**: [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) stubs `contactsViral`. Without a real `moduleId` from the Console, the sharing module will not open. `grantPromotionReward` returns a mock response — no real points are granted.
+- **External browser**: `contactsViral` throws. It only works inside the Toss app webview.
+
+## Related APIs
+
+- [`/api/game/contactsViral`](/api/game/contactsViral) — Contacts-based viral sharing module.
+- [`/api/game/grantPromotionReward`](/api/game/grantPromotionReward) — Grant a promotion reward (recommended).
+- [`/api/game/grantPromotionRewardForGame`](/api/game/grantPromotionRewardForGame) — (Deprecated) Game-category-only predecessor.
+
+## Related guides
+
+- [Permissions pattern](/guides/permissions-pattern) — The `contacts` permission check → prompt → invoke flow.
+- [IAP payment flow](/guides/iap-payment-flow) — Idempotent fulfillment pattern reference.
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package.

@@ -1,0 +1,328 @@
+---
+image: /og/guides-viral-reward-flow.png
+id: viral-reward-flow
+title: Viral 리워드 설정과 이벤트 처리 패턴
+sidebar_label: Viral 리워드 흐름
+slug: /guides/viral-reward-flow
+description: game.contactsViral로 사용자에게 친구 초대 흐름을 트리거하고, grantPromotionReward로 리워드를 지급하는 표준 시퀀스 — 권한 처리, 중복 지급 방지, 그리고 콘솔 설정과 클라이언트 코드의 결합점.
+---
+
+# Viral 리워드 설정과 이벤트 처리 패턴
+
+Viral 리워드는 세 단계로 이뤄집니다. **(a) 초대**: `contactsViral`을 호출해 공유 모듈을 열고 사용자가 친구를 선택해 초대를 보냅니다. **(b) 수락**: 친구가 초대를 수락하는 시점은 SDK 바깥의 비동기 이벤트입니다 — 클라이언트는 이 시점을 직접 알 수 없고, 서버 webhook이나 앱 재진입 시 상태 조회로 확인합니다. **(c) 지급**: `grantPromotionReward`(또는 레거시 `grantPromotionRewardForGame`)를 호출해 포인트 리워드를 지급합니다.
+
+SDK가 담당하는 부분은 (a)와 (c)뿐입니다. (b)는 여러분의 서버와 앱인토스 플랫폼 사이의 영역입니다.
+
+콘솔에서의 프로모션 설정이 선행 조건입니다. `moduleId`와 `promotionCode`는 모두 코드가 아니라 콘솔이 source of truth입니다.
+
+## 전체 시퀀스 한눈에 보기
+
+```
+[클라이언트 webview]         [당신의 서버]              [앱인토스 플랫폼]
+      │                         │                              │
+      │ 1. contactsViral({ moduleId })                        │
+      ├───────────────────────────────────────────────────── ►│
+      │        공유 모듈 표시 (연락처 선택)                      │
+      │                                                        │
+      │ 2. onEvent({ type: 'sendViral', data })               │
+      │ ◄──────────────────────────────────────────────────── ┤
+      │   (공유 완료 즉시. 리워드 amount/unit 전달)              │
+      │                                                        │
+      │       ──── 친구 측 비동기 이벤트 (SDK 바깥) ────         │
+      │                                         │   친구 수락   │
+      │                         │ ◄─────────────────────────── ┤
+      │                         │  server webhook / poll       │
+      │                                                        │
+      │ 3. grantPromotionReward({ promotionCode, amount })    │
+      ├───────────────────────────────────────────────────── ►│
+      │ ◄──────────────────────────────────────────────────── ┤
+      │   { key } (성공) 또는 { errorCode } (실패)              │
+      │                                                        │
+      │ 4. UI 업데이트 (리워드 배지, 포인트 표시)                 │
+      │                                                        │
+      │ 5. cleanup() (반환된 함수)                              │
+```
+
+핵심:
+
+- **`contactsViral`의 `onEvent('sendViral')`은 공유가 완료된 시점을 알려줄 뿐**, 친구 수락 여부는 포함되지 않습니다.
+- **`grantPromotionReward` 호출 시점은 서버가 결정**합니다. 친구 수락 사실을 서버가 확인한 후 클라이언트에 알려주면, 클라이언트가 `grantPromotionReward`를 호출합니다.
+- **cleanup을 반드시 호출**하세요. `contactsViral`이 반환하는 함수를 모듈 종료·컴포넌트 unmount 시 호출해야 리소스가 해제됩니다.
+
+## 단계 1 — 콘솔에서 프로모션 설정
+
+`contactsViral`을 호출하려면 `moduleId`가, `grantPromotionReward`를 호출하려면 `promotionCode`가 미리 콘솔에 등록되어 있어야 합니다.
+
+- **`moduleId`**: 앱인토스 콘솔 > 미니앱 > 공유 리워드에서 UUID 형식으로 발급됩니다.
+- **`promotionCode`**: 앱인토스 콘솔에 등록된 프로모션 코드 문자열입니다. 지급할 포인트 `amount`도 콘솔 설정과 맞춰야 합니다(콘솔에서 1회 지급 한도를 초과하면 오류 코드 `"4114"`가 반환됩니다).
+
+이 값들은 코드에 직접 하드코딩하지 마세요. 콘솔 설정이 변경될 때마다 재배포가 필요해집니다. 환경 변수나 서버 설정으로 분리하세요.
+
+```ts
+// 환경 변수나 서버 config에서 가져오는 예시
+const VIRAL_MODULE_ID = process.env.VITE_VIRAL_MODULE_ID ?? '';
+const PROMO_CODE = process.env.VITE_PROMO_CODE ?? '';
+const PROMO_AMOUNT = Number(process.env.VITE_PROMO_AMOUNT ?? 0);
+```
+
+## 단계 2 — 권한 확인
+
+`contactsViral`은 `contacts` 권한이 필요합니다. 함수 자체에 `getPermission` / `openPermissionDialog`가 노출되지 않으므로, 같은 `contacts` 권한을 공유하는 `fetchContacts`의 유틸을 활용하세요.
+
+```ts
+import { fetchContacts, contactsViral } from '@apps-in-toss/web-framework';
+
+async function checkContactsPermission(): Promise<boolean> {
+  const status = await fetchContacts.getPermission();
+  if (status === 'allowed') return true;
+  if (status === 'denied') {
+    // denied 상태는 OS 설정에서만 회복됩니다.
+    // 사용자에게 설정 화면 안내 메시지를 보여 주세요.
+    return false;
+  }
+  // notDetermined인 경우에만 다이얼로그를 띄웁니다.
+  const result = await fetchContacts.openPermissionDialog();
+  return result === 'allowed';
+}
+```
+
+권한 거절(`denied`) 상태에서 `contactsViral`을 호출하면 `onError` 콜백이 실행될 수 있습니다. `onError` 안에서 cleanup을 호출하고, 사용자에게 폴백 메시지를 보여 주세요.
+
+권한 흐름의 일반 규칙(check → prompt → invoke, denied 처리, 환경별 차이)은 [권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
+
+## 단계 3 — `contactsViral` 호출
+
+```tsx
+import { fetchContacts, contactsViral } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+interface ViralState {
+  sharedCount: number;
+  earnedAmount: number;
+  unit: string;
+}
+
+function ViralShareButton({
+  moduleId,
+  onShareComplete,
+}: {
+  moduleId: string;
+  onShareComplete: () => void;
+}) {
+  const [viralState, setViralState] = useState<ViralState | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  async function handleShare() {
+    const hasPermission = await checkContactsPermission();
+    if (!hasPermission) {
+      setErrorMessage('연락처 권한이 필요합니다. 설정에서 허용해 주세요.');
+      return;
+    }
+
+    const cleanup = contactsViral({
+      options: { moduleId },
+      onEvent: (event) => {
+        if (event.type === 'sendViral') {
+          // 공유 완료 시점. 친구 수락 여부는 아직 알 수 없음.
+          setViralState((prev) => ({
+            sharedCount: (prev?.sharedCount ?? 0) + 1,
+            earnedAmount: event.data.rewardAmount,
+            unit: event.data.rewardUnit,
+          }));
+        } else if (event.type === 'close') {
+          // 모듈 종료. 총 공유 건수와 종료 이유를 확인.
+          console.log(
+            '종료 사유:', event.data.closeReason,
+            '/ 총 공유:', event.data.sentRewardsCount,
+          );
+          // 공유가 한 건이라도 있으면 서버에 상태 확인 요청.
+          if (event.data.sentRewardsCount > 0) {
+            onShareComplete();
+          }
+          cleanup();
+        }
+      },
+      onError: (error) => {
+        setErrorMessage('공유 중 문제가 발생했어요. 다시 시도해 주세요.');
+        console.error(error);
+        cleanup?.();
+      },
+    });
+  }
+
+  return (
+    <div>
+      <button type="button" onClick={handleShare}>
+        친구에게 공유하고 리워드 받기
+      </button>
+      {viralState && (
+        <p role="status">
+          {viralState.sharedCount}명에게 공유 완료.
+          친구가 수락하면 {viralState.earnedAmount} {viralState.unit}를 받을 수 있어요.
+        </p>
+      )}
+      {errorMessage && <p role="alert">{errorMessage}</p>}
+    </div>
+  );
+}
+
+async function checkContactsPermission(): Promise<boolean> {
+  const status = await fetchContacts.getPermission();
+  if (status === 'allowed') return true;
+  if (status === 'denied') return false;
+  const result = await fetchContacts.openPermissionDialog();
+  return result === 'allowed';
+}
+```
+
+## 단계 4 — 친구 수락 이벤트 처리 (서버 측)
+
+친구가 초대를 수락하는 건 비동기입니다. SDK는 이 시점을 클라이언트에 직접 전달하지 않습니다. 수락 여부를 파악하는 두 가지 방법:
+
+**서버 webhook**: 앱인토스 플랫폼이 친구 수락 이벤트를 여러분의 서버로 webhook 형태로 전달하도록 콘솔에 설정합니다. 서버가 webhook을 받으면 리워드 지급 권한을 DB에 기록하고, 다음 번에 사용자가 미니앱을 열 때 클라이언트에 알려줍니다.
+
+**앱 재진입 시 상태 조회**: 사용자가 미니앱을 다시 열 때(예: 공유 후 다음 날 방문) 서버에 "지급 가능한 리워드가 있는가"를 묻고, 있으면 `grantPromotionReward`를 호출합니다.
+
+```tsx
+import { useEffect, useState } from 'react';
+
+function RewardClaimSection({ promotionCode, amount }: { promotionCode: string; amount: number }) {
+  const [pendingReward, setPendingReward] = useState(false);
+
+  // 앱 진입 시 서버에서 리워드 지급 가능 여부 조회.
+  useEffect(() => {
+    fetch('/api/viral/pending-reward')
+      .then((res) => res.json())
+      .then((data: { hasPending: boolean }) => {
+        setPendingReward(data.hasPending);
+      })
+      .catch(console.warn);
+  }, []);
+
+  async function claimReward() {
+    await grantViralReward({ promotionCode, amount });
+    setPendingReward(false);
+  }
+
+  if (!pendingReward) return null;
+
+  return (
+    <div>
+      <p>친구가 초대를 수락했어요! 리워드를 받을 수 있어요.</p>
+      <button type="button" onClick={claimReward}>
+        리워드 받기
+      </button>
+    </div>
+  );
+}
+```
+
+## 단계 5 — `grantPromotionReward` 호출
+
+```ts
+import { grantPromotionReward } from '@apps-in-toss/web-framework';
+
+async function grantViralReward({
+  promotionCode,
+  amount,
+}: {
+  promotionCode: string;
+  amount: number;
+}) {
+  const result = await grantPromotionReward({
+    params: { promotionCode, amount },
+  });
+
+  if (!result) {
+    // undefined: 앱 버전이 최소 지원 버전보다 낮음.
+    throw new Error('APP_VERSION_TOO_LOW');
+  }
+
+  if (result === 'ERROR') {
+    throw new Error('UNKNOWN_GRANT_ERROR');
+  }
+
+  if ('key' in result) {
+    // 지급 성공. result.key를 서버에 기록해 두면 감사 로그로 활용 가능.
+    return result.key;
+  }
+
+  // errorCode 분기
+  if (result.errorCode === '4113') {
+    // "이미 지급된 내역" — 서버 idempotency가 동작한 것. 오류로 처리하지 않아도 됨.
+    return null;
+  }
+
+  throw new Error(`GRANT_FAILED:${result.errorCode}`);
+}
+```
+
+## `grantPromotionReward` vs `grantPromotionRewardForGame`
+
+| | `grantPromotionReward` | `grantPromotionRewardForGame` |
+|---|---|---|
+| **상태** | 현재 권장 | Deprecated |
+| **사용 가능 미니앱** | 모든 카테고리 | 게임 카테고리만 |
+| **카테고리 오류** | 없음 | 게임 외 카테고리에서 호출 시 `"40000"` |
+| **에러 코드** | `"4100"` ~ `"4114"` | `"40000"` + `"4100"` ~ `"4114"` |
+| **함수 시그니처** | 동일 | 동일 |
+
+새로 작성하는 코드는 `grantPromotionReward`를 사용하세요. `grantPromotionRewardForGame`이 있는 기존 코드는 함수명만 바꾸면 마이그레이션 완료입니다 — 파라미터와 반환 타입이 동일합니다.
+
+## 중복 지급 방지
+
+같은 사용자에게 같은 프로모션을 여러 번 지급하려는 시도는 서버(앱인토스 플랫폼)가 `errorCode: "4113"`(이미 지급된 내역)으로 막아줍니다. 하지만 클라이언트 측에서도 중복 호출을 막아 두면 불필요한 네트워크 요청을 줄일 수 있습니다.
+
+**서버 상태 기반**: 여러분의 서버가 "이 사용자에게 이 프로모션 지급이 완료됐다"를 DB에 기록하면, 앱 재진입 시 조회 결과로 UI를 제어할 수 있습니다. 이 방법이 가장 신뢰할 수 있습니다.
+
+**로컬 상태 기반(보조)**: 한 세션 내에서 버튼 중복 클릭을 막는 용도로만 사용하세요. 앱을 종료하면 상태가 초기화되므로 서버 상태를 보완할 수는 없습니다.
+
+```tsx
+const [granted, setGranted] = useState(false);
+
+async function handleClaim() {
+  if (granted) return; // 세션 내 중복 클릭 방지
+  const key = await grantViralReward({ promotionCode, amount });
+  if (key !== null) {
+    setGranted(true);
+    // 서버에도 지급 완료 기록
+    await fetch('/api/viral/mark-granted', {
+      method: 'POST',
+      body: JSON.stringify({ key }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+}
+```
+
+IAP 결제의 idempotent fulfillment와 같은 사상입니다. 서버 측 upsert 패턴은 [IAP 결제 흐름](/guides/iap-payment-flow)의 "processProductGrant 콜백의 책임" 섹션을 참고하세요.
+
+## 자주 빠뜨리는 체크리스트
+
+- `contactsViral`의 cleanup 함수를 `type: 'close'` 이벤트 처리 후와 `onError` 처리 후 모두에서 호출하고 있는가? 누락하면 리소스가 해제되지 않습니다.
+- `moduleId`와 `promotionCode`를 코드에 하드코딩하고 있지는 않은가? 콘솔 설정 변경 시 재배포가 필요해집니다.
+- `grantPromotionReward`의 `amount`가 콘솔에 설정된 1회 지급 한도를 초과하지 않는가? 초과 시 `"4114"` 오류.
+- `errorCode: "4113"` (이미 지급됨)을 진짜 오류처럼 처리하고 있지는 않은가? 이 코드는 서버 idempotency가 정상 작동한 것입니다.
+- contacts 권한이 `denied`인 경우 폴백 UI를 제공하고 있는가? 권한 없이 `contactsViral`을 호출하면 `onError`가 실행됩니다.
+- 친구 수락 이벤트가 비동기임을 UI에서 적절히 표현하고 있는가? "공유 완료" ≠ "리워드 지급 완료"입니다.
+
+## 환경별 차이
+
+- **실 토스 앱**: 실제 연락처에서 친구를 선택할 수 있고, 공유 완료 시 `sendViral` 이벤트가 정상적으로 전달됩니다. `grantPromotionReward`는 콘솔에 등록된 프로모션을 실제 지급합니다.
+- **devtools mock**: [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) mock에서 `contactsViral`은 스텁(stub) 동작을 합니다. 콘솔에서 발급한 `moduleId` 없이는 실제 공유 모듈이 열리지 않습니다. `grantPromotionReward`는 mock 응답을 반환합니다 — 실제 포인트는 지급되지 않습니다.
+- **외부 브라우저**: `contactsViral` 호출이 throw 합니다. 토스 앱 webview에서만 동작합니다.
+
+## 관련 API
+
+- [`/api/game/contactsViral`](/api/game/contactsViral) — 연락처 기반 공유 모듈 호출.
+- [`/api/game/grantPromotionReward`](/api/game/grantPromotionReward) — 프로모션 리워드 지급 (현재 권장).
+- [`/api/game/grantPromotionRewardForGame`](/api/game/grantPromotionRewardForGame) — (Deprecated) 게임 카테고리 전용 이전 함수.
+
+## 관련 가이드
+
+- [권한 처리 패턴](/guides/permissions-pattern) — `contacts` 권한 check → prompt → invoke 흐름.
+- [IAP 결제 흐름](/guides/iap-payment-flow) — idempotent fulfillment 패턴 참고.
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지.

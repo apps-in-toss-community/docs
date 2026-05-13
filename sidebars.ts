@@ -29,6 +29,7 @@ const sidebars: SidebarsConfig = {
         'guides/navigation-flow',
         'guides/permissions-pattern',
         'guides/tosspay-checkout-flow',
+        'guides/viral-reward-flow',
       ],
     },
     {
