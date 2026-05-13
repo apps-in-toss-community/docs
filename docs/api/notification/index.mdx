@@ -1,0 +1,44 @@
+---
+image: /og/api-notification.png
+id: notification-overview
+title: notification
+sidebar_label: Overview
+slug: /api/notification
+description: 앱 알림 동의를 요청하는 SDK 네임스페이스입니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `notification`
+
+앱 알림 동의 흐름을 처리하는 네임스페이스입니다. 현재 `requestNotificationAgreement` 한 가지 메서드를 제공하며, 사용자에게 특정 알림 템플릿에 대한 수신 동의를 요청하고 결과를 콜백으로 받습니다.
+
+## 메서드
+
+| 메서드 | 반환 타입 | 용도 |
+| --- | --- | --- |
+| [`requestNotificationAgreement`](/api/notification/requestNotificationAgreement) | `() => void` | 알림 수신 동의 UI를 표시하고, 사용자 응답을 콜백으로 수신합니다. 반환값은 취소 함수입니다. |
+
+## 권한
+
+권한이 필요하지 않습니다 — `notification` 네임스페이스의 메서드는 별도의 `PermissionName`에 바인딩되지 않습니다.
+
+## 동의 결과 유형
+
+`requestNotificationAgreement`의 `onEvent` 콜백은 세 가지 결과 유형을 반환합니다.
+
+| `type` | 의미 |
+| --- | --- |
+| `newAgreement` | 사용자가 알림 수신에 처음으로 동의했습니다. |
+| `alreadyAgreed` | 사용자가 이미 해당 알림에 동의한 상태입니다. |
+| `agreementRejected` | 사용자가 알림 수신을 거절했습니다. |
+
+## 직접 실행해 보기
+
+sdk-example의 Notification 페이지에서 메서드를 직접 실행해 볼 수 있습니다.
+
+<TryItLink group="notification" />
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.

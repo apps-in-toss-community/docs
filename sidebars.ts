@@ -208,6 +208,15 @@ const sidebars: SidebarsConfig = {
         },
         {
           type: 'category',
+          label: 'notification',
+          collapsed: false,
+          items: [
+            'api/notification/notification-overview',
+            'api/notification/requestNotificationAgreement',
+          ],
+        },
+        {
+          type: 'category',
           label: 'partner',
           collapsed: false,
           items: [
@@ -215,6 +224,12 @@ const sidebars: SidebarsConfig = {
             'api/partner/addAccessoryButton',
             'api/partner/removeAccessoryButton',
           ],
+        },
+        {
+          type: 'category',
+          label: 'payment',
+          collapsed: false,
+          items: ['api/payment/payment-overview', 'api/payment/requestTossPayPaysBilling'],
         },
         {
           type: 'category',

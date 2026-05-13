@@ -1,0 +1,162 @@
+---
+id: requestTossPayPaysBilling
+title: requestTossPayPaysBilling
+sidebar_label: requestTossPayPaysBilling
+description: Open the TossPay billing enrollment sheet to request billing key issuance and return the authentication outcome.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `requestTossPayPaysBilling`
+
+Open the TossPay billing enrollment sheet so the user can consent to recurring charges, then resolve with a success/failure result. **This function only handles the enrollment authentication step — the actual recurring charge must be executed separately on your server after a successful authentication.**
+
+Distinct from `checkoutPayment` in the `iap` namespace (one-time payment authentication): `requestTossPayPaysBilling` is specifically for issuing a billing key that your server can use to trigger future recurring charges.
+
+Use the static `isSupported()` method to check whether the feature is available in the current environment before calling.
+
+## Signature
+
+```ts
+import { requestTossPayPaysBilling } from '@apps-in-toss/web-framework';
+
+declare function requestTossPayPaysBilling(options: {
+  params: { wrappedToken: string };
+}): Promise<{ success: boolean; reason?: string } | undefined>;
+
+declare namespace requestTossPayPaysBilling {
+  function isSupported(): boolean;
+}
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `options.params.wrappedToken` | `string` | ✓ | Server-issued wrapped token. Passed to the TossPay billing sheet to identify the billing context. |
+
+## Returns
+
+- `Promise<{ success: boolean; reason?: string } | undefined>` — resolves once the user finishes in the billing sheet. May return `undefined` in environments where the feature is not supported.
+  - `success: true` — Authentication succeeded. Store the billing key on your server and schedule recurring charges as needed.
+  - `success: false` + `reason` — Authentication failed. Show `reason` to the user or log it.
+
+:::caution Authentication is not a charge
+`success: true` means the user consented in the TossPay billing sheet and a billing key was issued — it does not mean a charge has been made. Actual recurring charges are executed separately via your server-side API. Do not treat authentication success as a completed payment.
+:::
+
+## Permission
+
+No permission required. `requestTossPayPaysBilling` is not bound to any `PermissionName`.
+
+## Examples
+
+### Minimal
+
+```tsx
+import { requestTossPayPaysBilling } from '@apps-in-toss/web-framework';
+
+async function registerBilling(wrappedToken: string) {
+  if (!requestTossPayPaysBilling.isSupported()) {
+    console.warn('Recurring billing is not supported in this environment.');
+    return;
+  }
+
+  const result = await requestTossPayPaysBilling({ params: { wrappedToken } });
+  if (!result) return;
+
+  if (result.success) {
+    // Store billing key and finalize enrollment on your server.
+    await fetch('/api/billing/complete', { method: 'POST' });
+  } else {
+    console.warn('Billing enrollment failed:', result.reason);
+  }
+}
+```
+
+### Realistic — billing enrollment button
+
+```tsx
+import { requestTossPayPaysBilling } from '@apps-in-toss/web-framework';
+import { useCallback, useState } from 'react';
+
+export function BillingRegisterButton({ planId }: { planId: string }) {
+  const [status, setStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
+  const [message, setMessage] = useState('');
+
+  const handleRegister = useCallback(async () => {
+    if (!requestTossPayPaysBilling.isSupported()) {
+      setStatus('error');
+      setMessage('Recurring billing is not supported in this environment.');
+      return;
+    }
+
+    setStatus('pending');
+    setMessage('');
+    try {
+      // 1. Mint a wrapped token on the server.
+      const { wrappedToken } = await fetch('/api/billing/prepare', {
+        method: 'POST',
+        body: JSON.stringify({ planId }),
+        headers: { 'Content-Type': 'application/json' },
+      }).then((res) => res.json());
+
+      // 2. Open the TossPay billing enrollment sheet.
+      const result = await requestTossPayPaysBilling({ params: { wrappedToken } });
+
+      if (!result) {
+        setStatus('error');
+        setMessage('Could not complete the billing enrollment.');
+        return;
+      }
+
+      if (!result.success) {
+        setStatus('error');
+        setMessage(`Billing enrollment failed: ${result.reason ?? 'unknown error'}`);
+        return;
+      }
+
+      // 3. Finalize enrollment on the server.
+      await fetch('/api/billing/complete', {
+        method: 'POST',
+        body: JSON.stringify({ planId }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      setStatus('success');
+      setMessage('Recurring billing has been set up.');
+    } catch (error) {
+      setStatus('error');
+      setMessage('Something went wrong while setting up billing.');
+      console.error(error);
+    }
+  }, [planId]);
+
+  return (
+    <div>
+      <button type="button" onClick={handleRegister} disabled={status === 'pending'}>
+        {status === 'pending' ? 'Setting up…' : 'Set up recurring billing'}
+      </button>
+      {message && <p role="status">{message}</p>}
+    </div>
+  );
+}
+```
+
+## Try it live
+
+Run the `requestTossPayPaysBilling` card on the Payment page in sdk-example.
+
+<TryItLink group="payment" method="requestTossPayPaysBilling" />
+
+## Related APIs
+
+- [`checkoutPayment`](/api/iap/checkoutPayment) — one-time payment authentication (`payToken`-based flow).
+
+## Related guides
+
+- _(coming soon)_ Guides — "TossPay recurring billing enrollment flow"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
