@@ -1,0 +1,48 @@
+---
+id: auth-overview
+title: auth
+sidebar_label: Overview
+slug: /api/auth
+description: SDK namespace for Toss login, Toss Cert signing, anonymous key retrieval, and login integration checks.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `auth`
+
+Namespace for authentication-related functions: Toss login flow, Toss Cert (electronic signature), anonymous key retrieval, and Toss login integration checks. All functions return a `Promise`.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Methods
+
+| Method | Return type | Purpose |
+| --- | --- | --- |
+| [`appLogin`](/api/auth/appLogin) | `Promise<{ authorizationCode: string; referrer: 'DEFAULT' \| 'SANDBOX' }>` | Start the Toss login flow and receive an authorization code. |
+| [`appsInTossSignTossCert`](/api/auth/appsInTossSignTossCert) | `Promise<void>` | Sign with the Toss Cert certificate. Must be called after `appLogin`. |
+| [`getAnonymousKey`](/api/auth/getAnonymousKey) | `Promise<{ type: 'HASH'; hash: string } \| 'ERROR' \| undefined>` | Retrieve an anonymous identifier without requiring login. |
+| [`getIsTossLoginIntegratedService`](/api/auth/getIsTossLoginIntegratedService) | `Promise<boolean \| undefined>` | Check whether the user has integrated Toss login. |
+
+## Permission
+
+No `PermissionName` is bound to any function in the `auth` namespace — none expose `.getPermission()` / `.openPermissionDialog()` helpers. The `appLogin` call automatically surfaces the user consent screen. For how other namespaces handle permissions, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## UX guidance
+
+- **Call `appLogin` only in response to an explicit user action.** A login button tap, the start of a payment flow, etc. Auto-calling on page load is not recommended.
+- **Forward the authorization code to your server immediately.** The `authorizationCode` returned by `appLogin` is a short-lived token — do not store it on the client.
+- **Complete `appLogin` before calling `appsInTossSignTossCert`.** Invoking the cert-signing call without an active login session may fail.
+- **Handle all three `getAnonymousKey` outcomes.** `undefined` means the app version is too old; `'ERROR'` means an unknown error occurred; only the success object contains a usable `hash`.
+- **`getIsTossLoginIntegratedService` is for migration scenarios.** Use it when migrating existing Toss login users to a game identifier or another identity system.
+
+## Try it live
+
+Methods are available on the Auth page in sdk-example.
+
+<TryItLink group="auth" />
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

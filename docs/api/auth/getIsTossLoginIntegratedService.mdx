@@ -1,0 +1,128 @@
+---
+image: /og/api-auth-getIsTossLoginIntegratedService.png
+id: getIsTossLoginIntegratedService
+title: getIsTossLoginIntegratedService
+sidebar_label: getIsTossLoginIntegratedService
+description: 사용자가 토스 로그인을 연동했는지 여부를 확인합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `getIsTossLoginIntegratedService`
+
+현재 사용자가 토스 로그인을 연동한 상태인지 여부를 확인합니다. 주로 기존 토스 로그인 사용자를 게임 식별자 등으로 마이그레이션할 때 활용합니다. 앱 버전이 최소 지원 버전보다 낮으면 `undefined`를 반환합니다. 토스 로그인(`oauth2ClientId`)을 설정하지 않은 미니앱에서 호출하면 오류가 발생합니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+```ts
+import { getIsTossLoginIntegratedService } from '@apps-in-toss/web-framework';
+
+declare function getIsTossLoginIntegratedService(): Promise<boolean | undefined>;
+```
+
+## 파라미터
+
+없음.
+
+## 반환값
+
+`Promise<boolean | undefined>`
+
+| 반환값 | 의미 |
+| --- | --- |
+| `true` | 사용자가 토스 로그인을 연동했습니다. |
+| `false` | 사용자가 토스 로그인을 연동하지 않았습니다. |
+| `undefined` | 앱 버전이 최소 지원 버전보다 낮습니다. |
+
+:::caution 설정 오류 시 throw
+토스 로그인(`oauth2ClientId`)을 설정하지 않은 미니앱에서 호출하면 `{ message: "oauth2ClientId 설정이 필요합니다." }` 오류가 발생합니다. `try/catch`로 감싸세요.
+:::
+
+## 권한
+
+권한이 필요하지 않습니다 — `getIsTossLoginIntegratedService`는 별도의 `PermissionName`에 바인딩되지 않습니다. 다른 네임스페이스에서 권한을 처리하는 방식은 [Guides — 권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { getIsTossLoginIntegratedService } from '@apps-in-toss/web-framework';
+
+async function checkTossLogin() {
+  try {
+    const result = await getIsTossLoginIntegratedService();
+
+    if (result === undefined) {
+      console.warn('지원하지 않는 앱 버전이에요.');
+      return;
+    }
+
+    if (result) {
+      console.log('토스 로그인이 연동된 유저에요.');
+    } else {
+      console.log('토스 로그인이 연동되지 않은 유저에요.');
+    }
+  } catch (error) {
+    console.error(error);
+  }
+}
+```
+
+### 실전 예제 — 마이그레이션 분기 처리
+
+```tsx
+import { getIsTossLoginIntegratedService } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+type MigrationState = 'checking' | 'integrated' | 'not-integrated' | 'unsupported' | 'error';
+
+function MigrationManager() {
+  const [state, setState] = useState<MigrationState>('checking');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const result = await getIsTossLoginIntegratedService();
+        if (result === undefined) {
+          setState('unsupported');
+        } else {
+          setState(result ? 'integrated' : 'not-integrated');
+        }
+      } catch {
+        setState('error');
+      }
+    })();
+  }, []);
+
+  if (state === 'checking') return <p>확인 중...</p>;
+  if (state === 'integrated') return <p>토스 로그인 연동 완료 — 마이그레이션 진행 가능</p>;
+  if (state === 'not-integrated') return <p>토스 로그인 미연동 — 신규 등록 안내</p>;
+  if (state === 'unsupported') return <p>앱을 업데이트해 주세요.</p>;
+  return <p>오류가 발생했어요. 다시 시도해 주세요.</p>;
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Auth 페이지에서 `getIsTossLoginIntegratedService` 카드를 실행해 결과를 확인할 수 있습니다.
+
+<TryItLink group="auth" method="getIsTossLoginIntegratedService" />
+
+## 관련 API
+
+- [`appLogin`](./appLogin) — 토스 로그인 흐름을 시작합니다.
+- [`getAnonymousKey`](./getAnonymousKey) — 로그인 없이 사용자를 식별하는 익명 키를 반환합니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Guides — "토스 로그인 흐름"
+- [Guides — 권한 처리 패턴](/guides/permissions-pattern) — 다른 네임스페이스의 권한 흐름 (참고용; `getIsTossLoginIntegratedService`는 권한이 필요하지 않습니다).
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.

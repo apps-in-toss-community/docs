@@ -1,0 +1,135 @@
+---
+id: getAnonymousKey
+title: getAnonymousKey
+sidebar_label: getAnonymousKey
+description: Retrieve an anonymous hash key to identify a user without requiring login.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `getAnonymousKey`
+
+Returns an anonymous identifier for identifying a user within a mini-app without requiring them to log in. The result is `{ type: 'HASH', hash: string }` — use the `hash` on your server to manage user data or track sessions. Returns `undefined` when the app version is below the minimum supported version.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { getAnonymousKey } from '@apps-in-toss/web-framework';
+
+interface GetAnonymousKeySuccessResponse {
+  hash: string;
+  type: 'HASH';
+}
+
+declare function getAnonymousKey(): Promise<
+  GetAnonymousKeySuccessResponse | 'ERROR' | undefined
+>;
+```
+
+## Parameters
+
+None.
+
+## Returns
+
+`Promise<{ type: 'HASH'; hash: string } | 'ERROR' | undefined>`
+
+| Value | Meaning |
+| --- | --- |
+| `{ type: 'HASH', hash: string }` | Success — `hash` is the user identifier. |
+| `'ERROR'` | An unknown error occurred. |
+| `undefined` | The app version is below the minimum supported version. |
+
+:::caution Handle all three outcomes
+Always guard against `undefined` and `'ERROR'` before accessing `hash`. Skipping the checks leads to runtime errors.
+:::
+
+## Permission
+
+No permission required — `getAnonymousKey` is not bound to any `PermissionName`. For how other namespaces handle permissions, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { getAnonymousKey } from '@apps-in-toss/web-framework';
+
+async function fetchUserKey() {
+  const result = await getAnonymousKey();
+
+  if (result === undefined) {
+    console.warn('App version is too old — update required.');
+    return;
+  }
+
+  if (result === 'ERROR') {
+    console.error('Failed to retrieve anonymous key.');
+    return;
+  }
+
+  console.log('Anonymous key:', result.hash);
+}
+```
+
+### Realistic — register anonymous session on mount
+
+```tsx
+import { getAnonymousKey } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+// Replace `registerAnonymousSession` with your actual server API.
+declare function registerAnonymousSession(hash: string): Promise<void>;
+
+function AnonymousSessionManager() {
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const result = await getAnonymousKey();
+
+      if (result === undefined) {
+        setError('Please update the app and try again.');
+        return;
+      }
+
+      if (result === 'ERROR') {
+        setError('Session initialization failed — please try again later.');
+        return;
+      }
+
+      await registerAnonymousSession(result.hash);
+      setReady(true);
+    })();
+  }, []);
+
+  if (error) return <p>{error}</p>;
+  if (!ready) return <p>Loading…</p>;
+  return <p>Session ready.</p>;
+}
+```
+
+## Try it live
+
+Run the `getAnonymousKey` card on the Auth page in sdk-example.
+
+<TryItLink group="auth" method="getAnonymousKey" />
+
+## Related APIs
+
+- [`appLogin`](./appLogin) — Use `appLogin` when the user needs to be authenticated, instead of relying on the anonymous key.
+- [`getIsTossLoginIntegratedService`](./getIsTossLoginIntegratedService) — Check whether the user has integrated Toss login.
+
+## Related guides
+
+- _(coming soon)_ Guides — "Toss login flow"
+- [Guides — Permissions pattern](/guides/permissions-pattern) — Permission handling in other namespaces (for reference; `getAnonymousKey` requires no permission).
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
