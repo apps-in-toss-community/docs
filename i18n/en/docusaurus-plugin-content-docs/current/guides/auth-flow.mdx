@@ -1,0 +1,194 @@
+---
+id: auth-flow
+title: Toss login flow
+sidebar_label: Toss login flow
+slug: /guides/auth-flow
+description: The standard flow for integrating Toss login into a mini-app — from appLogin to server-side token exchange.
+---
+
+# Toss login flow
+
+`appLogin` is the entry point a mini-app uses to verify a Toss user's identity. **The client never receives the user's actual credentials** — instead, it gets a one-time `authorizationCode` and your server exchanges it for tokens in an OAuth-style flow. This guide collects that flow in one place; each `auth` method page covers only its signature, and delegates the flow, server responsibilities, and failure handling here.
+
+## Flow at a glance
+
+```
+[Client]                         [Your server]                [Toss]
+   │                                 │                          │
+   │ 1. appLogin()                   │                          │
+   ├──────────────────────────────────────────────────────────► │
+   │                                 │       Auth dialog        │
+   │ ◄──────────────────────────────────────────────────────────┤
+   │   authorizationCode             │                          │
+   │                                 │                          │
+   │ 2. POST /api/auth/exchange      │                          │
+   ├───────────────────────────────► │                          │
+   │                                 │ 3. Exchange code → token │
+   │                                 ├────────────────────────► │
+   │                                 │ ◄────────────────────────┤
+   │                                 │    accessToken           │
+   │ ◄───────────────────────────────┤                          │
+   │   Session cookie / JWT          │                          │
+```
+
+Responsibility split:
+
+- **Client**: call `appLogin()`, hand the `authorizationCode` to your server immediately. Don't persist the code in local storage or expose it.
+- **Server**: submit the `authorizationCode` to Toss's token-exchange API, receive an access token. Mini-app sessions are owned by your server (cookie or JWT).
+- **Toss**: shows the auth dialog, issues the code, exchanges the code for a token.
+
+## Standard client code
+
+```tsx
+import { appLogin } from '@apps-in-toss/web-framework';
+
+async function loginWithToss(): Promise<void> {
+  // 1. Show the Toss auth dialog and get a code.
+  const { authorizationCode, referrer } = await appLogin();
+
+  // 2. Hand it to your server immediately — the code is single-use and short-lived.
+  const res = await fetch('/api/auth/exchange', {
+    method: 'POST',
+    body: JSON.stringify({ authorizationCode, referrer }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  if (!res.ok) {
+    throw new Error('TOKEN_EXCHANGE_FAILED');
+  }
+
+  // 3. Server returns a session (Set-Cookie or JSON).
+}
+```
+
+`referrer` is `'DEFAULT' | 'SANDBOX'` and tells your server which token-exchange endpoint to call. Production mini-apps see `'DEFAULT'`; SANDBOX workspaces in the Toss console see `'SANDBOX'`. Your server must use different client credentials per environment.
+
+## What the server is responsible for
+
+The client **never** exchanges the `authorizationCode` for a token directly. Two reasons:
+
+1. Token exchange requires the mini-app's client secret, which must live only on the server.
+2. Putting tokens on the client offloads expiry and refresh logic to the browser, breaking any reasonable session model.
+
+The server takes the `authorizationCode`, calls the Toss token-exchange API, and:
+
+- Issues its own session identifier (cookie or JWT) and returns that to the client.
+- Stores Toss's access token in server-side session storage, calling Toss APIs only when needed.
+- Keeps the `refreshToken` in a secure store (encrypted DB column, KMS).
+
+For the exact request shape, required headers, and response schema of the token-exchange endpoint, see the Toss console docs. This guide covers only the mini-app client integration.
+
+## Branching on `referrer`
+
+`referrer` reflects that the same code can be issued from either a production mini-app or a SANDBOX one.
+
+```ts
+import { appLogin } from '@apps-in-toss/web-framework';
+
+async function login() {
+  const { authorizationCode, referrer } = await appLogin();
+  const endpoint =
+    referrer === 'SANDBOX' ? '/api/auth/exchange/sandbox' : '/api/auth/exchange';
+
+  return fetch(endpoint, {
+    method: 'POST',
+    body: JSON.stringify({ authorizationCode }),
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+```
+
+Alternatively, a single endpoint can read the `referrer` field and branch internally. The point is: **don't let the client decide the environment on its own** — always follow what `appLogin` returns.
+
+## Failure handling
+
+`appLogin` rejects when the user closes the dialog or denies the request. There's no documented error shape, so don't pattern-match on messages — wrap the call in a plain `try/catch`.
+
+```tsx
+try {
+  await loginWithToss();
+} catch (error) {
+  // User cancelled or a network error — return the UI to the pre-login state.
+  console.warn('login cancelled or failed', error);
+}
+```
+
+If the **server-side** exchange fails (invalid code, expired, environment mismatch), do not retry the same `authorizationCode` — it's single-use. Prompt the user to log in again, which calls `appLogin` afresh.
+
+## Pre-check that login integration is enabled
+
+[`getIsTossLoginIntegratedService`](/api/auth/getIsTossLoginIntegratedService) reports whether the current mini-app is eligible for Toss login. For mini-apps that haven't turned on Toss login integration in the operator console, `appLogin` is meaningless — use this as a guard before exposing your login UI.
+
+```tsx
+import { getIsTossLoginIntegratedService } from '@apps-in-toss/web-framework';
+
+const isIntegrated = await getIsTossLoginIntegratedService();
+if (!isIntegrated) {
+  // Hide the login UI or show a fallback message.
+  return;
+}
+```
+
+When the response is `undefined`, the current environment (external browser, older Toss app) can't determine eligibility. Treat that as `false` and fall back gracefully.
+
+## Companion calls after login
+
+Two related calls are commonly paired with `appLogin`:
+
+### Map users with an anonymous key
+
+[`getAnonymousKey`](/api/auth/getAnonymousKey) returns a per-user stable hash (`{ hash: string; type: 'HASH' }`). Use it as an identifier when linking server-side data to a user. It's **lighter than a full `appLogin` flow** and works for anonymous users — useful for staging user activity before prompting login.
+
+```ts
+import { getAnonymousKey } from '@apps-in-toss/web-framework';
+
+const result = await getAnonymousKey();
+if (result === 'ERROR' || result === undefined) {
+  // Lookup failed — fall back to a flow that doesn't require an anonymous ID.
+  return;
+}
+const userId = result.hash;
+```
+
+`getUserKeyForGame` is the deprecated predecessor in the game domain. New code should use `getAnonymousKey`.
+
+### Sign with Toss Cert
+
+[`appsInTossSignTossCert`](/api/auth/appsInTossSignTossCert) signs an arbitrary `txId` with the user's Toss Cert (electronic signature). **It requires `appLogin` to have completed first.** Verification happens on your server via Toss's cert-verification API; the client only triggers the signing dialog.
+
+```ts
+import { appsInTossSignTossCert } from '@apps-in-toss/web-framework';
+
+await appsInTossSignTossCert({ txId: 'order-1234' });
+// Now ask your server to verify the signature for txId.
+```
+
+## Common-mistakes checklist
+
+- Are you storing `authorizationCode` in local storage, session storage, or a URL? Don't.
+- Are you retrying with the same code? It's single-use — server-side exchange will fail.
+- Are you ignoring `referrer` and letting the client decide between production and SANDBOX? Don't.
+- Are you returning the Toss access token to the client? It belongs server-side only.
+- Does your UI dead-end if `appLogin` fails? Cancellations and failures should land on a normal recovery path.
+
+## Environment differences
+
+- **Real Toss app**: the auth dialog is system UI. `appLogin` rejects if "Toss login integration" isn't enabled in the operator console.
+- **devtools mock**: the [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) mock resolves `appLogin` immediately with a fake `authorizationCode`. Server-side token exchange must be mocked separately — only the shape is real, not the upstream behavior.
+- **External browser**: `appLogin` throws. Don't expose login UI outside the mini-app environment.
+
+## Related APIs
+
+- [`api/auth`](/api/auth) — `auth` namespace overview.
+- [`appLogin`](/api/auth/appLogin) — the entry function.
+- [`getIsTossLoginIntegratedService`](/api/auth/getIsTossLoginIntegratedService) — pre-check eligibility.
+- [`getAnonymousKey`](/api/auth/getAnonymousKey) — lightweight user identification hash.
+- [`appsInTossSignTossCert`](/api/auth/appsInTossSignTossCert) — sign with Toss Cert after login.
+
+## Related guides
+
+- [Guides — Permissions pattern](/guides/permissions-pattern) — `auth` itself has no permissions, but useful when combining it with permission-gated namespaces.
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — upstream SDK package.
