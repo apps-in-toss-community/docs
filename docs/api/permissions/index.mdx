@@ -1,0 +1,97 @@
+---
+image: /og/api-permissions.png
+id: permissions-overview
+title: permissions
+sidebar_label: Overview
+slug: /api/permissions
+description: 디바이스 권한 상태 확인·요청·다이얼로그 표시를 담당하는 SDK 최상위 함수 모음입니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `permissions`
+
+카메라, 마이크, 위치, 연락처, 사진, 클립보드 등 민감한 디바이스 리소스에 접근하기 전에 권한 상태를 확인하고 사용자의 동의를 받는 함수 세 개를 제공합니다. 이 세 함수는 [Guides — 권한 처리 패턴](/guides/permissions-pattern)이 설명하는 **check → prompt → invoke** 흐름의 기본 단위입니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 메서드
+
+| 메서드 | 반환 타입 | 용도 |
+| --- | --- | --- |
+| [`getPermission`](/api/permissions/getPermission) | `Promise<PermissionStatus>` | 특정 권한의 현재 상태(`allowed` / `denied` / `notDetermined`)를 확인합니다. 호출 전 상태 점검에 사용합니다. |
+| [`openPermissionDialog`](/api/permissions/openPermissionDialog) | `Promise<'allowed' \| 'denied'>` | 권한 요청 시스템 다이얼로그를 표시합니다. 상태가 `notDetermined`일 때 사용자의 최초 동의를 받기 위해 씁니다. |
+| [`requestPermission`](/api/permissions/requestPermission) | `Promise<'allowed' \| 'denied'>` | 현재 상태를 확인한 뒤, 필요하면 시스템 다이얼로그를 표시해 최종 상태를 반환합니다. `getPermission` + `openPermissionDialog` 조합의 편의 래퍼입니다. |
+
+## PermissionName
+
+`getPermission`, `openPermissionDialog`, `requestPermission` 세 함수 모두 `name` 파라미터로 `PermissionName`을 받습니다.
+
+| `PermissionName` | 대응 기능 |
+| --- | --- |
+| `'camera'` | 카메라 (사진 촬영·영상) |
+| `'photos'` | 사진 앨범 읽기/쓰기 |
+| `'contacts'` | 주소록 읽기 |
+| `'geolocation'` | 위치(GPS) |
+| `'microphone'` | 마이크 (오디오 녹음) |
+| `'clipboard'` | 클립보드 읽기/쓰기 |
+
+## PermissionStatus
+
+세 함수의 반환값 및 중간 상태로 사용됩니다.
+
+| 값 | 의미 |
+| --- | --- |
+| `'notDetermined'` | 아직 사용자가 결정하지 않은 상태. 최초 진입 시 기본값. |
+| `'denied'` | 사용자가 거절했거나 OS가 차단한 상태. 이 상태에서 권한이 필요한 API를 호출하면 throw합니다. |
+| `'allowed'` | 사용자가 허용한 상태. 권한이 필요한 API를 정상 호출할 수 있습니다. |
+
+## 권한
+
+이 세 함수 자체는 별도의 권한이 필요하지 않습니다 — 권한 상태를 **관리**하는 함수이지, 권한이 필요한 기능을 호출하는 함수가 아닙니다.
+
+## 표준 흐름: check → prompt → invoke
+
+```ts
+import { getPermission, openPermissionDialog } from '@apps-in-toss/web-framework';
+
+async function ensureCamera(): Promise<boolean> {
+  const status = await getPermission({ name: 'camera', access: 'read' });
+  if (status === 'allowed') return true;
+  if (status === 'denied') return false; // 안내 메시지 표시 후 포기
+
+  const result = await openPermissionDialog({ name: 'camera', access: 'read' });
+  return result === 'allowed';
+}
+```
+
+더 간결하게는 `requestPermission` 하나로 처리할 수 있습니다:
+
+```ts
+import { requestPermission } from '@apps-in-toss/web-framework';
+
+const result = await requestPermission({ name: 'camera', access: 'read' });
+// 'allowed' | 'denied' — notDetermined는 반환되지 않음
+```
+
+전체 흐름·거절 처리·환경별 차이에 대한 자세한 설명은 [Guides — 권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
+
+## UX 가이드
+
+- **권한 다이얼로그는 한 번에 한 번만.** 사용자가 해당 기능이 실제로 필요한 화면에 도달했을 때만 띄우세요. 앱 진입 시점에 모든 권한을 선제적으로 요청하면 거절률이 올라갑니다.
+- **`denied` 상태는 앱에서 되돌릴 수 없습니다.** OS 설정 화면 안내("설정 → 토스 → 권한") 메시지만 표시할 수 있습니다. `openPermissionDialog`를 다시 호출해도 다이얼로그가 뜨지 않습니다.
+- **`requestPermission`은 간결한 워크플로에 적합합니다.** 상태별 분기가 필요하다면 `getPermission`과 `openPermissionDialog`를 직접 조합하세요.
+- **같은 `PermissionName`을 공유하는 메서드끼리는 상태를 즉시 공유합니다.** 예를 들어 `getClipboardText`와 `setClipboardText`는 둘 다 `clipboard` 권한을 공유하므로, 어느 쪽으로 승인을 받든 즉시 반영됩니다.
+
+## 직접 실행해 보기
+
+sdk-example의 Permissions 페이지에서 세 함수를 실제로 호출하고 결과를 확인할 수 있습니다.
+
+<TryItLink group="permissions" />
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.
+- [Web Permissions API (MDN)](https://developer.mozilla.org/docs/Web/API/Permissions_API) — 표준 Web 권한 모델. SDK 모델과 어휘가 비슷하지만 동일하지는 않습니다.

@@ -1,0 +1,96 @@
+---
+id: permissions-overview
+title: permissions
+sidebar_label: Overview
+slug: /api/permissions
+description: Top-level SDK functions for checking, requesting, and prompting device permissions.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `permissions`
+
+Three top-level functions that cover the full permission lifecycle before accessing sensitive device resources — camera, microphone, location, contacts, photos, and clipboard. These are the primitives described in [Guides — Permissions pattern](/guides/permissions-pattern): **check → prompt → invoke**.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Methods
+
+| Method | Return type | Purpose |
+| --- | --- | --- |
+| [`getPermission`](/api/permissions/getPermission) | `Promise<PermissionStatus>` | Check the current status (`allowed` / `denied` / `notDetermined`) of a given permission. Use this before calling a permission-gated API. |
+| [`openPermissionDialog`](/api/permissions/openPermissionDialog) | `Promise<'allowed' \| 'denied'>` | Show the OS-native permission request dialog. Use when status is `notDetermined` to collect the user's initial consent. |
+| [`requestPermission`](/api/permissions/requestPermission) | `Promise<'allowed' \| 'denied'>` | Check status, then show the dialog only if undecided. Convenience wrapper around `getPermission` + `openPermissionDialog`. |
+
+## PermissionName
+
+All three functions accept a `name` parameter of type `PermissionName`.
+
+| `PermissionName` | Resource |
+| --- | --- |
+| `'camera'` | Camera (photos, video) |
+| `'photos'` | Photo library read/write |
+| `'contacts'` | Address book read |
+| `'geolocation'` | GPS / location |
+| `'microphone'` | Microphone (audio recording) |
+| `'clipboard'` | Clipboard read/write |
+
+## PermissionStatus
+
+Returned by `getPermission` and used as an intermediate state.
+
+| Value | Meaning |
+| --- | --- |
+| `'notDetermined'` | User hasn't decided yet. Default on first launch. |
+| `'denied'` | User or OS has blocked access. Calling the gated API while in this state throws. |
+| `'allowed'` | User has granted access. The gated API can be called normally. |
+
+## Permission
+
+These three functions themselves require no permission — they **manage** permissions, they don't call gated features.
+
+## Standard flow: check → prompt → invoke
+
+```ts
+import { getPermission, openPermissionDialog } from '@apps-in-toss/web-framework';
+
+async function ensureCamera(): Promise<boolean> {
+  const status = await getPermission({ name: 'camera', access: 'read' });
+  if (status === 'allowed') return true;
+  if (status === 'denied') return false; // show guidance and bail
+
+  const result = await openPermissionDialog({ name: 'camera', access: 'read' });
+  return result === 'allowed';
+}
+```
+
+Or more concisely with `requestPermission`:
+
+```ts
+import { requestPermission } from '@apps-in-toss/web-framework';
+
+const result = await requestPermission({ name: 'camera', access: 'read' });
+// 'allowed' | 'denied' — notDetermined is never returned
+```
+
+For the full treatment — denied recovery, environment differences, devtools mock behavior — see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## UX guidance
+
+- **Show the dialog only once, at the moment the user actually needs that feature.** Prompting for all permissions on app start raises denial rates and makes recovery impossible.
+- **`denied` cannot be reversed by your app.** Only OS settings can. Provide a message directing users to "Settings → Toss → Permissions."
+- **`requestPermission` is ideal for simple flows.** Use `getPermission` + `openPermissionDialog` directly when you need fine-grained control over the UX for each state.
+- **Same `PermissionName` → shared state.** `getClipboardText` and `setClipboardText` both bind to `clipboard`; a grant from either is immediately reflected on both.
+
+## Try it live
+
+Run all three methods on the Permissions page in sdk-example.
+
+<TryItLink group="permissions" />
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
+- [Web Permissions API (MDN)](https://developer.mozilla.org/docs/Web/API/Permissions_API) — standard Web permission model. Similar vocabulary to the SDK model, but not identical.

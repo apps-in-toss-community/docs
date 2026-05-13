@@ -1,0 +1,136 @@
+---
+id: getPermission
+title: getPermission
+sidebar_label: getPermission
+description: Check the current status of a device permission.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `getPermission`
+
+Returns the current status of a given permission — `allowed`, `denied`, or `notDetermined`. Use this before calling any permission-gated API to avoid unnecessary failures.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+```ts
+import { getPermission } from '@apps-in-toss/web-framework';
+
+declare function getPermission(permission: {
+  name: PermissionName;
+  access: PermissionAccess;
+}): Promise<PermissionStatus>;
+
+type PermissionName = 'camera' | 'photos' | 'contacts' | 'geolocation' | 'microphone' | 'clipboard';
+type PermissionAccess = 'read' | 'write' | 'access';
+type PermissionStatus = 'notDetermined' | 'denied' | 'allowed';
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `permission.name` | `PermissionName` | ✓ | The permission to check. One of `'camera'` / `'photos'` / `'contacts'` / `'geolocation'` / `'microphone'` / `'clipboard'`. |
+| `permission.access` | `PermissionAccess` | ✓ | The access type being requested. One of `'read'` / `'write'` / `'access'`. |
+
+## Returns
+
+- `Promise<PermissionStatus>` — current permission status:
+  - `'allowed'` — user has granted access.
+  - `'denied'` — user or OS has blocked access. Calling the gated API in this state throws.
+  - `'notDetermined'` — user hasn't decided yet. Default on first launch.
+
+## Permission
+
+`getPermission` itself requires no permission — it **queries** the permission state. For the full check → prompt → invoke flow used with other APIs, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { getPermission } from '@apps-in-toss/web-framework';
+
+const status = await getPermission({ name: 'camera', access: 'read' });
+console.log('Camera permission:', status);
+// 'allowed' | 'denied' | 'notDetermined'
+```
+
+### Realistic — check → prompt → invoke
+
+```tsx
+import { getPermission, openPermissionDialog, openCamera } from '@apps-in-toss/web-framework';
+
+async function takePicture() {
+  // 1. Check current status first.
+  const status = await getPermission({ name: 'camera', access: 'read' });
+
+  if (status === 'denied') {
+    // 2. Denied — re-prompting has no effect. Guide the user to OS settings.
+    showAppToast('Camera access was denied. Enable it in Settings → Toss → Permissions.');
+    return;
+  }
+
+  if (status === 'notDetermined') {
+    // 3. Not yet decided — show the system dialog.
+    const result = await openPermissionDialog({ name: 'camera', access: 'read' });
+    if (result === 'denied') {
+      showAppToast('Camera permission is required to take a photo.');
+      return;
+    }
+  }
+
+  // 4. Guaranteed to be allowed — safe to call the gated API.
+  const photo = await openCamera({ type: 'photo' });
+  console.log('Photo captured:', photo);
+}
+
+// `showAppToast` is NOT provided by the SDK — substitute your app's own
+// toast / snackbar component.
+declare function showAppToast(message: string): void;
+```
+
+### Realistic — show status badge on mount
+
+```tsx
+import { getPermission, type PermissionStatus } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+function CameraPermissionBadge() {
+  const [status, setStatus] = useState<PermissionStatus | null>(null);
+
+  useEffect(() => {
+    getPermission({ name: 'camera', access: 'read' })
+      .then(setStatus)
+      .catch(console.error);
+  }, []);
+
+  if (status === null) return <span>Checking…</span>;
+  if (status === 'allowed') return <span>Camera: allowed</span>;
+  if (status === 'denied') return <span>Camera: denied</span>;
+  return <span>Camera: not determined</span>;
+}
+```
+
+## Try it live
+
+Run `getPermission` on the Permissions page in sdk-example and inspect the result.
+
+<TryItLink group="permissions" method="getPermission" />
+
+## Related APIs
+
+- [`openPermissionDialog`](./openPermissionDialog) — show the OS permission dialog.
+- [`requestPermission`](./requestPermission) — convenience wrapper: checks status, then prompts if undecided.
+
+## Related guides
+
+- [Guides — Permissions pattern](/guides/permissions-pattern) — check → prompt → invoke flow, denied recovery, environment differences.
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

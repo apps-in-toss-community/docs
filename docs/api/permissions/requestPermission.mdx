@@ -1,0 +1,138 @@
+---
+image: /og/api-permissions-requestPermission.png
+id: requestPermission
+title: requestPermission
+sidebar_label: requestPermission
+description: 권한 상태를 확인하고 필요하면 시스템 다이얼로그를 표시해 최종 상태를 반환합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `requestPermission`
+
+현재 권한 상태를 내부적으로 확인한 뒤, 상태가 `notDetermined`인 경우에만 OS 시스템 다이얼로그를 표시합니다. 최종 상태(`'allowed'` 또는 `'denied'`)를 resolve 합니다. [`getPermission`](./getPermission) + [`openPermissionDialog`](./openPermissionDialog) 조합의 편의 래퍼입니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+```ts
+import { requestPermission } from '@apps-in-toss/web-framework';
+
+declare function requestPermission(permission: {
+  name: PermissionName;
+  access: PermissionAccess;
+}): Promise<'allowed' | 'denied'>;
+
+type PermissionName = 'camera' | 'photos' | 'contacts' | 'geolocation' | 'microphone' | 'clipboard';
+type PermissionAccess = 'read' | 'write' | 'access';
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `permission.name` | `PermissionName` | ✓ | 요청할 권한의 이름. `'camera'` / `'photos'` / `'contacts'` / `'geolocation'` / `'microphone'` / `'clipboard'` 중 하나. |
+| `permission.access` | `PermissionAccess` | ✓ | 접근 유형. `'read'` / `'write'` / `'access'` 중 하나. |
+
+## 반환값
+
+- `Promise<'allowed' | 'denied'>` — `notDetermined`는 반환되지 않습니다:
+  - `'allowed'` — 권한이 허용된 상태 (기존에 이미 허용됐거나, 이번 다이얼로그에서 허용됨).
+  - `'denied'` — 권한이 거절된 상태 (기존에 이미 거절됐거나, 이번 다이얼로그에서 거절됨).
+
+## `requestPermission` vs `getPermission` + `openPermissionDialog`
+
+`requestPermission`은 두 함수의 순차 호출을 단순화한 것입니다. 내부 동작은 다음과 동일합니다:
+
+```ts
+// requestPermission이 내부적으로 하는 일 (개념적 pseudocode)
+const status = await getPermission(permission);
+if (status !== 'notDetermined') return status; // 이미 결정된 상태면 즉시 반환
+return openPermissionDialog(permission);        // notDetermined만 다이얼로그
+```
+
+상태별로 다른 UX를 구현해야 한다면(`denied`일 때 안내 메시지 표시, `allowed`일 때 바로 기능 실행 등) `getPermission`과 `openPermissionDialog`를 직접 조합하세요.
+
+## 권한
+
+`requestPermission` 자체는 별도의 권한이 필요하지 않습니다 — 권한을 **요청**하는 함수입니다. 표준 처리 흐름은 [Guides — 권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { requestPermission } from '@apps-in-toss/web-framework';
+
+const result = await requestPermission({ name: 'microphone', access: 'read' });
+if (result === 'allowed') {
+  console.log('마이크 권한이 허용되었습니다.');
+} else {
+  console.log('마이크 권한이 거절되었습니다.');
+}
+```
+
+### 실전 예제 — 권한 요청 후 기능 실행
+
+```tsx
+import { requestPermission, fetchContacts } from '@apps-in-toss/web-framework';
+
+async function loadContacts() {
+  const status = await requestPermission({ name: 'contacts', access: 'read' });
+
+  if (status === 'denied') {
+    // denied: OS 설정에서만 회복 가능. 안내 메시지를 표시한다.
+    showAppToast('연락처 권한을 허용해야 친구를 초대할 수 있어요. 설정에서 변경해 주세요.');
+    return;
+  }
+
+  // allowed가 보장된 시점에서 실제 API 호출.
+  const contacts = await fetchContacts({ offset: 0, limit: 20 });
+  console.log('Contacts:', contacts);
+}
+
+// `showAppToast`는 SDK가 제공하지 않습니다 — 앱의 자체 토스트/스낵바 컴포넌트로 대체하세요.
+declare function showAppToast(message: string): void;
+```
+
+### 실전 예제 — `access: 'write'`로 사진 저장
+
+```tsx
+import { requestPermission } from '@apps-in-toss/web-framework';
+
+async function savePhotoWithPermission(base64Data: string) {
+  // 사진 저장은 write 권한이 필요합니다.
+  const status = await requestPermission({ name: 'photos', access: 'write' });
+  if (status === 'denied') {
+    showAppToast('사진 저장 권한이 거절되었습니다.');
+    return;
+  }
+
+  // allowed 상태에서 사진 저장 로직 실행
+  console.log('Saving photo...');
+}
+
+declare function showAppToast(message: string): void;
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Permissions 페이지에서 `requestPermission` 카드를 실행해 결과를 확인할 수 있습니다.
+
+<TryItLink group="permissions" method="requestPermission" />
+
+## 관련 API
+
+- [`getPermission`](./getPermission) — 현재 권한 상태만 확인합니다. 다이얼로그를 표시하지 않습니다.
+- [`openPermissionDialog`](./openPermissionDialog) — 다이얼로그를 직접 표시합니다. 상태별 분기가 필요할 때 `getPermission`과 조합하세요.
+
+## 관련 가이드
+
+- [Guides — 권한 처리 패턴](/guides/permissions-pattern) — check → prompt → invoke 표준 흐름, 거절 처리, 환경별 차이.
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.
