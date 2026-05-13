@@ -1,0 +1,108 @@
+---
+id: screen
+title: Analytics.screen
+sidebar_label: Analytics.screen
+description: Record a screen (page) view event.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `Analytics.screen`
+
+Records a screen (page) view event at the moment the user enters a page. Use this for page-view tracking. In a SPA, call it on every route change.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+`screen` is a member of the `Analytics` namespace object. It is not imported as a standalone function.
+
+```ts
+import { Analytics } from '@apps-in-toss/web-framework';
+
+type Primitive = string | number | boolean | null;
+
+type LoggerParams = {
+  log_name?: string;
+} & {
+  [key: string]: Primitive;
+};
+
+declare const Analytics: {
+  screen: (params?: LoggerParams) => Promise<void> | undefined;
+};
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `params` | `LoggerParams` | — | Key-value pairs to log. Use `log_name` to identify the event; add any extra keys as event properties. Optional. |
+| `params.log_name` | `string` | — | Event identifier used to distinguish events in the analytics dashboard. |
+| `params[key]` | `string \| number \| boolean \| null` | — | Additional context fields. Only `Primitive` values are allowed. |
+
+## Returns
+
+- `Promise<void> | undefined` — resolves after the event is logged. The return value can be `undefined` depending on the environment — do not rely on it.
+
+## Permission
+
+No permission required — `Analytics.screen` is not bound to any `PermissionName`. For how permissions work in other namespaces see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { Analytics } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function HomePage() {
+  useEffect(() => {
+    Analytics.screen({ page: 'home' });
+  }, []);
+
+  return <main>Home</main>;
+}
+```
+
+### Realistic — record additional context on page entry
+
+```tsx
+import { Analytics } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function ProductDetailPage({ productId, category }: { productId: string; category: string }) {
+  useEffect(() => {
+    Analytics.screen({
+      log_name: 'product_detail_screen',
+      page: 'product_detail',
+      product_id: productId,
+      category,
+    });
+  }, [productId, category]);
+
+  return <main>Product detail</main>;
+}
+```
+
+## Try it live
+
+Run the `Analytics.screen` card on the Analytics page in sdk-example.
+
+<TryItLink group="analytics" method="screen" />
+
+## Related APIs
+
+- [`Analytics.click`](./click) — record a user tap or click on a UI element.
+- [`Analytics.impression`](./impression) — record when a UI component enters the viewport.
+
+## Related guides
+
+- _(coming soon)_ Recipes — screen view event collection patterns
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. `Analytics` is re-exported from [`@apps-in-toss/web-analytics`](https://www.npmjs.com/package/@apps-in-toss/web-analytics).

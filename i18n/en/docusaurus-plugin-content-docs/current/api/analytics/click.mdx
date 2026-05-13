@@ -1,0 +1,108 @@
+---
+id: click
+title: Analytics.click
+sidebar_label: Analytics.click
+description: Record a user tap or click on a UI element.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `Analytics.click`
+
+Records a tap or click on any interactive UI element — buttons, links, cards, and so on. Use it to track which components users interact with and on which pages.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+`click` is a member of the `Analytics` namespace object. It is not imported as a standalone function.
+
+```ts
+import { Analytics } from '@apps-in-toss/web-framework';
+
+type Primitive = string | number | boolean | null;
+
+type LoggerParams = {
+  log_name?: string;
+} & {
+  [key: string]: Primitive;
+};
+
+declare const Analytics: {
+  click: (params?: LoggerParams) => Promise<void> | undefined;
+};
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `params` | `LoggerParams` | — | Key-value pairs to log. Use `log_name` to identify the event; add any extra keys as event properties. Optional. |
+| `params.log_name` | `string` | — | Event identifier used to distinguish events in the analytics dashboard. |
+| `params[key]` | `string \| number \| boolean \| null` | — | Additional context fields. Only `Primitive` values are allowed. |
+
+## Returns
+
+- `Promise<void> | undefined` — resolves after the event is logged. The return value can be `undefined` depending on the environment — do not rely on it.
+
+## Permission
+
+No permission required — `Analytics.click` is not bound to any `PermissionName`. For how permissions work in other namespaces see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { Analytics } from '@apps-in-toss/web-framework';
+
+async function handleButtonClick() {
+  await Analytics.click({ log_name: 'cta_button_click', page: 'home' });
+}
+```
+
+### Realistic — record component and page together
+
+```tsx
+import { Analytics } from '@apps-in-toss/web-framework';
+
+function ProductCard({ productId, page }: { productId: string; page: string }) {
+  const handleClick = async () => {
+    await Analytics.click({
+      log_name: 'product_card_click',
+      component: 'product_card',
+      page,
+      product_id: productId,
+    });
+
+    // Navigate or trigger the actual action after logging.
+  };
+
+  return (
+    <button type="button" onClick={handleClick}>
+      View product
+    </button>
+  );
+}
+```
+
+## Try it live
+
+Run the `Analytics.click` card on the Analytics page in sdk-example.
+
+<TryItLink group="analytics" method="click" />
+
+## Related APIs
+
+- [`Analytics.impression`](./impression) — record when a UI component enters the viewport.
+- [`Analytics.screen`](./screen) — record a screen (page) view event.
+
+## Related guides
+
+- _(coming soon)_ Recipes — click event collection patterns
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. `Analytics` is re-exported from [`@apps-in-toss/web-analytics`](https://www.npmjs.com/package/@apps-in-toss/web-analytics).

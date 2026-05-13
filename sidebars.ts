@@ -24,6 +24,17 @@ const sidebars: SidebarsConfig = {
       items: [
         {
           type: 'category',
+          label: 'analytics',
+          collapsed: false,
+          items: [
+            'api/analytics/analytics-overview',
+            'api/analytics/click',
+            'api/analytics/impression',
+            'api/analytics/screen',
+          ],
+        },
+        {
+          type: 'category',
           label: 'camera',
           collapsed: false,
           items: ['api/camera/openCamera'],

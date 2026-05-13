@@ -1,0 +1,121 @@
+---
+image: /og/api-analytics-impression.png
+id: impression
+title: Analytics.impression
+sidebar_label: Analytics.impression
+description: UI 컴포넌트가 화면에 노출되는 시점을 기록합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `Analytics.impression`
+
+배너, 카드, 광고 등 UI 컴포넌트가 사용자의 화면에 노출(뷰포트 진입)되는 시점을 기록합니다. 클릭 전 단계인 "보임" 이벤트를 측정해 CTR 분석이나 노출 기반 최적화에 활용할 수 있습니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+`impression`은 `Analytics` 네임스페이스 객체의 멤버로 노출됩니다. 함수 자체를 단독으로 import하지 않습니다.
+
+```ts
+import { Analytics } from '@apps-in-toss/web-framework';
+
+type Primitive = string | number | boolean | null;
+
+type LoggerParams = {
+  log_name?: string;
+} & {
+  [key: string]: Primitive;
+};
+
+declare const Analytics: {
+  impression: (params?: LoggerParams) => Promise<void> | undefined;
+};
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `params` | `LoggerParams` | — | 로깅할 키-값 쌍. `log_name`으로 이벤트를 식별하고, 나머지 키는 자유롭게 추가합니다. 생략 가능합니다. |
+| `params.log_name` | `string` | — | 이벤트 식별자. 분석 대시보드에서 이벤트를 구분하는 데 사용됩니다. |
+| `params[key]` | `string \| number \| boolean \| null` | — | 추가 컨텍스트 필드. 원시값(`Primitive`)만 허용됩니다. |
+
+## 반환값
+
+- `Promise<void> | undefined` — 로깅이 완료되면 resolve. 환경에 따라 `undefined`가 반환될 수 있으므로 반환값에 의존하지 마세요.
+
+## 권한
+
+권한이 필요하지 않습니다 — `Analytics.impression`은 별도의 `PermissionName`에 바인딩되지 않습니다. 권한이 필요한 다른 네임스페이스의 일반적인 처리 흐름은 [Guides — 권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { Analytics } from '@apps-in-toss/web-framework';
+
+async function handleBannerVisible() {
+  await Analytics.impression({ log_name: 'banner_impression', component: 'banner' });
+}
+```
+
+### 실전 예제 — IntersectionObserver로 뷰포트 진입 시 기록
+
+```tsx
+import { Analytics } from '@apps-in-toss/web-framework';
+import { useEffect, useRef } from 'react';
+
+function PromoBanner({ bannerId, page }: { bannerId: string; page: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          Analytics.impression({
+            log_name: 'promo_banner_impression',
+            component: 'promo_banner',
+            banner_id: bannerId,
+            page,
+          });
+          // 한 번 기록 후 관찰 중단 (중복 기록 방지)
+          observer.unobserve(el);
+        }
+      },
+      { threshold: 0.5 }, // 50% 이상 보일 때 기록
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [bannerId, page]);
+
+  return <div ref={ref}>프로모션 배너</div>;
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Analytics 페이지에서 `Analytics.impression` 카드를 실행해 결과를 확인할 수 있습니다.
+
+<TryItLink group="analytics" method="impression" />
+
+## 관련 API
+
+- [`Analytics.click`](./click) — 버튼·링크 등 사용자 클릭 이벤트를 기록합니다.
+- [`Analytics.screen`](./screen) — 화면(페이지) 진입 이벤트를 기록합니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Recipes — "노출 이벤트 수집 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. `Analytics`는 내부적으로 [`@apps-in-toss/web-analytics`](https://www.npmjs.com/package/@apps-in-toss/web-analytics)에서 re-export됩니다.
