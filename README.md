@@ -4,8 +4,6 @@
 
 **Apps in Toss** 미니앱 개발을 위한 커뮤니티 문서 사이트. 앱인토스 공식 문서를 기반으로 재구성한 **가이드/레퍼런스** 세트입니다.
 
-> ⚠️ **비공식 커뮤니티 프로젝트 (Unofficial community project)** — 이 사이트는 토스(Toss) 또는 앱인토스 팀과 제휴 관계가 없으며, 공식 문서가 아닙니다. 커뮤니티가 자발적으로 만들고 유지합니다.
-
 ## Goal
 
 - **Getting started** — 처음부터 미니앱 하나 배포까지의 실전 가이드
@@ -84,3 +82,7 @@ CI runs the default mode on every PR (job: `verify-crosslinks`). External fetch 
 ## Pair repos
 
 - [`sdk-example`](https://github.com/apps-in-toss-community/sdk-example) — downstream consumer. 각 API 페이지에서 sdk-example로 deep-link (`/docs/api/<group>/<method>` ↔ `/sdk-example/<group>#<method>`). 양방향 URL 계약은 `CLAUDE.md` 참고.
+
+---
+
+토스와 제휴하지 않은 커뮤니티 프로젝트입니다.
