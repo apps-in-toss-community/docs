@@ -1,0 +1,91 @@
+---
+id: safe-area-layout
+title: Safe-area-aware layout
+sidebar_label: Safe area layout
+slug: /recipes/safe-area-layout
+description: Use SafeAreaInsets.get() for the initial inset values and SafeAreaInsets.subscribe() to react to screen-mode changes, keeping content clear of notches and home bars.
+---
+
+# Safe-area-aware layout
+
+To prevent content from overlapping the notch or home bar, apply the safe area insets to your layout. Read the initial values with `SafeAreaInsets.get()` and subscribe to changes with `SafeAreaInsets.subscribe()` to handle screen rotation or mode switches.
+
+:::caution getSafeAreaInsets is deprecated
+`getSafeAreaInsets()` (which returns a single `number`) is deprecated. Use `SafeAreaInsets.get()` instead — it returns `{ top, bottom, left, right }` so you can apply each direction independently.
+:::
+
+## Apply safe area padding to a root layout
+
+```tsx
+import { SafeAreaInsets } from '@apps-in-toss/web-framework';
+import { useState, useEffect } from 'react';
+
+function SafeLayout({ children }: { children: React.ReactNode }) {
+  const [insets, setInsets] = useState(() => SafeAreaInsets.get());
+
+  useEffect(() => {
+    // Subscribe to inset updates on screen mode changes.
+    const cleanup = SafeAreaInsets.subscribe({
+      onEvent: (newInsets) => setInsets(newInsets),
+    });
+    return cleanup;
+  }, []);
+
+  return (
+    <div
+      style={{
+        paddingTop: insets.top,
+        paddingBottom: insets.bottom,
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+```
+
+The lazy initializer `() => SafeAreaInsets.get()` ensures the correct insets are applied from the very first render. The cleanup function returned by `subscribe` handles unsubscription automatically.
+
+## Apply the home bar inset to a fixed bottom CTA
+
+```tsx
+import { SafeAreaInsets } from '@apps-in-toss/web-framework';
+import { useState, useEffect } from 'react';
+
+function BottomCTA({ label, onClick }: { label: string; onClick: () => void }) {
+  const [bottomInset, setBottomInset] = useState(() => SafeAreaInsets.get().bottom);
+
+  useEffect(() => {
+    const cleanup = SafeAreaInsets.subscribe({
+      onEvent: ({ bottom }) => setBottomInset(bottom),
+    });
+    return cleanup;
+  }, []);
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        paddingBottom: bottomInset,
+        background: '#fff',
+      }}
+    >
+      <button type="button" onClick={onClick} style={{ width: '100%', padding: '14px 0' }}>
+        {label}
+      </button>
+    </div>
+  );
+}
+```
+
+A fixed bottom button usually only needs the `bottom` inset. Subscribing to just the value you need keeps state minimal.
+
+## Related APIs
+
+- [`getSafeAreaInsets`](/api/environment/getSafeAreaInsets) — deprecated; see the migration guide to `SafeAreaInsets.get()`.
+- [`getPlatformOS`](/api/environment/getPlatformOS) — safe area shape differs between iOS and Android.

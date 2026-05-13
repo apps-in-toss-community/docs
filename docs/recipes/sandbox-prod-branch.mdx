@@ -1,0 +1,76 @@
+---
+image: /og/recipes-sandbox-prod-branch.png
+id: sandbox-prod-branch
+title: 샌드박스/프로덕션 환경 분기 패턴
+sidebar_label: 환경 분기
+slug: /recipes/sandbox-prod-branch
+description: getOperationalEnvironment로 toss / sandbox를 구분해 API 엔드포인트를 분기하고, 샌드박스에서만 디버그 UI를 노출하는 패턴.
+---
+
+# 샌드박스/프로덕션 환경 분기 패턴
+
+`getOperationalEnvironment()`는 `'toss'`(프로덕션/QA) 또는 `'sandbox'`를 동기로 반환한다. 환경에 따라 API 엔드포인트를 교체하거나 디버깅 도구를 노출할 때 유용하다.
+
+## API 엔드포인트 분기
+
+```tsx
+import { getOperationalEnvironment } from '@apps-in-toss/web-framework';
+
+const env = getOperationalEnvironment();
+
+const BASE_URL =
+  env === 'toss'
+    ? 'https://api.example.com'
+    : 'https://sandbox-api.example.com';
+
+async function fetchProducts() {
+  const res = await fetch(`${BASE_URL}/products`);
+  return res.json();
+}
+```
+
+`BASE_URL`을 모듈 스코프 상수로 선언하면 앱 전체에서 일관된 엔드포인트를 사용할 수 있다.
+
+## 샌드박스 전용 디버그 배너
+
+```tsx
+import { getOperationalEnvironment } from '@apps-in-toss/web-framework';
+
+const isSandbox = getOperationalEnvironment() === 'sandbox';
+
+function DebugBanner() {
+  if (!isSandbox) return null;
+
+  return (
+    <div
+      role="banner"
+      style={{
+        background: '#ff6b6b',
+        color: '#fff',
+        padding: '4px 12px',
+        fontSize: 12,
+        textAlign: 'center',
+      }}
+    >
+      샌드박스 환경 — 실제 데이터에 영향을 주지 않습니다
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <>
+      <DebugBanner />
+      <main>{/* 앱 콘텐츠 */}</main>
+    </>
+  );
+}
+```
+
+`isSandbox` 플래그를 컴포넌트 밖에서 한 번만 계산하면 불필요한 재평가를 피할 수 있다.
+
+## 관련 API
+
+- [`getOperationalEnvironment`](/api/environment/getOperationalEnvironment) — 현재 실행 환경을 반환합니다.
+- [`env.getDeploymentId`](/api/environment/getDeploymentId) — 배포 ID를 환경 컨텍스트에 함께 포함할 때 사용합니다.
+- [`getTossAppVersion`](/api/environment/getTossAppVersion) — 앱 버전을 함께 로그할 때 사용합니다.

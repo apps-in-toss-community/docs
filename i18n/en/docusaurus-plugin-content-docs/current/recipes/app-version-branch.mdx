@@ -1,0 +1,69 @@
+---
+id: app-version-branch
+title: App-version branching and update prompt
+sidebar_label: Version branching
+slug: /recipes/app-version-branch
+description: Use isMinVersionSupported to check per-platform minimum version requirements and show an update prompt when the requirement is not met.
+---
+
+# App-version branching and update prompt
+
+`isMinVersionSupported()` synchronously checks whether the current Toss app version meets per-platform minimum version requirements. It's the simplest way to gate a new feature and guide users who need to update.
+
+## Show an update prompt when the version is too old
+
+```tsx
+import { isMinVersionSupported } from '@apps-in-toss/web-framework';
+
+const MIN_VERSIONS = { android: '5.150.0', ios: '5.120.0' } as const;
+
+function NewFeaturePage() {
+  const isSupported = isMinVersionSupported(MIN_VERSIONS);
+
+  if (!isSupported) {
+    return (
+      <div style={{ padding: 24, textAlign: 'center' }}>
+        <h2>App update required</h2>
+        <p>
+          This feature is only available in the latest version of the app.
+          <br />Please update and try again.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h2>New feature</h2>
+      {/* Content for up-to-date users */}
+    </div>
+  );
+}
+```
+
+Keeping `MIN_VERSIONS` as a constant outside the component makes the minimum version easy to update in one place.
+
+## Gate an iOS-only feature
+
+```tsx
+import { isMinVersionSupported } from '@apps-in-toss/web-framework';
+
+// iOS-only feature — Android uses 'never' so it always returns false
+const isIosFeatureSupported = isMinVersionSupported({
+  android: 'never',
+  ios: '5.100.0',
+});
+
+function IosOnlySection() {
+  if (!isIosFeatureSupported) return null;
+  return <p>This feature is available on iOS only.</p>;
+}
+```
+
+`'never'` means the check always returns `false` regardless of version. `'always'` is the opposite — it skips the version check and always returns `true`.
+
+## Related APIs
+
+- [`isMinVersionSupported`](/api/environment/isMinVersionSupported) — checks per-platform minimum version support.
+- [`getTossAppVersion`](/api/environment/getTossAppVersion) — use when you need the raw version string.
+- [`getPlatformOS`](/api/environment/getPlatformOS) — use when you need to check the platform directly.

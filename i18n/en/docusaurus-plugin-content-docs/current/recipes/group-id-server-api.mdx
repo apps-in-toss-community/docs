@@ -1,0 +1,71 @@
+---
+id: group-id-server-api
+title: Group-ID-based server API integration
+sidebar_label: Group ID server integration
+slug: /recipes/group-id-server-api
+description: Include the group ID from getGroupId in API request headers or bodies so the server can identify which mini-app group the request originates from.
+---
+
+# Group-ID-based server API integration
+
+`getGroupId()` returns the business group identifier for the mini-app synchronously. Including the group ID in server API requests lets the server accurately distinguish the request origin.
+
+## Auto-attach the group ID in a shared fetch wrapper
+
+```tsx
+import { getGroupId } from '@apps-in-toss/web-framework';
+
+const GROUP_ID = getGroupId();
+
+async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+  return fetch(path, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Group-Id': GROUP_ID,
+      ...init?.headers,
+    },
+  });
+}
+
+// Usage
+async function fetchUserData(userId: string) {
+  const res = await apiFetch(`/api/users/${userId}`);
+  return res.json();
+}
+```
+
+Read `getGroupId()` once at module scope and store it as a constant — no need to call it on every request.
+
+## Use with React Query
+
+```tsx
+import { getGroupId } from '@apps-in-toss/web-framework';
+import { useQuery } from '@tanstack/react-query';
+
+const groupId = getGroupId();
+
+function GroupDataSection() {
+  const { data, isPending } = useQuery({
+    queryKey: ['group-data', groupId],
+    queryFn: async () => {
+      const res = await fetch('/api/group-data', {
+        headers: { 'X-Group-Id': groupId },
+      });
+      if (!res.ok) throw new Error('API request failed');
+      return res.json();
+    },
+  });
+
+  if (isPending) return <p>Loading...</p>;
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
+}
+```
+
+Including `groupId` in `queryKey` ensures the cache is automatically invalidated if the group changes.
+
+## Related APIs
+
+- [`getGroupId`](/api/environment/getGroupId) — returns the group ID.
+- [`getDeviceId`](/api/environment/getDeviceId) — include the device ID in server context alongside the group ID.
+- [`env.getDeploymentId`](/api/environment/getDeploymentId) — include the deployment ID in server context alongside the group ID.

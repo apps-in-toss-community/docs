@@ -1,0 +1,72 @@
+---
+image: /og/recipes-group-id-server-api.png
+id: group-id-server-api
+title: 그룹 ID를 활용한 서버 API 연동 패턴
+sidebar_label: 그룹 ID 서버 연동
+slug: /recipes/group-id-server-api
+description: getGroupId로 읽은 그룹 ID를 API 요청 헤더나 바디에 포함해 서버가 미니앱 소속 그룹을 식별할 수 있게 하는 패턴.
+---
+
+# 그룹 ID를 활용한 서버 API 연동 패턴
+
+`getGroupId()`는 미니앱이 속한 비즈니스 그룹의 식별자를 동기로 반환한다. 서버 API 요청에 그룹 ID를 포함하면 서버가 요청 출처를 정확히 구분할 수 있다.
+
+## 공통 fetch 래퍼에 그룹 ID 자동 첨부하기
+
+```tsx
+import { getGroupId } from '@apps-in-toss/web-framework';
+
+const GROUP_ID = getGroupId();
+
+async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+  return fetch(path, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Group-Id': GROUP_ID,
+      ...init?.headers,
+    },
+  });
+}
+
+// 사용 예
+async function fetchUserData(userId: string) {
+  const res = await apiFetch(`/api/users/${userId}`);
+  return res.json();
+}
+```
+
+`getGroupId()`를 모듈 최상단에서 한 번만 읽어 상수로 사용하면, 매 요청마다 호출하지 않아도 된다.
+
+## React Query와 함께 사용하기
+
+```tsx
+import { getGroupId } from '@apps-in-toss/web-framework';
+import { useQuery } from '@tanstack/react-query';
+
+const groupId = getGroupId();
+
+function GroupDataSection() {
+  const { data, isPending } = useQuery({
+    queryKey: ['group-data', groupId],
+    queryFn: async () => {
+      const res = await fetch('/api/group-data', {
+        headers: { 'X-Group-Id': groupId },
+      });
+      if (!res.ok) throw new Error('API 요청 실패');
+      return res.json();
+    },
+  });
+
+  if (isPending) return <p>불러오는 중...</p>;
+  return <pre>{JSON.stringify(data, null, 2)}</pre>;
+}
+```
+
+`queryKey`에 `groupId`를 포함하면 그룹이 달라졌을 때 캐시가 자동으로 무효화된다.
+
+## 관련 API
+
+- [`getGroupId`](/api/environment/getGroupId) — 그룹 ID를 반환합니다.
+- [`getDeviceId`](/api/environment/getDeviceId) — 기기 ID를 서버 컨텍스트에 함께 포함할 때 사용합니다.
+- [`env.getDeploymentId`](/api/environment/getDeploymentId) — 배포 ID를 서버 컨텍스트에 함께 포함할 때 사용합니다.

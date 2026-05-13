@@ -1,0 +1,92 @@
+---
+image: /og/recipes-safe-area-layout.png
+id: safe-area-layout
+title: Safe Area 대응 레이아웃 패턴
+sidebar_label: Safe Area 레이아웃
+slug: /recipes/safe-area-layout
+description: SafeAreaInsets.get()과 SafeAreaInsets.subscribe()로 노치·홈바 영역을 피하는 레이아웃을 구성하고 화면 모드 변경에 반응하는 패턴.
+---
+
+# Safe Area 대응 레이아웃 패턴
+
+노치·홈바 영역과 콘텐츠가 겹치지 않으려면 Safe Area 인셋을 레이아웃에 반영해야 한다. `SafeAreaInsets.get()`으로 초깃값을 읽고, `SafeAreaInsets.subscribe()`로 변경을 구독하면 화면 회전이나 모드 전환에도 대응할 수 있다.
+
+:::caution getSafeAreaInsets는 deprecated입니다
+`getSafeAreaInsets()` (단순 `number` 반환)은 deprecated입니다. 대신 `SafeAreaInsets.get()`을 사용하세요 — `{ top, bottom, left, right }` 객체로 방향별 인셋을 구분할 수 있습니다.
+:::
+
+## 기본 Safe Area 패딩 적용
+
+```tsx
+import { SafeAreaInsets } from '@apps-in-toss/web-framework';
+import { useState, useEffect } from 'react';
+
+function SafeLayout({ children }: { children: React.ReactNode }) {
+  const [insets, setInsets] = useState(() => SafeAreaInsets.get());
+
+  useEffect(() => {
+    // 화면 모드 전환 시 인셋 업데이트를 구독합니다.
+    const cleanup = SafeAreaInsets.subscribe({
+      onEvent: (newInsets) => setInsets(newInsets),
+    });
+    return cleanup;
+  }, []);
+
+  return (
+    <div
+      style={{
+        paddingTop: insets.top,
+        paddingBottom: insets.bottom,
+        paddingLeft: insets.left,
+        paddingRight: insets.right,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+```
+
+`useState(() => SafeAreaInsets.get())`의 지연 초기화로 첫 렌더부터 올바른 인셋을 적용한다. 구독 해제는 `cleanup` 함수로 처리한다.
+
+## 하단 고정 버튼에 홈바 인셋 적용하기
+
+```tsx
+import { SafeAreaInsets } from '@apps-in-toss/web-framework';
+import { useState, useEffect } from 'react';
+
+function BottomCTA({ label, onClick }: { label: string; onClick: () => void }) {
+  const [bottomInset, setBottomInset] = useState(() => SafeAreaInsets.get().bottom);
+
+  useEffect(() => {
+    const cleanup = SafeAreaInsets.subscribe({
+      onEvent: ({ bottom }) => setBottomInset(bottom),
+    });
+    return cleanup;
+  }, []);
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        paddingBottom: bottomInset,
+        background: '#fff',
+      }}
+    >
+      <button type="button" onClick={onClick} style={{ width: '100%', padding: '14px 0' }}>
+        {label}
+      </button>
+    </div>
+  );
+}
+```
+
+하단 고정 버튼은 홈바 인셋(`bottom`)만 필요한 경우가 많다. 필요한 방향만 구독해 state를 최소화한다.
+
+## 관련 API
+
+- [`getSafeAreaInsets`](/api/environment/getSafeAreaInsets) — deprecated; `SafeAreaInsets.get()`으로 마이그레이션 방법 확인.
+- [`getPlatformOS`](/api/environment/getPlatformOS) — 플랫폼에 따라 Safe Area 형태가 다릅니다.

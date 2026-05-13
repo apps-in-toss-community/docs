@@ -1,0 +1,84 @@
+---
+id: server-time-expiry
+title: Server-time-based expiry/reward logic
+sidebar_label: Server time expiry
+slug: /recipes/server-time-expiry
+description: Fetch the authoritative server time with getServerTime and use it to check event expiry or reward eligibility without trusting the client clock.
+---
+
+# Server-time-based expiry/reward logic
+
+`getServerTime()` returns the server-side Unix timestamp in milliseconds asynchronously. Because the client device clock can be changed by the user, any time comparison that needs to be trustworthy — expiry checks, reward eligibility — should use `getServerTime()` instead of `Date.now()`.
+
+## Check whether an event is still active
+
+```tsx
+import { getServerTime } from '@apps-in-toss/web-framework';
+import { useState, useEffect } from 'react';
+
+const EVENT_END_MS = 1_720_000_000_000; // event end timestamp (Unix ms)
+
+type Status = 'loading' | 'active' | 'expired' | 'unsupported';
+
+function EventPage() {
+  const [status, setStatus] = useState<Status>('loading');
+
+  useEffect(() => {
+    async function check() {
+      if (!getServerTime.isSupported()) {
+        setStatus('unsupported');
+        return;
+      }
+
+      const serverTime = await getServerTime();
+      if (serverTime === undefined) {
+        setStatus('unsupported');
+        return;
+      }
+
+      setStatus(serverTime <= EVENT_END_MS ? 'active' : 'expired');
+    }
+
+    check();
+  }, []);
+
+  const label: Record<Status, string> = {
+    loading: 'Checking…',
+    active: 'You can participate in this event.',
+    expired: 'This event has ended.',
+    unsupported: 'This feature is not available in your current app version.',
+  };
+
+  return <p>{label[status]}</p>;
+}
+```
+
+Always call `getServerTime.isSupported()` first, then handle the `undefined` return case before using the timestamp.
+
+## Reward cooldown check
+
+```tsx
+import { getServerTime } from '@apps-in-toss/web-framework';
+
+const COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+async function canClaimReward(lastClaimedAt: number): Promise<boolean> {
+  if (!getServerTime.isSupported()) {
+    // Conservative fallback: deny if we can't verify
+    return false;
+  }
+
+  const serverTime = await getServerTime();
+  if (serverTime === undefined) return false;
+
+  return serverTime - lastClaimedAt >= COOLDOWN_MS;
+}
+```
+
+`lastClaimedAt` should come from the server, not from `localStorage`. Comparing two server-derived timestamps keeps the check tamper-proof.
+
+## Related APIs
+
+- [`getServerTime`](/api/environment/getServerTime) — returns the server-side Unix timestamp (ms).
+- [`isMinVersionSupported`](/api/environment/isMinVersionSupported) — prompt users to update when `getServerTime` is unsupported.
+- [`getOperationalEnvironment`](/api/environment/getOperationalEnvironment) — use a test timestamp in sandbox and the real server time in production.
