@@ -1,0 +1,113 @@
+---
+image: /og/api-ads-initialize.png
+id: initialize
+title: TossAds.initialize
+sidebar_label: TossAds.initialize
+description: Initializes the TossAds SDK.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `TossAds.initialize`
+
+Initializes the TossAds SDK. Must be called once before attaching any banner ads (`attachBanner`). Call it at app mount time and don't call it again.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+`initialize` is exposed as a member of the `TossAds` namespace object.
+
+```ts
+import { TossAds } from '@apps-in-toss/web-framework';
+
+declare const TossAds: {
+  initialize: ((options: InitializeOptions) => void) & {
+    isSupported: () => boolean;
+  };
+};
+
+interface InitializeOptions {
+  callbacks?: {
+    onInitialized?: () => void;
+    onInitializationFailed?: (error: Error) => void;
+  };
+}
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `options` | `InitializeOptions` | ✓ | Initialization options. An empty object (`{}`) is also accepted. |
+| `options.callbacks` | `object` | — | Initialization result callbacks. |
+| `options.callbacks.onInitialized` | `() => void` | — | Called when the SDK initializes successfully. |
+| `options.callbacks.onInitializationFailed` | `(error: Error) => void` | — | Called when SDK initialization fails. |
+
+## Returns
+
+- `void` — no return value.
+
+## Permission
+
+No permission required — `TossAds.initialize` is not bound to a `PermissionName`. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { TossAds } from '@apps-in-toss/web-framework';
+
+TossAds.initialize({});
+```
+
+### Realistic — initialize at app entry with callbacks
+
+```tsx
+import { TossAds } from '@apps-in-toss/web-framework';
+import { useEffect } from 'react';
+
+function App() {
+  useEffect(() => {
+    if (!TossAds.initialize.isSupported()) {
+      return;
+    }
+
+    TossAds.initialize({
+      callbacks: {
+        onInitialized: () => {
+          console.log('TossAds initialized');
+        },
+        onInitializationFailed: (error) => {
+          console.error('TossAds initialization failed', error);
+        },
+      },
+    });
+  }, []);
+
+  return <main>{/* app content */}</main>;
+}
+```
+
+## Try it live
+
+Open the Ads page in sdk-example and run the `TossAds.initialize` card to inspect the result.
+
+<TryItLink group="ads" method="initialize" />
+
+## Related APIs
+
+- [`TossAds.attachBanner`](./attachBanner) — attaches a banner ad to a DOM element.
+- [`TossAds.destroyAll`](./destroyAll) — destroys all banner ad slots.
+- [`TossAds.destroy`](./destroy) — destroys a banner ad by slot ID.
+
+## Related guides
+
+- _(coming soon)_ Guides — "Ads integration pattern"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

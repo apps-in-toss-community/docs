@@ -1,0 +1,153 @@
+---
+image: /og/api-ads-showFullScreenAd.png
+id: showFullScreenAd
+title: showFullScreenAd
+sidebar_label: showFullScreenAd
+description: Shows the pre-loaded full-screen ad to the user.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `showFullScreenAd`
+
+Shows the full-screen ad that was pre-loaded by `loadFullScreenAd`. Call this only after receiving the `loaded` event from `loadFullScreenAd`. This is a separate full-screen ad namespace from GoogleAdMob.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+`showFullScreenAd` is exported directly from `@apps-in-toss/web-framework`.
+
+```ts
+import { showFullScreenAd } from '@apps-in-toss/web-framework';
+
+declare const showFullScreenAd: ((args: {
+  onEvent: (data: ShowFullScreenAdEvent) => void;
+  onError: (error: Error) => void;
+  options?: ShowFullScreenAdOptions;
+}) => () => void) & {
+  isSupported: () => boolean;
+};
+
+interface ShowFullScreenAdOptions {
+  adGroupId: string;
+}
+
+type ShowFullScreenAdEvent =
+  | { type: 'requested' }
+  | { type: 'clicked' }
+  | { type: 'dismissed' }
+  | { type: 'failedToShow' }
+  | { type: 'impression' }
+  | { type: 'show' }
+  | { type: 'userEarnedReward'; data: { unitType: string; unitAmount: number } };
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `args.onEvent` | `(data: ShowFullScreenAdEvent) => void` | ✓ | Event handler. Receives `requested`, `clicked`, `dismissed`, `impression`, `show`, `failedToShow`, and `userEarnedReward` events. |
+| `args.onError` | `(error: Error) => void` | ✓ | Called when showing the ad fails. |
+| `args.options` | `ShowFullScreenAdOptions` | — | Ad options. |
+| `args.options.adGroupId` | `string` | — | The same ad group unit ID used with `loadFullScreenAd`. |
+
+## Returns
+
+- `() => void` — cleanup function. Call it to unsubscribe from events.
+
+## Permission
+
+No permission required — `showFullScreenAd` is not bound to a `PermissionName`. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { showFullScreenAd } from '@apps-in-toss/web-framework';
+
+showFullScreenAd({
+  onEvent: (event) => {
+    console.log('Ad event', event.type);
+  },
+  onError: (error) => {
+    console.error('Ad show failed', error);
+  },
+});
+```
+
+### Realistic — handle reward on dismissal
+
+```tsx
+import { loadFullScreenAd, showFullScreenAd } from '@apps-in-toss/web-framework';
+import { useCallback, useEffect, useState } from 'react';
+
+const AD_GROUP_ID = 'ad-group-id-here';
+
+function RewardAdSection() {
+  const [adReady, setAdReady] = useState(false);
+  const [earned, setEarned] = useState(false);
+
+  useEffect(() => {
+    if (!loadFullScreenAd.isSupported()) return;
+
+    const cleanup = loadFullScreenAd({
+      options: { adGroupId: AD_GROUP_ID },
+      onEvent: (event) => {
+        if (event.type === 'loaded') setAdReady(true);
+      },
+      onError: console.error,
+    });
+
+    return cleanup;
+  }, []);
+
+  const handleShow = useCallback(() => {
+    if (!showFullScreenAd.isSupported()) return;
+
+    showFullScreenAd({
+      options: { adGroupId: AD_GROUP_ID },
+      onEvent: (event) => {
+        switch (event.type) {
+          case 'userEarnedReward':
+            setEarned(true);
+            console.log('Reward earned', event.data);
+            break;
+          case 'dismissed':
+            if (earned) console.log('Grant reward to user');
+            break;
+        }
+      },
+      onError: console.error,
+    });
+  }, [earned]);
+
+  return (
+    <button type="button" onClick={handleShow} disabled={!adReady}>
+      Watch rewarded ad
+    </button>
+  );
+}
+```
+
+## Try it live
+
+Open the Ads page in sdk-example to try full-screen ad APIs live.
+
+<TryItLink group="ads" method="showFullScreenAd" />
+
+## Related APIs
+
+- [`loadFullScreenAd`](./loadFullScreenAd) — pre-loads the full-screen ad. Must be called first.
+- [`GoogleAdMob.showAppsInTossAdMob`](./showAppsInTossAdMob) — Google AdMob full-screen ad show function.
+
+## Related guides
+
+- _(coming soon)_ Guides — "Ads integration pattern"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

@@ -1,0 +1,62 @@
+---
+image: /og/api-ads.png
+id: ads-overview
+title: ads
+sidebar_label: Overview
+slug: /api/ads
+description: SDK namespace for integrating banner ads, full-screen ads, and Google AdMob.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `ads`
+
+A collection of APIs for integrating ads into your mini-app. It consists of the `TossAds` namespace for inserting banner ads into the DOM, the `GoogleAdMob` namespace for controlling Google AdMob full-screen ads, and two top-level functions for full-screen ads.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Methods
+
+| Method | Return type | Purpose |
+| --- | --- | --- |
+| [`TossAds.attach`](/api/ads/attach) | `void` | **Deprecated.** Attaches a banner ad slot directly to a DOM element. |
+| [`TossAds.attachBanner`](/api/ads/attachBanner) | `AttachBannerResult` | Attaches a banner ad slot to a DOM element and returns a `destroy` handle. |
+| [`TossAds.destroy`](/api/ads/destroy) | `void` | Destroys a banner ad by slot ID. |
+| [`TossAds.destroyAll`](/api/ads/destroyAll) | `void` | Destroys all banner ad slots on the current page. |
+| [`TossAds.initialize`](/api/ads/initialize) | `void` | Initializes the TossAds SDK. Must be called before attaching any ads. |
+| [`GoogleAdMob.isAppsInTossAdMobLoaded`](/api/ads/isAppsInTossAdMobLoaded) | `Promise<boolean>` | Checks whether an ad has been successfully loaded. |
+| [`GoogleAdMob.loadAppsInTossAdMob`](/api/ads/loadAppsInTossAdMob) | `() => void` (cleanup) | Pre-loads a Google AdMob full-screen ad. |
+| [`loadFullScreenAd`](/api/ads/loadFullScreenAd) | `() => void` (cleanup) | Pre-loads a full-screen ad (non-AdMob). |
+| [`GoogleAdMob.showAppsInTossAdMob`](/api/ads/showAppsInTossAdMob) | `() => void` (cleanup) | Shows the pre-loaded Google AdMob full-screen ad. |
+| [`showFullScreenAd`](/api/ads/showFullScreenAd) | `() => void` (cleanup) | Shows the pre-loaded full-screen ad (non-AdMob). |
+
+## Permission
+
+No permission required — none of the functions in the `ads` namespace are bound to a `PermissionName`.
+
+## Ad type summary
+
+| Type | API | Description |
+| --- | --- | --- |
+| Banner ad | `TossAds.initialize` + `TossAds.attachBanner` | Inserts an inline banner into a DOM element. Call `destroy`/`destroyAll` when the view unmounts. |
+| Google AdMob full-screen | `GoogleAdMob.loadAppsInTossAdMob` → `GoogleAdMob.showAppsInTossAdMob` | Two-step: load then show. Call show only after receiving the `loaded` event. |
+| Full-screen ad (native) | `loadFullScreenAd` → `showFullScreenAd` | Same pattern as GoogleAdMob but a separate namespace. |
+
+## UX guidance
+
+- **Don't use `TossAds.attach`.** It is deprecated — replace it with `TossAds.attachBanner`.
+- **Call `initialize` only once.** Initialize at app mount time and don't call it again.
+- **Always destroy on unmount.** Failing to call `destroy` or `destroyAll` in a React `useEffect` cleanup leaves zombie ad slots and leaks memory.
+- **Check `isSupported()` before calling ad APIs.** Every ad API exposes an `.isSupported()` method. Calling an unsupported API may throw.
+
+## Try it live
+
+Try all methods on the Ads page in sdk-example.
+
+<TryItLink group="ads" />
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

@@ -1,0 +1,144 @@
+---
+image: /og/api-ads-loadFullScreenAd.png
+id: loadFullScreenAd
+title: loadFullScreenAd
+sidebar_label: loadFullScreenAd
+description: 전면 광고를 미리 로드합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `loadFullScreenAd`
+
+전면 광고(Full-Screen Ad)를 미리 로드합니다. `loaded` 이벤트를 수신한 뒤 [`showFullScreenAd`](./showFullScreenAd)를 호출해 사용자에게 광고를 노출하세요. GoogleAdMob과 별개의 전면 광고 네임스페이스입니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+`loadFullScreenAd`는 `@apps-in-toss/web-framework`에서 직접 export됩니다.
+
+```ts
+import { loadFullScreenAd } from '@apps-in-toss/web-framework';
+
+declare const loadFullScreenAd: ((args: {
+  onEvent: (data: LoadFullScreenAdEvent) => void;
+  onError: (error: Error) => void;
+  options?: LoadFullScreenAdOptions;
+}) => () => void) & {
+  isSupported: () => boolean;
+};
+
+interface LoadFullScreenAdOptions {
+  adGroupId: string;
+}
+
+interface LoadFullScreenAdEvent {
+  type: 'loaded';
+}
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `args.onEvent` | `(data: LoadFullScreenAdEvent) => void` | ✓ | 광고 로드 이벤트 핸들러. `type: 'loaded'`가 수신되면 광고 준비 완료. |
+| `args.onError` | `(error: Error) => void` | ✓ | 로드 실패 시 호출되는 에러 핸들러. |
+| `args.options` | `LoadFullScreenAdOptions` | — | 광고 옵션. `adGroupId`를 포함합니다. |
+| `args.options.adGroupId` | `string` | — | 광고 그룹 단위 ID. 콘솔에서 발급받은 ID를 입력합니다. |
+
+## 반환값
+
+- `() => void` — cleanup 함수. 이벤트 구독을 해제합니다.
+
+## 권한
+
+권한이 필요하지 않습니다 — `loadFullScreenAd`는 별도의 `PermissionName`에 바인딩되지 않습니다. 권한이 필요한 다른 네임스페이스의 일반적인 처리 흐름은 [Guides — 권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { loadFullScreenAd } from '@apps-in-toss/web-framework';
+
+const cleanup = loadFullScreenAd({
+  onEvent: (event) => {
+    if (event.type === 'loaded') {
+      console.log('전면 광고 로드 완료');
+    }
+  },
+  onError: (error) => {
+    console.error('전면 광고 로드 실패', error);
+  },
+});
+
+// 필요 없어지면 cleanup 호출
+cleanup();
+```
+
+### 실전 예제 — 뷰 진입 시 로드, 준비 완료 후 버튼 활성화
+
+```tsx
+import { loadFullScreenAd, showFullScreenAd } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+const AD_GROUP_ID = 'ad-group-id-here';
+
+function FullScreenAdSection() {
+  const [adReady, setAdReady] = useState(false);
+
+  useEffect(() => {
+    if (!loadFullScreenAd.isSupported()) return;
+
+    const cleanup = loadFullScreenAd({
+      options: { adGroupId: AD_GROUP_ID },
+      onEvent: (event) => {
+        if (event.type === 'loaded') {
+          setAdReady(true);
+        }
+      },
+      onError: (error) => {
+        console.error('전면 광고 로드 실패', error);
+      },
+    });
+
+    return cleanup;
+  }, []);
+
+  const handleShow = () => {
+    showFullScreenAd({
+      options: { adGroupId: AD_GROUP_ID },
+      onEvent: (event) => console.log('광고 이벤트', event),
+      onError: console.error,
+    });
+  };
+
+  return (
+    <button type="button" onClick={handleShow} disabled={!adReady}>
+      전면 광고 보기
+    </button>
+  );
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Ads 페이지에서 FullScreen Ad를 직접 실행해 볼 수 있습니다.
+
+<TryItLink group="ads" method="loadFullScreenAd" />
+
+## 관련 API
+
+- [`showFullScreenAd`](./showFullScreenAd) — 로드된 전면 광고를 사용자에게 노출합니다.
+- [`GoogleAdMob.loadAppsInTossAdMob`](./loadAppsInTossAdMob) — Google AdMob 전면 광고 로드 함수.
+
+## 관련 가이드
+
+- _(작성 예정)_ Guides — "광고 통합 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.

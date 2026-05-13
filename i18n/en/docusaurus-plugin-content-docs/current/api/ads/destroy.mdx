@@ -1,0 +1,120 @@
+---
+image: /og/api-ads-destroy.png
+id: destroy
+title: TossAds.destroy
+sidebar_label: TossAds.destroy
+description: Destroys a banner ad slot by slot ID.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `TossAds.destroy`
+
+Destroys a specific banner ad slot by ID, removing it from the DOM and releasing its resources. Use this when you need to remove a single slot; use [`TossAds.destroyAll`](./destroyAll) for bulk removal.
+
+:::info Unofficial docs
+This page is community-written. The SDK behavior itself is defined by the published [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) release.
+:::
+
+## Signature
+
+`destroy` is exposed as a member of the `TossAds` namespace object.
+
+```ts
+import { TossAds } from '@apps-in-toss/web-framework';
+
+declare const TossAds: {
+  destroy: ((slotId: string) => void) & {
+    isSupported: () => boolean;
+  };
+};
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `slotId` | `string` | ✓ | The slot ID to remove. Available from `BannerSlotEventPayload.slotId` in ad callbacks. |
+
+## Returns
+
+- `void` — no return value.
+
+## Permission
+
+No permission required — `TossAds.destroy` is not bound to a `PermissionName`. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+
+## Examples
+
+### Minimal
+
+```tsx
+import { TossAds } from '@apps-in-toss/web-framework';
+
+TossAds.destroy('slot-id-here');
+```
+
+### Realistic — capture slot ID from callback and remove on demand
+
+```tsx
+import { TossAds } from '@apps-in-toss/web-framework';
+import { useEffect, useRef, useState } from 'react';
+
+const AD_GROUP_ID = 'ad-group-id-here';
+
+function AdBanner() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [currentSlotId, setCurrentSlotId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    if (!TossAds.attachBanner.isSupported()) return;
+
+    const { destroy } = TossAds.attachBanner(AD_GROUP_ID, containerRef.current, {
+      callbacks: {
+        onAdRendered: (payload) => {
+          setCurrentSlotId(payload.slotId);
+        },
+      },
+    });
+
+    return destroy;
+  }, []);
+
+  const handleRemove = () => {
+    if (currentSlotId) {
+      TossAds.destroy(currentSlotId);
+      setCurrentSlotId(null);
+    }
+  };
+
+  return (
+    <div>
+      <div ref={containerRef} />
+      <button type="button" onClick={handleRemove} disabled={!currentSlotId}>
+        Remove ad
+      </button>
+    </div>
+  );
+}
+```
+
+## Try it live
+
+Open the Ads page in sdk-example to try ad-related APIs live.
+
+<TryItLink group="ads" method="destroy" />
+
+## Related APIs
+
+- [`TossAds.destroyAll`](./destroyAll) — destroys all banner ad slots at once.
+- [`TossAds.attachBanner`](./attachBanner) — attaches a banner ad and returns a `destroy` handle.
+- [`TossAds.initialize`](./initialize) — initializes the TossAds SDK.
+
+## Related guides
+
+- _(coming soon)_ Guides — "Ads integration pattern"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).

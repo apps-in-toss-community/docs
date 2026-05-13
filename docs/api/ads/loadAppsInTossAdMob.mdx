@@ -1,0 +1,147 @@
+---
+image: /og/api-ads-loadAppsInTossAdMob.png
+id: loadAppsInTossAdMob
+title: GoogleAdMob.loadAppsInTossAdMob
+sidebar_label: GoogleAdMob.loadAppsInTossAdMob
+description: Google AdMob 전면 광고를 미리 로드합니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `GoogleAdMob.loadAppsInTossAdMob`
+
+Google AdMob 전면 광고를 미리 로드합니다. 광고가 필요한 시점에 바로 노출할 수 있도록 사전에 준비하는 함수입니다. 로드 완료 후 [`GoogleAdMob.showAppsInTossAdMob`](./showAppsInTossAdMob)를 호출해 사용자에게 광고를 노출하세요.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+`loadAppsInTossAdMob`은 `GoogleAdMob` 네임스페이스 객체의 멤버로 노출됩니다.
+
+```ts
+import { GoogleAdMob } from '@apps-in-toss/web-framework';
+
+declare const GoogleAdMob: {
+  loadAppsInTossAdMob: ((args: {
+    onEvent: (data: LoadAdMobEvent) => void;
+    onError: (error: Error) => void;
+    options?: LoadAdMobOptions;
+  }) => () => void) & {
+    isSupported: () => boolean;
+  };
+};
+
+interface LoadAdMobOptions {
+  adGroupId: string;
+}
+
+type LoadAdMobEvent = {
+  type: 'loaded';
+  data: AdMobLoadResult;
+};
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `args.onEvent` | `(data: LoadAdMobEvent) => void` | ✓ | 광고 로드 이벤트 핸들러. `type: 'loaded'`가 수신되면 광고 준비 완료. |
+| `args.onError` | `(error: Error) => void` | ✓ | 로드 실패 시 호출되는 에러 핸들러. |
+| `args.options` | `LoadAdMobOptions` | — | 광고 옵션. `adGroupId`를 포함합니다. |
+| `args.options.adGroupId` | `string` | — | 광고 그룹 단위 ID. 콘솔에서 발급받은 ID를 입력합니다. |
+
+## 반환값
+
+- `() => void` — cleanup 함수. 더 이상 광고가 필요 없을 때 호출해 이벤트 구독을 해제합니다.
+
+## 권한
+
+권한이 필요하지 않습니다 — `GoogleAdMob.loadAppsInTossAdMob`은 별도의 `PermissionName`에 바인딩되지 않습니다. 권한이 필요한 다른 네임스페이스의 일반적인 처리 흐름은 [Guides — 권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { GoogleAdMob } from '@apps-in-toss/web-framework';
+
+const cleanup = GoogleAdMob.loadAppsInTossAdMob({
+  onEvent: (event) => {
+    if (event.type === 'loaded') {
+      console.log('광고 로드 완료', event.data);
+    }
+  },
+  onError: (error) => {
+    console.error('광고 로드 실패', error);
+  },
+});
+
+// 필요 없어지면 cleanup 호출
+cleanup();
+```
+
+### 실전 예제 — 뷰 진입 시 광고 로드 후 show
+
+```tsx
+import { GoogleAdMob } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+const AD_GROUP_ID = 'ad-group-id-here';
+
+function AdPage() {
+  const [adReady, setAdReady] = useState(false);
+
+  useEffect(() => {
+    if (!GoogleAdMob.loadAppsInTossAdMob.isSupported()) return;
+
+    const cleanup = GoogleAdMob.loadAppsInTossAdMob({
+      options: { adGroupId: AD_GROUP_ID },
+      onEvent: (event) => {
+        if (event.type === 'loaded') {
+          setAdReady(true);
+        }
+      },
+      onError: (error) => {
+        console.error('광고 로드 실패', error);
+      },
+    });
+
+    return cleanup;
+  }, []);
+
+  const handleShowAd = () => {
+    GoogleAdMob.showAppsInTossAdMob({
+      options: { adGroupId: AD_GROUP_ID },
+      onEvent: (event) => console.log('광고 이벤트', event),
+      onError: (error) => console.error('광고 노출 실패', error),
+    });
+  };
+
+  return (
+    <button type="button" onClick={handleShowAd} disabled={!adReady}>
+      광고 보기
+    </button>
+  );
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Ads 페이지에서 GoogleAdMob 워크플로를 직접 실행해 볼 수 있습니다.
+
+<TryItLink group="ads" method="loadAppsInTossAdMob" />
+
+## 관련 API
+
+- [`GoogleAdMob.showAppsInTossAdMob`](./showAppsInTossAdMob) — 로드된 광고를 사용자에게 노출합니다.
+- [`GoogleAdMob.isAppsInTossAdMobLoaded`](./isAppsInTossAdMobLoaded) — 광고 로드 여부를 확인합니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Guides — "광고 통합 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.

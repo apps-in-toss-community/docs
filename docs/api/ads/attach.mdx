@@ -1,0 +1,118 @@
+---
+image: /og/api-ads-attach.png
+id: attach
+title: TossAds.attach
+sidebar_label: TossAds.attach
+description: "Deprecated. DOM 요소에 배너 광고 슬롯을 직접 연결합니다. attachBanner를 사용하세요."
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `TossAds.attach`
+
+:::caution Deprecated
+`TossAds.attach`는 더 이상 권장되지 않습니다. [`TossAds.attachBanner`](./attachBanner)로 교체하세요.
+:::
+
+DOM 요소에 배너 광고 슬롯을 직접 연결합니다. `destroy` 핸들을 반환하지 않으므로 슬롯 해제 시 `TossAds.destroy(slotId)` 또는 `TossAds.destroyAll()`을 직접 호출해야 합니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 시그니처
+
+`attach`는 `TossAds` 네임스페이스 객체의 멤버로 노출됩니다.
+
+```ts
+import { TossAds } from '@apps-in-toss/web-framework';
+
+declare const TossAds: {
+  /** @deprecated attachBanner를 사용하세요. */
+  attach: ((
+    adGroupId: string,
+    target: string | HTMLElement,
+    options?: AttachOptions,
+  ) => void) & {
+    isSupported: () => boolean;
+  };
+};
+
+interface AttachOptions {
+  theme?: 'light' | 'dark';
+  padding?: string;
+  callbacks?: BannerSlotCallbacks;
+}
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `adGroupId` | `string` | ✓ | 광고 그룹 단위 ID. 콘솔에서 발급받은 ID를 입력합니다. |
+| `target` | `string \| HTMLElement` | ✓ | 광고를 삽입할 DOM 요소 또는 CSS 선택자 문자열. |
+| `options` | `AttachOptions` | — | 테마, 패딩, 콜백 옵션. |
+
+## 반환값
+
+- `void` — 반환값 없음. `destroy` 핸들이 반환되지 않으므로 수동으로 `TossAds.destroy`를 호출해야 합니다.
+
+## 권한
+
+권한이 필요하지 않습니다 — `TossAds.attach`는 별도의 `PermissionName`에 바인딩되지 않습니다. 권한이 필요한 다른 네임스페이스의 일반적인 처리 흐름은 [Guides — 권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
+
+## 예제
+
+### 최소 예제 (Deprecated 패턴)
+
+```tsx
+import { TossAds } from '@apps-in-toss/web-framework';
+
+// Deprecated — 아래 attachBanner 방식을 사용하세요.
+TossAds.attach('ad-group-id-here', '#ad-container');
+```
+
+### 마이그레이션 — attachBanner로 교체
+
+```tsx
+import { TossAds } from '@apps-in-toss/web-framework';
+import { useEffect, useRef } from 'react';
+
+const AD_GROUP_ID = 'ad-group-id-here';
+
+function AdBanner() {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    if (!TossAds.attachBanner.isSupported()) return;
+
+    // attach 대신 attachBanner 사용
+    const { destroy } = TossAds.attachBanner(AD_GROUP_ID, containerRef.current);
+    return destroy;
+  }, []);
+
+  return <div ref={containerRef} />;
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Ads 페이지에서 광고 관련 API를 직접 실행해 볼 수 있습니다.
+
+<TryItLink group="ads" method="attach" />
+
+## 관련 API
+
+- [`TossAds.attachBanner`](./attachBanner) — 권장 대체 API. `destroy` 핸들을 반환합니다.
+- [`TossAds.initialize`](./initialize) — 광고 연결 전 초기화 함수.
+- [`TossAds.destroy`](./destroy) — 특정 슬롯 ID로 광고를 파괴합니다.
+- [`TossAds.destroyAll`](./destroyAll) — 모든 광고 슬롯을 파괴합니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Guides — "광고 통합 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.

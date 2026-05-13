@@ -1,0 +1,62 @@
+---
+image: /og/api-ads.png
+id: ads-overview
+title: ads
+sidebar_label: Overview
+slug: /api/ads
+description: 배너 광고, 전면 광고, Google AdMob을 통합하는 SDK 네임스페이스입니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `ads`
+
+미니앱에 광고를 통합하기 위한 API 모음입니다. 배너 광고를 DOM에 삽입하는 `TossAds` 네임스페이스, Google AdMob 전면 광고를 제어하는 `GoogleAdMob` 네임스페이스, 그리고 전면 광고를 독립적으로 다루는 두 개의 최상위 함수로 구성됩니다.
+
+:::info 비공식 문서
+이 페이지는 커뮤니티가 작성한 설명입니다. SDK의 동작은 상위의 [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) 배포본을 기준으로 합니다.
+:::
+
+## 메서드
+
+| 메서드 | 반환 타입 | 용도 |
+| --- | --- | --- |
+| [`TossAds.attach`](/api/ads/attach) | `void` | **Deprecated.** DOM 요소에 배너 광고 슬롯을 직접 연결합니다. |
+| [`TossAds.attachBanner`](/api/ads/attachBanner) | `AttachBannerResult` | DOM 요소에 배너 광고 슬롯을 연결합니다. `destroy` 핸들을 반환합니다. |
+| [`TossAds.destroy`](/api/ads/destroy) | `void` | 특정 슬롯 ID의 배너 광고를 파괴합니다. |
+| [`TossAds.destroyAll`](/api/ads/destroyAll) | `void` | 현재 페이지의 모든 배너 광고 슬롯을 파괴합니다. |
+| [`TossAds.initialize`](/api/ads/initialize) | `void` | TossAds SDK를 초기화합니다. 광고를 붙이기 전에 반드시 호출해야 합니다. |
+| [`GoogleAdMob.isAppsInTossAdMobLoaded`](/api/ads/isAppsInTossAdMobLoaded) | `Promise<boolean>` | 광고가 성공적으로 로드되었는지 확인합니다. |
+| [`GoogleAdMob.loadAppsInTossAdMob`](/api/ads/loadAppsInTossAdMob) | `() => void` (cleanup) | 전면 광고를 미리 로드합니다. |
+| [`loadFullScreenAd`](/api/ads/loadFullScreenAd) | `() => void` (cleanup) | 전면 광고를 로드합니다 (GoogleAdMob 외). |
+| [`GoogleAdMob.showAppsInTossAdMob`](/api/ads/showAppsInTossAdMob) | `() => void` (cleanup) | 미리 로드된 Google AdMob 전면 광고를 노출합니다. |
+| [`showFullScreenAd`](/api/ads/showFullScreenAd) | `() => void` (cleanup) | 전면 광고를 노출합니다 (GoogleAdMob 외). |
+
+## 권한
+
+권한이 필요하지 않습니다 — `ads` 네임스페이스의 모든 함수는 별도의 `PermissionName`에 바인딩되지 않습니다.
+
+## 광고 유형 요약
+
+| 유형 | API | 설명 |
+| --- | --- | --- |
+| 배너 광고 | `TossAds.initialize` + `TossAds.attachBanner` | DOM 요소에 인라인 배너를 삽입. 뷰 해제 시 `destroy`/`destroyAll` 호출 필요. |
+| Google AdMob 전면 광고 | `GoogleAdMob.loadAppsInTossAdMob` → `GoogleAdMob.showAppsInTossAdMob` | load → show 2단계. 로드 완료 이벤트를 수신한 뒤 show 호출. |
+| 전면 광고 (자체) | `loadFullScreenAd` → `showFullScreenAd` | GoogleAdMob과 동일한 패턴이지만 독립 네임스페이스. |
+
+## UX 가이드
+
+- **`TossAds.attach`는 사용하지 마세요.** Deprecated 상태입니다. `TossAds.attachBanner`로 교체하세요.
+- **`initialize`는 한 번만 호출하세요.** 앱 마운트 시점에 한 번 초기화하고 이후 재호출하지 않습니다.
+- **뷰 언마운트 시 반드시 destroy하세요.** React `useEffect` 클린업에서 `destroy` 또는 `destroyAll`을 호출하지 않으면 메모리 누수와 좀비 광고 슬롯이 남습니다.
+- **`isSupported()` 확인 후 광고 호출하세요.** 모든 광고 API는 `.isSupported()` 메서드를 제공합니다. 지원하지 않는 환경에서 호출하면 오류가 발생할 수 있습니다.
+
+## 직접 실행해 보기
+
+sdk-example의 Ads 페이지에서 메서드를 직접 실행해 볼 수 있습니다.
+
+<TryItLink group="ads" />
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.
