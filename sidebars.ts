@@ -18,6 +18,7 @@ const sidebars: SidebarsConfig = {
       items: [
         'guides/accessory-button-ux',
         'guides/ads-integration',
+        'guides/anonymous-key-game-session',
         'guides/auth-flow',
         'guides/event-subscription',
         'guides/iap-payment-flow',

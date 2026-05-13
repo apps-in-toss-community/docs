@@ -1,0 +1,254 @@
+---
+id: anonymous-key-game-session
+title: Anonymous key patterns for game session identification
+sidebar_label: Anonymous key game sessions
+slug: /guides/anonymous-key-game-session
+description: Patterns for using auth.getAnonymousKey and auth.getUserKeyForGame to identify game progress, leaderboards, and sessions without requiring Toss login — key lifetime, device-swap behavior, differences from appLogin, and anonymous → logged-in migration.
+---
+
+# Anonymous key patterns for game session identification
+
+The common UX goal for game mini-apps is straightforward: **"let the player start immediately, only ask for login when they want to post a score."** `getAnonymousKey` is the foundation that makes this possible. It identifies users at the device level without requiring a Toss account, and you only call `appLogin` at the moment leaderboard submission is needed.
+
+This guide covers the nature and lifetime of anonymous keys, two standard implementation patterns, anonymous→logged-in migration, server-side considerations, and common mistakes.
+
+## `getAnonymousKey` vs `getUserKeyForGame` vs `appLogin`
+
+| | `getAnonymousKey` | `getUserKeyForGame` | `appLogin` |
+|---|---|---|---|
+| **Identifier scope** | Device / mini-app | Game-category mini-apps only | Toss user account |
+| **Login required** | No | No | Yes (consent dialog shown) |
+| **Return shape** | `{ type: 'HASH'; hash: string }` | `{ key: string }` | `{ authorizationCode; referrer }` |
+| **After reinstall** | New key likely issued | New key likely issued | Same account, re-login possible |
+| **Different device** | Different key | Different key | Same account login possible |
+| **Server verification** | Self-managed (rate-limit, pattern monitoring) | Same | Server-side code exchange available |
+| **Status** | Current — recommended | Deprecated — use `getAnonymousKey` | Current — recommended |
+
+:::info getUserKeyForGame is deprecated
+`getUserKeyForGame` is no longer recommended. Use `getAnonymousKey` in new code. The return shapes differ (`{ key: string }` vs `{ type: 'HASH'; hash: string }`) but the purpose and lifetime characteristics are the same. Note that calling `getUserKeyForGame` outside a game-category mini-app returns `'INVALID_CATEGORY'`.
+:::
+
+## Pattern 1 — saving anonymous progress
+
+The basic pattern for persisting game progress server-side without login.
+
+```
+[Mini-app launches]
+    │
+    ▼
+getAnonymousKey() → hash
+    │
+    ▼
+Register / look up hash as userId on your server
+    │
+    ▼
+Save score, unlocks, inventory
+```
+
+### Implementation
+
+```tsx
+import { getAnonymousKey } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+// Replace with your actual server API.
+declare function initGameSession(anonymousId: string): Promise<{
+  score: number;
+  level: number;
+}>;
+
+type SessionState =
+  | { status: 'loading' }
+  | { status: 'ready'; anonymousId: string; score: number; level: number }
+  | { status: 'unsupported' }
+  | { status: 'error'; message: string };
+
+function useGameSession() {
+  const [session, setSession] = useState<SessionState>({ status: 'loading' });
+
+  useEffect(() => {
+    (async () => {
+      const result = await getAnonymousKey();
+
+      if (result === undefined) {
+        setSession({ status: 'unsupported' });
+        return;
+      }
+
+      if (result === 'ERROR') {
+        setSession({ status: 'error', message: 'Session initialization failed.' });
+        return;
+      }
+
+      const { hash } = result;
+      const gameData = await initGameSession(hash);
+      setSession({ status: 'ready', anonymousId: hash, ...gameData });
+    })();
+  }, []);
+
+  return session;
+}
+```
+
+Using `hash` as a substitute for a server-side `user_id` lets you save scores, unlocked items, and inventory without login. **Do not rely solely on the anonymous key for security-sensitive data** (payment info, personal data) — the client can forge any `hash` value it sends to your server.
+
+## Pattern 2 — trigger appLogin at score-submission time
+
+The moment the user wants their name on the leaderboard, they need an identity for the first time. Only call `appLogin` then.
+
+```
+[Score achieved → leaderboard submit button tapped]
+    │
+    ▼
+appLogin() → authorizationCode
+    │
+    ▼
+Server: authorizationCode → Toss token exchange → confirmed userId
+    │
+    ▼
+Server: map anonymous hash → userId (one-time migration)
+    │
+    ▼
+Post nickname and score to leaderboard
+```
+
+### Implementation
+
+```tsx
+import { appLogin, getAnonymousKey } from '@apps-in-toss/web-framework';
+
+// Replace with your actual server API.
+declare function exchangeAndMigrate(params: {
+  authorizationCode: string;
+  referrer: string;
+  anonymousId: string;
+}): Promise<{ userId: string }>;
+
+declare function submitScore(params: {
+  userId: string;
+  score: number;
+}): Promise<void>;
+
+async function handleLeaderboardSubmit(score: number): Promise<void> {
+  // 1. Capture the current anonymous ID first.
+  const keyResult = await getAnonymousKey();
+  if (keyResult === undefined || keyResult === 'ERROR') {
+    // Key retrieval failed — proceed with login only or show an error.
+    return;
+  }
+
+  // 2. Show the login dialog.
+  const { authorizationCode, referrer } = await appLogin();
+
+  // 3. Server-side code exchange + anonymous progress migration.
+  const { userId } = await exchangeAndMigrate({
+    authorizationCode,
+    referrer,
+    anonymousId: keyResult.hash,
+  });
+
+  // 4. Submit score under the confirmed userId.
+  await submitScore({ userId, score });
+}
+```
+
+`authorizationCode` is single-use and short-lived. For the full server-side token exchange flow, see [Guides — Toss login flow](/guides/auth-flow).
+
+## Where `getUserKeyForGame` fits
+
+`getUserKeyForGame` is a game-specific predecessor that only works inside game-category mini-apps. Calling it from a non-game mini-app returns `'INVALID_CATEGORY'`. If you are already using it, migrate as follows.
+
+```ts
+// Old
+import { getUserKeyForGame } from '@apps-in-toss/web-framework';
+const result = await getUserKeyForGame();
+// result: { key: string } | 'INVALID_CATEGORY' | 'ERROR' | undefined
+
+// Recommended
+import { getAnonymousKey } from '@apps-in-toss/web-framework';
+const result = await getAnonymousKey();
+// result: { type: 'HASH'; hash: string } | 'ERROR' | undefined
+```
+
+Only the field name changes (`key` → `hash`). If your server stores existing `key` values, write a one-time mapping endpoint before switching.
+
+## Lifetime and reinstall cases
+
+Anonymous key lifetime is **determined internally by the SDK and platform** — you cannot control or observe the expiry directly. What you need to know in practice:
+
+- **Same device, app intact**: the key stays stable.
+- **App reinstalled**: a new key is likely issued. Previous anonymous progress cannot be recovered through the key alone.
+- **Different device**: the key differs. The same person appears as a different user.
+
+Because of these characteristics, **anonymous keys alone cannot protect long-term user progress**. When a user reinstalls or switches devices, the only way to preserve progress is through `appLogin`-based account linking. Pattern 2 is designed to nudge users toward that moment naturally.
+
+## Server-side validation
+
+Do not trust the `hash` value sent from the client without additional safeguards. A client can send any string as the anonymous ID.
+
+| Measure | Description |
+|---|---|
+| Rate-limiting | Block or throttle requests from the same IP or session within a time window. |
+| Behavior monitoring | Flag anomalies such as sudden score spikes or repeated submissions for further review. |
+| `appLogin` required for impactful actions | Payments, leaderboard submissions, and other high-stakes actions must require account authentication. |
+| Separate security-sensitive data | Personal information and payment records must not be reachable through the anonymous key path. |
+
+The SDK does not provide a server-side verification endpoint for anonymous keys. Combine the above measures to build your own protection layer.
+
+## anonymous → logged-in migration
+
+Run this once on your server when the user completes their first `appLogin`.
+
+```
+Server pseudocode:
+
+function migrateAnonymousToUser(anonymousId, userId):
+  if user(userId).hasExistingData():
+    // Conflict: this userId already has data from another device.
+    // Define a policy — e.g. keep the higher score, or let the user choose.
+    mergeOrPickWinner(user(userId).data, anonymous(anonymousId).data)
+  else:
+    // Clean migration: attribute anonymous data to userId.
+    assign(anonymous(anonymousId).data, userId)
+
+  // Mark the anonymous record as migrated and schedule for expiry / deletion.
+  markAsMigrated(anonymousId)
+```
+
+Implementation considerations:
+
+- **Idempotency**: calling with the same `(anonymousId, userId)` pair a second time must not duplicate or corrupt data.
+- **Define a conflict policy upfront**: if the same `userId` already has data from another device, decide in advance which record takes priority. Letting the user choose is the safest default when automatic merging is ambiguous.
+- **Migration runs on the server**: the client is just a trigger. Perform the actual data move inside a server-side transaction.
+
+## Common mistakes checklist
+
+- Treating the anonymous key as a permanent identifier — it can change after reinstall.
+- Trusting the `hash` sent from the client without server-side protection (rate-limiting, monitoring).
+- Not handling all three outcomes of `getAnonymousKey` — `'ERROR'` and `undefined` must be handled explicitly.
+- Forgetting to update the server-side field name when migrating from `getUserKeyForGame` (`key` → `hash`).
+- Non-idempotent migration logic — a duplicate call can corrupt data.
+- Storing security-sensitive data in the anonymous path — restrict it to authenticated routes.
+
+## Environment differences
+
+| Environment | Behavior |
+|---|---|
+| **Toss app** | `getAnonymousKey` works as expected. The returned `hash` stays stable as long as the device and app state are unchanged. |
+| **devtools mock** | [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) returns a stub key immediately. Sufficient for testing the game flow locally, but lifetime characteristics may differ from the real SDK. |
+| **External browser** | `getAnonymousKey` throws or returns `'ERROR'`. Do not expose the anonymous key path outside the mini-app environment. |
+
+## Related APIs
+
+- [`getAnonymousKey`](/api/auth/getAnonymousKey) — Current recommended API. Returns `{ type: 'HASH'; hash: string }`.
+- [`getUserKeyForGame`](/api/auth/getUserKeyForGame) — (Deprecated) game-category-only predecessor.
+- [`appLogin`](/api/auth/appLogin) — Toss account-based login entry point.
+- [`getGameCenterGameProfile`](/api/game/getGameCenterGameProfile) — Fetch the game center nickname and profile image.
+
+## Related guides
+
+- [Guides — Toss login flow](/guides/auth-flow) — end-to-end flow from `appLogin` through server-side token exchange.
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package.
