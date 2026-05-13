@@ -47,6 +47,7 @@ const sidebars: SidebarsConfig = {
           items: [
             'api/analytics/analytics-overview',
             'api/analytics/click',
+            'api/analytics/eventLog',
             'api/analytics/impression',
             'api/analytics/screen',
           ],
@@ -118,7 +119,6 @@ const sidebars: SidebarsConfig = {
           items: [
             'api/events/events-overview',
             'api/events/appsInTossEvent-addEventListener',
-            'api/events/eventLog',
             'api/events/graniteEvent-addEventListener',
             'api/events/onVisibilityChangedByTransparentServiceWeb',
             'api/events/tdsEvent-addEventListener',
