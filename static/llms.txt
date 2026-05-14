@@ -1,0 +1,178 @@
+# Apps In Toss Community — SDK Docs
+
+커뮤니티가 재구성한 `@apps-in-toss/web-framework` 미니앱 SDK 가이드·레퍼런스.
+Community-maintained guide and API reference for the `@apps-in-toss/web-framework` mini-app SDK.
+
+> Source: https://docs.aitc.dev
+
+## Overview pages
+
+- [ads](https://docs.aitc.dev/api/ads): 배너 광고, 전면 광고, Google AdMob을 통합하는 SDK 네임스페이스입니다.
+- [ads (en)](https://docs.aitc.dev/en/api/ads): 배너 광고, 전면 광고, Google AdMob을 통합하는 SDK 네임스페이스입니다.
+- [Analytics](https://docs.aitc.dev/api/analytics): 미니앱의 화면 조회·노출·클릭 이벤트를 로깅하는 SDK 네임스페이스입니다.
+- [Analytics (en)](https://docs.aitc.dev/en/api/analytics): 미니앱의 화면 조회·노출·클릭 이벤트를 로깅하는 SDK 네임스페이스입니다.
+- [auth](https://docs.aitc.dev/api/auth): 토스 로그인, 인증서 서명, 익명 키 조회, 게임용 deprecated 키 등 인증 관련 기능을 제공하는 SDK 네임스페이스입니다.
+- [auth (en)](https://docs.aitc.dev/en/api/auth): 토스 로그인, 인증서 서명, 익명 키 조회, 게임용 deprecated 키 등 인증 관련 기능을 제공하는 SDK 네임스페이스입니다.
+- [camera](https://docs.aitc.dev/api/camera): 카메라 촬영과 앨범 사진 조회를 제공하는 SDK 네임스페이스입니다.
+- [camera (en)](https://docs.aitc.dev/en/api/camera): 카메라 촬영과 앨범 사진 조회를 제공하는 SDK 네임스페이스입니다.
+- [clipboard](https://docs.aitc.dev/api/clipboard): 시스템 클립보드에 텍스트를 쓰고 읽는 SDK 네임스페이스입니다.
+- [clipboard (en)](https://docs.aitc.dev/en/api/clipboard): 시스템 클립보드에 텍스트를 쓰고 읽는 SDK 네임스페이스입니다.
+- [environment](https://docs.aitc.dev/api/environment): 기기·네트워크·앱 버전 등 실행 환경 정보를 조회하는 SDK 네임스페이스입니다.
+- [environment (en)](https://docs.aitc.dev/en/api/environment): 기기·네트워크·앱 버전 등 실행 환경 정보를 조회하는 SDK 네임스페이스입니다.
+- [events](https://docs.aitc.dev/api/events): 플랫폼 이벤트, TDS 이벤트, Granite 이벤트를 구독하기 위한 SDK 네임스페이스입니다.
+- [events (en)](https://docs.aitc.dev/en/api/events): 플랫폼 이벤트, TDS 이벤트, Granite 이벤트를 구독하기 위한 SDK 네임스페이스입니다.
+- [game](https://docs.aitc.dev/api/game): 토스게임센터 프로필 조회, 리더보드, 프로모션 리워드 지급, 친구 공유 리워드 등 게임 관련 SDK 네임스페이스입니다.
+- [game (en)](https://docs.aitc.dev/en/api/game): 토스게임센터 프로필 조회, 리더보드, 프로모션 리워드 지급, 친구 공유 리워드 등 게임 관련 SDK 네임스페이스입니다.
+- [haptic](https://docs.aitc.dev/api/haptic): 햅틱 피드백 및 파일 저장을 다루는 SDK 네임스페이스입니다.
+- [haptic (en)](https://docs.aitc.dev/en/api/haptic): 햅틱 피드백 및 파일 저장을 다루는 SDK 네임스페이스입니다.
+- [iap](https://docs.aitc.dev/api/iap): 인앱결제(IAP) 관련 기능을 모은 SDK 네임스페이스입니다.
+- [iap (en)](https://docs.aitc.dev/en/api/iap): 인앱결제(IAP) 관련 기능을 모은 SDK 네임스페이스입니다.
+- [location](https://docs.aitc.dev/api/location): 사용자의 현재 위치를 1회 조회하거나 실시간으로 구독하는 SDK 네임스페이스입니다.
+- [location (en)](https://docs.aitc.dev/en/api/location): 사용자의 현재 위치를 1회 조회하거나 실시간으로 구독하는 SDK 네임스페이스입니다.
+- [navigation](https://docs.aitc.dev/api/navigation): 화면 전환, URL 열기, 공유, 디바이스 설정 등 화면·환경 제어 SDK 네임스페이스입니다.
+- [navigation (en)](https://docs.aitc.dev/en/api/navigation): 화면 전환, URL 열기, 공유, 디바이스 설정 등 화면·환경 제어 SDK 네임스페이스입니다.
+- [notification](https://docs.aitc.dev/api/notification): 앱 알림 동의를 요청하는 SDK 네임스페이스입니다.
+- [notification (en)](https://docs.aitc.dev/en/api/notification): 앱 알림 동의를 요청하는 SDK 네임스페이스입니다.
+- [partner](https://docs.aitc.dev/api/partner): 상단 네비게이션 악세서리 버튼을 추가·제거하는 SDK 네임스페이스입니다.
+- [partner (en)](https://docs.aitc.dev/en/api/partner): 상단 네비게이션 악세서리 버튼을 추가·제거하는 SDK 네임스페이스입니다.
+- [payment](https://docs.aitc.dev/api/payment): 토스페이 정기결제 인증 흐름을 처리하는 SDK 네임스페이스입니다.
+- [payment (en)](https://docs.aitc.dev/en/api/payment): 토스페이 정기결제 인증 흐름을 처리하는 SDK 네임스페이스입니다.
+- [permissions](https://docs.aitc.dev/api/permissions): 디바이스 권한 상태 확인·요청·다이얼로그 표시를 담당하는 SDK 최상위 함수 모음입니다.
+- [permissions (en)](https://docs.aitc.dev/en/api/permissions): 디바이스 권한 상태 확인·요청·다이얼로그 표시를 담당하는 SDK 최상위 함수 모음입니다.
+- [storage](https://docs.aitc.dev/api/storage): 미니앱 전용 키-값 저장소를 다루는 SDK 네임스페이스입니다.
+- [storage (en)](https://docs.aitc.dev/en/api/storage): 미니앱 전용 키-값 저장소를 다루는 SDK 네임스페이스입니다.
+
+## API reference
+
+### ads
+
+- [TossAds.attach](https://docs.aitc.dev/api/ads/attach) — Deprecated. DOM 요소에 배너 광고 슬롯을 직접 연결합니다. attachBanner를 사용하세요.
+- [TossAds.attachBanner](https://docs.aitc.dev/api/ads/attachBanner) — DOM 요소에 배너 광고 슬롯을 연결하고 destroy 핸들을 반환합니다.
+- [TossAds.destroy](https://docs.aitc.dev/api/ads/destroy) — 특정 슬롯 ID의 배너 광고를 파괴합니다.
+- [TossAds.destroyAll](https://docs.aitc.dev/api/ads/destroyAll) — 현재 페이지의 모든 배너 광고 슬롯을 파괴합니다.
+- [TossAds.initialize](https://docs.aitc.dev/api/ads/initialize) — TossAds SDK를 초기화합니다.
+- [GoogleAdMob.isAppsInTossAdMobLoaded](https://docs.aitc.dev/api/ads/isAppsInTossAdMobLoaded) — Google AdMob 광고가 성공적으로 로드되었는지 확인합니다.
+- [GoogleAdMob.loadAppsInTossAdMob](https://docs.aitc.dev/api/ads/loadAppsInTossAdMob) — Google AdMob 전면 광고를 미리 로드합니다.
+- [loadFullScreenAd](https://docs.aitc.dev/api/ads/loadFullScreenAd) — 전면 광고를 미리 로드합니다.
+- [GoogleAdMob.showAppsInTossAdMob](https://docs.aitc.dev/api/ads/showAppsInTossAdMob) — 미리 로드된 Google AdMob 전면 광고를 사용자에게 노출합니다.
+- [showFullScreenAd](https://docs.aitc.dev/api/ads/showFullScreenAd) — 미리 로드된 전면 광고를 사용자에게 노출합니다.
+
+### analytics
+
+- [Analytics.click](https://docs.aitc.dev/api/analytics/click) — 버튼·링크 등 사용자 클릭 이벤트를 기록합니다.
+- [eventLog](https://docs.aitc.dev/api/analytics/eventLog) — 분석용 이벤트 로그를 기록합니다.
+- [Analytics.impression](https://docs.aitc.dev/api/analytics/impression) — UI 컴포넌트가 화면에 노출되는 시점을 기록합니다.
+- [Analytics.screen](https://docs.aitc.dev/api/analytics/screen) — 화면(페이지) 진입 이벤트를 기록합니다.
+
+### auth
+
+- [appLogin](https://docs.aitc.dev/api/auth/appLogin) — 토스 인증으로 로그인합니다. 인가 코드와 referrer를 반환합니다.
+- [appsInTossSignTossCert](https://docs.aitc.dev/api/auth/appsInTossSignTossCert) — 토스 인증서를 사용해 전자서명 또는 본인확인을 수행합니다.
+- [getAnonymousKey](https://docs.aitc.dev/api/auth/getAnonymousKey) — 로그인 없이 사용자를 식별하는 익명 해시 키를 반환합니다.
+- [getIsTossLoginIntegratedService](https://docs.aitc.dev/api/auth/getIsTossLoginIntegratedService) — 사용자가 토스 로그인을 연동했는지 여부를 확인합니다.
+- [getUserKeyForGame](https://docs.aitc.dev/api/auth/getUserKeyForGame) — (Deprecated) 게임용 익명 키를 발급합니다. 대신 getAnonymousKey를 사용하세요.
+
+### camera
+
+- [fetchAlbumPhotos](https://docs.aitc.dev/api/camera/fetchAlbumPhotos) — 기기 앨범에서 사진 목록을 가져옵니다.
+- [openCamera](https://docs.aitc.dev/api/camera/openCamera) — 카메라를 실행해 촬영된 이미지를 반환합니다.
+
+### clipboard
+
+- [getClipboardText](https://docs.aitc.dev/api/clipboard/getClipboardText) — 클립보드에서 텍스트를 읽어 옵니다.
+- [setClipboardText](https://docs.aitc.dev/api/clipboard/setClipboardText) — 클립보드에 텍스트를 복사합니다.
+
+### contacts
+
+- [fetchContacts](https://docs.aitc.dev/api/contacts/fetchContacts) — 사용자의 연락처 목록을 페이지 단위로 조회합니다.
+
+### environment
+
+- [getAppsInTossGlobals](https://docs.aitc.dev/api/environment/getAppsInTossGlobals) — 배포 ID·브랜드 표시명·아이콘·색상 등 앱인토스 글로벌 정보를 반환합니다.
+- [env.getDeploymentId](https://docs.aitc.dev/api/environment/getDeploymentId) — 현재 미니앱 배포의 고유 식별자를 반환합니다.
+- [getDeviceId](https://docs.aitc.dev/api/environment/getDeviceId) — 사용 중인 기기의 고유 식별자를 문자열로 반환합니다.
+- [getGroupId](https://docs.aitc.dev/api/environment/getGroupId) — 앱인토스에서 제공하는 그룹 ID를 반환합니다.
+- [getLocale](https://docs.aitc.dev/api/environment/getLocale) — 사용자의 로케일 정보를 반환합니다. 기본값은 'ko-KR'입니다.
+- [getNetworkStatus](https://docs.aitc.dev/api/environment/getNetworkStatus) — 디바이스의 현재 네트워크 연결 상태를 비동기로 반환합니다.
+- [getOperationalEnvironment](https://docs.aitc.dev/api/environment/getOperationalEnvironment) — 현재 실행 중인 앱의 운영 환경(toss 또는 sandbox)을 반환합니다.
+- [getPlatformOS](https://docs.aitc.dev/api/environment/getPlatformOS) — 현재 실행 중인 플랫폼 OS(ios 또는 android)를 반환합니다.
+- [getSafeAreaInsets](https://docs.aitc.dev/api/environment/getSafeAreaInsets) — Deprecated — Safe Area 인셋 값을 반환합니다. SafeAreaInsets.get()을 사용하세요.
+- [getSchemeUri](https://docs.aitc.dev/api/environment/getSchemeUri) — 화면 최초 진입 시 사용된 스킴 URI를 반환합니다.
+- [getServerTime](https://docs.aitc.dev/api/environment/getServerTime) — 서버 기준 현재 시간을 Unix timestamp(ms)로 비동기 반환합니다.
+- [getTossAppVersion](https://docs.aitc.dev/api/environment/getTossAppVersion) — 토스 앱 버전을 문자열로 반환합니다. 예: '5.206.0'.
+- [isMinVersionSupported](https://docs.aitc.dev/api/environment/isMinVersionSupported) — 현재 토스 앱 버전이 지정한 최소 버전 이상인지 확인합니다.
+
+### events
+
+- [appsInTossEvent.addEventListener](https://docs.aitc.dev/api/events/appsInTossEvent.addEventListener) — 앱인토스 플랫폼 이벤트를 구독합니다.
+- [graniteEvent.addEventListener](https://docs.aitc.dev/api/events/graniteEvent.addEventListener) — Granite(토스 내부) 이벤트를 구독합니다. backEvent, homeEvent를 지원합니다.
+- [onVisibilityChangedByTransparentServiceWeb](https://docs.aitc.dev/api/events/onVisibilityChangedByTransparentServiceWeb) — 투명 서비스 웹 컨테이너의 표시 여부 변화를 구독합니다.
+- [tdsEvent.addEventListener](https://docs.aitc.dev/api/events/tdsEvent.addEventListener) — TDS(Toss Design System) 이벤트를 구독합니다. navigationAccessoryEvent를 지원합니다.
+
+### game
+
+- [contactsViral](https://docs.aitc.dev/api/game/contactsViral) — 연락처 기반 친구 공유 리워드 모듈을 실행합니다.
+- [getGameCenterGameProfile](https://docs.aitc.dev/api/game/getGameCenterGameProfile) — 토스게임센터 프로필 정보를 조회합니다.
+- [grantPromotionReward](https://docs.aitc.dev/api/game/grantPromotionReward) — 모든 카테고리 미니앱에서 프로모션 코드를 사용해 유저에게 리워드를 지급합니다.
+- [grantPromotionRewardForGame](https://docs.aitc.dev/api/game/grantPromotionRewardForGame) — (Deprecated) 게임 카테고리 미니앱에서 프로모션 코드로 리워드를 지급합니다. 대신 grantPromotionReward를 사용하세요.
+- [openGameCenterLeaderboard](https://docs.aitc.dev/api/game/openGameCenterLeaderboard) — 게임센터 리더보드 웹뷰를 엽니다.
+- [submitGameCenterLeaderBoardScore](https://docs.aitc.dev/api/game/submitGameCenterLeaderBoardScore) — 게임 점수를 토스게임센터 리더보드에 제출합니다.
+
+### haptic
+
+- [generateHapticFeedback](https://docs.aitc.dev/api/haptic/generateHapticFeedback) — 지정한 타입으로 햅틱 피드백을 발생시킵니다.
+- [saveBase64Data](https://docs.aitc.dev/api/haptic/saveBase64Data) — Base64 인코딩된 데이터를 로컬 파일로 저장합니다.
+
+### iap
+
+- [checkoutPayment](https://docs.aitc.dev/api/iap/checkoutPayment) — 토스페이 결제창을 띄워 사용자 인증을 수행하고, 인증 성공 여부를 반환합니다.
+- [IAP.completeProductGrant](https://docs.aitc.dev/api/iap/completeProductGrant) — 상품 지급 처리를 완료했다는 신호를 앱에 전달합니다.
+- [IAP.createOneTimePurchaseOrder](https://docs.aitc.dev/api/iap/createOneTimePurchaseOrder) — 단건 인앱결제 주문서 페이지로 이동합니다.
+- [IAP.createSubscriptionPurchaseOrder](https://docs.aitc.dev/api/iap/createSubscriptionPurchaseOrder) — 구독 인앱결제 주문서 페이지로 이동합니다.
+- [IAP.getCompletedOrRefundedOrders](https://docs.aitc.dev/api/iap/getCompletedOrRefundedOrders) — 인앱결제로 구매하거나 환불한 주문 목록을 페이지네이션으로 조회합니다.
+- [IAP.getPendingOrders](https://docs.aitc.dev/api/iap/getPendingOrders) — 결제가 아직 완료되지 않은 대기 중인 주문 목록을 조회합니다.
+- [IAP.getProductItemList](https://docs.aitc.dev/api/iap/getProductItemList) — 인앱결제로 구매할 수 있는 상품 목록을 가져옵니다.
+- [IAP.getSubscriptionInfo](https://docs.aitc.dev/api/iap/getSubscriptionInfo) — 구독 주문의 현재 상태 정보를 조회합니다.
+
+### location
+
+- [getCurrentLocation](https://docs.aitc.dev/api/location/getCurrentLocation) — 사용자의 현재 위치를 한 번만 조회합니다.
+- [startUpdateLocation](https://docs.aitc.dev/api/location/startUpdateLocation) — 위치 변화를 콜백으로 구독하고, 구독 해제 함수를 반환합니다.
+
+### navigation
+
+- [closeView](https://docs.aitc.dev/api/navigation/closeView) — 현재 미니앱 뷰를 닫습니다.
+- [getTossShareLink](https://docs.aitc.dev/api/navigation/getTossShareLink) — 토스 인앱 공유 링크를 생성합니다.
+- [openURL](https://docs.aitc.dev/api/navigation/openURL) — 외부 URL을 엽니다.
+- [requestReview](https://docs.aitc.dev/api/navigation/requestReview) — 앱 스토어 리뷰 요청 다이얼로그를 트리거합니다.
+- [setDeviceOrientation](https://docs.aitc.dev/api/navigation/setDeviceOrientation) — 화면 방향을 세로 또는 가로로 설정합니다.
+- [setIosSwipeGestureEnabled](https://docs.aitc.dev/api/navigation/setIosSwipeGestureEnabled) — iOS 엣지 스와이프 뒤로가기 제스처를 활성화 또는 비활성화합니다.
+- [setScreenAwakeMode](https://docs.aitc.dev/api/navigation/setScreenAwakeMode) — 화면 자동 꺼짐을 방지합니다.
+- [setSecureScreen](https://docs.aitc.dev/api/navigation/setSecureScreen) — 화면 캡처 및 녹화 차단을 설정합니다.
+- [share](https://docs.aitc.dev/api/navigation/share) — 시스템 공유 시트를 통해 메시지를 공유합니다.
+
+### notification
+
+- [requestNotificationAgreement](https://docs.aitc.dev/api/notification/requestNotificationAgreement) — 알림 수신 동의 UI를 표시하고, 사용자의 응답을 콜백으로 수신합니다.
+
+### partner
+
+- [partner.addAccessoryButton](https://docs.aitc.dev/api/partner/addAccessoryButton) — 상단 네비게이션에 악세서리 버튼을 추가합니다.
+- [partner.removeAccessoryButton](https://docs.aitc.dev/api/partner/removeAccessoryButton) — 상단 네비게이션에서 악세서리 버튼을 제거합니다.
+
+### payment
+
+- [requestTossPayPaysBilling](https://docs.aitc.dev/api/payment/requestTossPayPaysBilling) — 토스페이 정기결제 인증창을 띄워 billing key 발급을 요청하고, 인증 성공 여부를 반환합니다.
+
+### permissions
+
+- [getPermission](https://docs.aitc.dev/api/permissions/getPermission) — 특정 권한의 현재 상태를 확인합니다.
+- [openPermissionDialog](https://docs.aitc.dev/api/permissions/openPermissionDialog) — 권한 요청 시스템 다이얼로그를 표시하고 사용자의 선택 결과를 반환합니다.
+- [requestPermission](https://docs.aitc.dev/api/permissions/requestPermission) — 권한 상태를 확인하고 필요하면 시스템 다이얼로그를 표시해 최종 상태를 반환합니다.
+
+### storage
+
+- [Storage.clearItems](https://docs.aitc.dev/api/storage/clearItems) — 미니앱이 저장한 모든 키를 삭제합니다.
+- [Storage.getItem](https://docs.aitc.dev/api/storage/getItem) — 키로 저장된 값을 읽어 옵니다.
+- [Storage.removeItem](https://docs.aitc.dev/api/storage/removeItem) — 단일 키를 삭제합니다.
+- [Storage.setItem](https://docs.aitc.dev/api/storage/setItem) — 키에 문자열 값을 저장합니다.

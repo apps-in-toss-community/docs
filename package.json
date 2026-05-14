@@ -10,7 +10,8 @@
     "dev": "docusaurus start",
     "start": "docusaurus start",
     "build:og": "tsx --tsconfig tsconfig.json scripts/build-og-images.tsx",
-    "prebuild": "pnpm build:og",
+    "build:llms": "tsx --tsconfig tsconfig.json scripts/build-llms-txt.ts",
+    "prebuild": "pnpm build:og && pnpm build:llms",
     "build": "docusaurus build",
     "swizzle": "docusaurus swizzle",
     "serve": "docusaurus serve",
@@ -27,6 +28,7 @@
   },
   "dependencies": {
     "@docusaurus/core": "3.10.1",
+    "@docusaurus/plugin-content-docs": "3.10.1",
     "@docusaurus/preset-classic": "3.10.1",
     "@mdx-js/react": "3.1.1",
     "clsx": "2.1.1",
