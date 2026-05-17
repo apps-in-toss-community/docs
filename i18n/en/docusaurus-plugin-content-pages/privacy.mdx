@@ -1,120 +1,156 @@
 ---
-title: Privacy — anonymous usage telemetry
-description: What the apps-in-toss-community tools collect, why, and how to turn it off
+title: Privacy — Telemetry Policy
+description: What the apps-in-toss-community tools collect — Tier 0 opt-out daily ping / Tier 1 opt-in extended telemetry
 ---
 
-# Privacy — anonymous usage telemetry
+# Privacy — Telemetry Policy
 
-apps-in-toss-community tools collect anonymous usage telemetry on an **opt-in** basis. No events are sent before you explicitly agree.
+apps-in-toss-community tools split telemetry into two tiers.
 
-:::info Why we collect this
-To decide *when* to commit to a `1.0.0` stable release we need a signal of **real, active usage** — download counts are noisy. Opt-in telemetry produces a smaller sample, but one without bots or CI noise.
-:::
+- **Tier 0 (opt-out)** — A server-derived anonymous daily ping. The client sends no ID. On by default; disable at any time.
+- **Tier 1 (opt-in)** — Per-tool detailed event streams. Sent only after explicit consent.
 
-## Sources (per tool)
+Neither tier collects personally identifiable information (PII).
 
-| Tool | Package / location | Status |
-|---|---|---|
-| `@ait-co/devtools` | npm `@ait-co/devtools` | Active (`source: "devtools"`) |
-| `@ait-co/console-cli` | npm `@ait-co/console-cli` | Not yet integrated |
-| agent-plugin | Claude Code / Codex plugin | Not yet integrated |
+## Tier 0 — Anonymous Daily Ping (opt-out)
 
-Each new source updates this page and the `source` allowlist in [`apps-in-toss-community/metrics-ingest`](https://github.com/apps-in-toss-community/metrics-ingest) together.
+### What is sent
 
-## What we collect
+Once per day, when a tool runs, a single `daily_ping` event is sent. The server uses **KV deduplication** — if a signal for the same day already exists, the D1 write is skipped. Only one row is stored per tool per day.
 
-One event looks like this:
+### Identifier: server-derived, never persisted
 
-```json
-{
-  "source": "devtools",
-  "event": "panel_open",
-  "anon_id": "<random UUID v4 stored in your browser's localStorage>",
-  "version": "0.1.14",
-  "ts": 1715423400000,
-  "meta": { "tab": "iap" }
-}
-```
+The client sends no identifier. On receiving the request, the server computes `sha256(ip || ua || YYYY-MM-DD || daily_salt)` and takes the first 16 hex characters as a KV dedupe key only. The hash itself is **never written to D1**. The daily salt rotates at UTC midnight, making yesterday's ping and today's ping unlinkable.
 
-The Worker additionally records the originating country code (Cloudflare's `cf.country`, two letters).
+### Stored columns
 
-### `@ait-co/devtools` events
-
-| Event | Meaning |
+| Column | Content |
 |---|---|
-| `panel_mount` | The devtools panel mounted once on page load |
-| `panel_open` | You opened the panel |
-| `tab_view` | You switched tabs. `meta.tab` carries the label |
-| `session_duration` | Accumulated time-on-panel (ms), sent on page unload |
+| `source` | Tool identifier (`"devtools"`, `"console-cli"`, `"agent-plugin"`) |
+| `event` | Always `"daily_ping"` |
+| `tier` | `0` |
+| `ts` | Event timestamp (epoch ms) |
+| `country` | Cloudflare `cf.country` 2-letter country code |
+| `version` | Tool version |
 
-`meta` is free-form JSON per tool, but **the server caps it at 256 bytes** when JSON-serialized.
+The `anon_id` and `meta` columns are not used in Tier 0.
 
-## What we never collect
+### How to opt out
 
-- **IP addresses** — visible momentarily during request handling, but never stored in the DB or logs
-- **User-Agent strings**
-- **Personally identifiable information** — no names, emails, phone numbers, account IDs
-- **Mock-call arguments or user-written code** — devtools' SDK mock arguments are not part of telemetry
-- **No `cf.*` fields other than `cf.country`** are stored
+| Method | Scope |
+|---|---|
+| Env var `AITC_TELEMETRY=off` | All tools, both tiers disabled |
+| `--no-telemetry` flag | console-cli / agent-plugin, disables for one invocation |
+| devtools panel toggle | devtools, controls Tier 0 and Tier 1 from the Environment tab |
 
-## Retention
+When opted out, no network requests are sent at all.
 
-Events are kept for **90 days only**. A daily cron at UTC 03:00 deletes rows older than `now - 90 days`.
+### Deletion request
 
-## Aggregate stats
+The server-derived hash is discarded immediately after computation. Because no IP, UA, or full hash is stored, it is technically impossible to locate and delete a specific user's Tier 0 records. Opting out stops all future pings immediately.
 
-Alongside the retention sweep, the same daily cron counts **how many event rows arrived that day (UTC)** and keeps a 14-day history. Anyone can read this aggregate at `GET https://t.aitc.dev/stats` with no auth; it contains **counts and dates only** — no individual events or `anon_id`s are exposed. (Returns `503` in environments where the cron has not run yet.) A threshold is also configured so operators get an alert if an abnormal number of rows arrives.
+## Tier 1 — Extended Telemetry (opt-in)
 
-## Consent / opt-out
+### What is sent
 
-The default is **off**.
+Per-tool detailed events — for example: opening the devtools panel, switching tabs, session duration. No events are sent before you explicitly agree.
 
-- The first time you open a tool, a one-time toast appears: "Yes, send", "No, thanks", or "Learn more" (this page)
-- If you choose "No, thanks", we'll ask **once more after 30 days**, then never again
-- You can flip the choice anytime from the tool panel's **Environment tab**
-- Once you opt out, no further events are sent (for events already stored, see "Deletion request" below)
+### Identifier: anon_id
 
-The following localStorage keys are used:
+`anon_id` is a random UUID v4 generated client-side at the moment of consent.
+
+- devtools: browser localStorage `__ait_telemetry:anon_id`
+- console-cli / agent-plugin: `~/.config/aitcc/telemetry.json`
+
+It is not a cookie and is not linked to any account or user identity.
+
+### Stored columns
+
+All Tier 0 columns, plus:
+
+| Column | Content |
+|---|---|
+| `anon_id` | Client UUID v4 |
+| `meta` | Per-event JSON (256 bytes max) |
+
+### Per-tool events
+
+| Event | Tool | Meaning |
+|---|---|---|
+| `panel_open` | devtools | You opened the panel |
+| `tab_view` | devtools | Tab switched. `meta.tab` carries the label |
+| `session_duration` | devtools | Accumulated time-on-panel (ms), sent on page unload |
+| `cli_invoked` | console-cli | CLI command executed |
+| `cli_install` | console-cli | Package install event |
+
+### Consent flow
+
+On first run, a Tier 1 consent prompt appears. If you previously consented under policy version `'2026-05-12'`, the policy change to `'2026-05-18'` resets your consent and prompts you again.
+
+localStorage state keys (devtools):
 
 | Key | Meaning |
 |---|---|
 | `__ait_telemetry:consent` | `granted` / `denied` / unset |
-| `__ait_telemetry:reprompt_after` | Next allowable reprompt time (epoch ms) |
-| `__ait_telemetry:policy_version` | Policy version you consented to. A meaningful change bumps this and triggers a reprompt |
-| `__ait_telemetry:anon_id` | Per-browser random UUID v4. Not a cookie |
+| `__ait_telemetry:policy_version` | Policy version you consented to |
+| `__ait_telemetry:anon_id` | Per-browser UUID v4 |
 
-## Deletion request
+### Deletion request
 
 You can immediately delete every event tied to your `anon_id`.
 
-1. In the devtools panel's Environment tab, click **"Delete my anon_id data"**, or
-2. Call the endpoint directly:
+1. devtools panel → Environment tab → click "Delete my data", **or**
+2. console-cli: `aitcc telemetry delete`, **or**
+3. Call the endpoint directly:
 
 ```bash
 curl -X DELETE 'https://t.aitc.dev/e?anon_id=<your-anon_id>'
 ```
 
-Find your `anon_id` in browser DevTools → Application → Local Storage → `__ait_telemetry:anon_id`.
+Response: `{ "ok": true, "deleted": <rows removed> }`
 
-The response is `{ "ok": true, "deleted": <rows removed> }`.
+## Sources (per tool)
 
-## Infrastructure
+| Tool | Package | Tier 0 | Tier 1 |
+|---|---|---|---|
+| `@ait-co/devtools` | npm `@ait-co/devtools` | Active | Active |
+| `@ait-co/console-cli` | npm `@ait-co/console-cli` | Active | Active |
+| agent-plugin | Claude Code / Codex plugin | Active | Active |
+| `@ait-co/polyfill` | npm `@ait-co/polyfill` | No own client | No own client |
 
-The ingest endpoint runs on Cloudflare Workers; the full source is public.
+`@ait-co/polyfill` sends no network requests of its own. When used alongside devtools, polyfill load status is indirectly included in Tier 1 metadata via a devtools sentinel signal.
 
-- Repository: [`apps-in-toss-community/metrics-ingest`](https://github.com/apps-in-toss-community/metrics-ingest)
-- Production host: `t.aitc.dev`
-- Staging host: `t-staging.aitc.dev` (for policy verification)
-- Storage: Cloudflare D1 (events) + KV (rate-limit state)
-- 60 requests/minute per IP
-- Public aggregate endpoint: `GET /stats` (counts and dates only, no auth)
+## Storage policy
 
-Schema at [`migrations/0001_init.sql`](https://github.com/apps-in-toss-community/metrics-ingest/blob/main/migrations/0001_init.sql); validation at [`src/lib/schema.ts`](https://github.com/apps-in-toss-community/metrics-ingest/blob/main/src/lib/schema.ts).
+| Item | Detail |
+|---|---|
+| Retention | 90 days (daily UTC 03:00 cron deletes rows older than 90 days) |
+| Storage | Cloudflare D1 (events) + KV (dedupe / rate-limit state) |
+| Country code | `cf.country` 2-letter only. No IP stored |
+| Rate limit | 60 requests / minute per IP |
+| IP · UA · full hash | Discarded immediately after Tier 0 dedupe computation. Not written to DB |
+| Public aggregate | `GET https://t.aitc.dev/stats` — counts and dates only (no auth required) |
 
-## Policy changes
+## What we never collect
 
-When this page changes in a meaningful way, `__ait_telemetry:policy_version` bumps and tools will ask for consent again. Typo fixes and wording polish don't trigger a bump.
+- IP addresses (discarded after computation, never stored in DB)
+- User-Agent strings (same)
+- Names, email addresses, phone numbers, account identifiers, or any PII
+- Mock-call arguments or user-written code
 
-## Questions
+## External references
 
-For questions or deletion requests, please open an issue at [GitHub Issues](https://github.com/apps-in-toss-community/metrics-ingest/issues).
+- Spec source of truth: [`metrics-ingest/docs/specs/2026-05-18-multi-tier-consent.md`](https://github.com/apps-in-toss-community/metrics-ingest/blob/main/docs/specs/2026-05-18-multi-tier-consent.md)
+- Ingest server code: [`apps-in-toss-community/metrics-ingest`](https://github.com/apps-in-toss-community/metrics-ingest)
+- Production endpoint: `https://t.aitc.dev`
+- Questions / deletion requests: [GitHub Issues](https://github.com/apps-in-toss-community/metrics-ingest/issues)
+
+## Changelog
+
+| Date | Change |
+|---|---|
+| 2026-05-18 | Redesigned from single opt-in to multi-tier: Tier 0 opt-out daily ping + Tier 1 opt-in extended telemetry |
+
+---
+
+Community open-source project.

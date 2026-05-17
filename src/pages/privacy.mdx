@@ -1,120 +1,156 @@
 ---
-title: 프라이버시 — 익명 사용 텔레메트리
-description: apps-in-toss-community 도구가 수집하는 익명 opt-in 사용 데이터에 대한 안내
+title: 프라이버시 — 텔레메트리 정책
+description: apps-in-toss-community 도구가 수집하는 텔레메트리 데이터 안내 — Tier 0 opt-out 일일 핑 / Tier 1 opt-in 확장 텔레메트리
 ---
 
-# 프라이버시 — 익명 사용 텔레메트리
+# 프라이버시 — 텔레메트리 정책
 
-apps-in-toss-community 도구는 **opt-in**으로 익명 사용 텔레메트리를 수집합니다. 동의하기 전에는 어떤 이벤트도 전송되지 않습니다.
+apps-in-toss-community 도구는 텔레메트리를 두 계층으로 분리합니다.
 
-:::info 왜 수집하나요?
-"1.0.0 안정 버전을 끊을 시점이 왔는가"를 판단하려면 다운로드 수 같은 표면 지표가 아니라 **실제 활성 사용자의 신호**가 필요합니다. opt-in 모델은 표본이 작지만 봇·CI 노이즈가 없어 신호 품질이 높습니다.
-:::
+- **Tier 0 (opt-out)** — 서버가 파생하는 익명 일일 핑. 어떤 ID도 클라이언트가 보내지 않습니다. 기본값 켜짐이지만 언제든 끌 수 있습니다.
+- **Tier 1 (opt-in)** — 도구별 세부 이벤트 스트림. 명시적 동의 후에만 전송됩니다.
 
-## 수집 소스 (도구별)
+두 계층 모두 PII(개인 식별 정보)를 수집하지 않습니다.
 
-| 도구 | 패키지 / 위치 | 현재 상태 |
-|---|---|---|
-| `@ait-co/devtools` | npm `@ait-co/devtools` | 활성 (`source: "devtools"`) |
-| `@ait-co/console-cli` | npm `@ait-co/console-cli` | 미통합 (향후 추가 예정) |
-| agent-plugin | Claude Code / Codex 플러그인 | 미통합 (향후 추가 예정) |
+## Tier 0 — 익명 일일 핑 (opt-out)
 
-새 소스가 추가될 때마다 이 페이지의 도구별 섹션과 [metrics-ingest 저장소](https://github.com/apps-in-toss-community/metrics-ingest)의 `source` allowlist가 동시에 갱신됩니다.
+### 무엇을 전송하나요
 
-## 수집하는 데이터
+하루 한 번, 도구가 실행될 때 `daily_ping` 이벤트 하나를 서버로 전송합니다. 서버는 **KV dedupe**를 통해 같은 날 이미 기록된 신호가 있으면 D1 쓰기를 생략합니다 — 하루 1회만 저장됩니다.
 
-이벤트 하나는 다음 형태입니다.
+### 식별자: server-derived, 저장 안 됨
 
-```json
-{
-  "source": "devtools",
-  "event": "panel_open",
-  "anon_id": "<브라우저 localStorage에 저장된 무작위 UUID v4>",
-  "version": "0.1.14",
-  "ts": 1715423400000,
-  "meta": { "tab": "iap" }
-}
-```
+클라이언트는 어떤 ID도 함께 보내지 않습니다. 서버가 요청 수신 시점에 IP + User-Agent + 날짜 + 일별 salt를 sha256해 16자 hex를 만들어 KV dedupe key로만 사용하고, 해시 값 자체는 D1에 **저장하지 않습니다**. 매일 UTC 자정에 salt가 교체되어 어제의 핑과 오늘의 핑을 연결할 수 없습니다.
 
-Worker는 Cloudflare가 제공하는 **국가 코드(`cf.country`, 2-letter)** 한 가지를 추가로 기록합니다.
+### 저장되는 컬럼
 
-### `@ait-co/devtools` 이벤트
-
-| 이벤트 | 의미 |
+| 컬럼 | 내용 |
 |---|---|
-| `panel_mount` | 도구 패널이 처음 마운트됨 (페이지 로드 후 1회) |
-| `panel_open` | 사용자가 패널을 열음 |
-| `tab_view` | 사용자가 탭을 전환함. `meta.tab` 라벨 포함 |
-| `session_duration` | 페이지 unload 시점에 누적 사용 시간(ms) 전송 |
+| `source` | 도구 식별자 (`"devtools"`, `"console-cli"`, `"agent-plugin"`) |
+| `event` | 항상 `"daily_ping"` |
+| `tier` | `0` |
+| `ts` | 이벤트 타임스탬프 (epoch ms) |
+| `country` | Cloudflare `cf.country` 2자리 국가 코드 |
+| `version` | 도구 버전 |
 
-`meta` 객체는 도구별로 자유로운 JSON이지만 **256 바이트(JSON 직렬화 기준) 상한**을 넘으면 서버에서 거부됩니다.
+`anon_id`와 `meta` 컬럼은 Tier 0에서 사용하지 않습니다.
 
-## 절대 수집하지 않는 것
+### opt-out 방법
 
-- **IP 주소** — 요청 처리에 일시적으로 보일 뿐, DB나 로그에 기록되지 않습니다
-- **User-Agent 문자열**
-- **개인 식별 정보** — 이름·이메일·전화·계정 식별자 등 일체
-- **모의 호출 인자·사용자가 작성한 코드** — devtools가 mock하는 SDK 호출의 인자는 텔레메트리에 포함되지 않습니다
-- **`cf.country` 외의 어떤 Cloudflare 메타데이터도 저장하지 않습니다**
+| 방법 | 적용 범위 |
+|---|---|
+| 환경 변수 `AITC_TELEMETRY=off` | 모든 도구, 두 계층 모두 비활성 |
+| `--no-telemetry` 플래그 | console-cli / agent-plugin, 단일 실행 비활성 |
+| devtools 패널 토글 | devtools, Environment 탭에서 Tier 0/1 모두 제어 |
 
-## 보존 기간
+opt-out 상태에서는 어떤 네트워크 요청도 전송되지 않습니다.
 
-이벤트는 **90일 동안만 보관**됩니다. 매일 UTC 03:00에 cron이 `now - 90일`보다 오래된 행을 일괄 삭제합니다.
+### 삭제 요청
 
-## 집계 공개
+server-derived hash는 서버가 연산 즉시 폐기합니다. IP·UA·full hash가 저장되지 않으므로 특정 사용자의 Tier 0 기록을 찾아 삭제하는 것이 기술적으로 불가능합니다. opt-out하면 이후 핑이 즉시 중단됩니다.
 
-같은 일일 cron이 보존 정리와 함께 **그날(UTC) 들어온 이벤트 행 수**를 세어 14일치 history를 남깁니다. 이 집계는 `GET https://t.aitc.dev/stats`로 누구나 인증 없이 조회할 수 있으며, **개수와 날짜만** 담깁니다 — 개별 이벤트나 `anon_id`는 노출되지 않습니다. (cron이 아직 한 번도 안 돈 환경에서는 `503`.) 비정상적으로 많은 행이 들어오면 운영자에게 알림이 가도록 임계값도 함께 설정돼 있습니다.
+## Tier 1 — 확장 텔레메트리 (opt-in)
 
-## 동의 / 거부
+### 무엇을 전송하나요
 
-기본값은 **opt-out**(전송하지 않음)입니다.
+도구별 세부 이벤트를 전송합니다. 예: devtools 패널 열기, 탭 전환, 세션 시간. 동의하기 전에는 어떤 이벤트도 전송되지 않습니다.
 
-- 처음 도구를 열면 한 번 토스트가 뜹니다: "Yes (보낼게요)" / "No, thanks" / "더 알아보기" (이 페이지)
-- "No, thanks"를 선택하면 **30일 뒤 한 번만** 다시 묻고, 그 이후로는 영구 침묵합니다
-- 동의 상태는 언제든 도구 패널의 **Environment 탭** 토글로 변경할 수 있습니다
-- 동의를 끄면 그 이후 어떤 이벤트도 전송되지 않습니다 (이미 보낸 데이터는 아래 "삭제 요청"으로)
+### 식별자: anon_id
 
-저장되는 localStorage 키는 다음과 같습니다.
+`anon_id`는 클라이언트가 처음 동의 시점에 생성하는 무작위 UUID v4입니다.
+
+- devtools: 브라우저 localStorage `__ait_telemetry:anon_id`
+- console-cli / agent-plugin: `~/.config/aitcc/telemetry.json`
+
+cookie가 아니며 계정 또는 사용자 신원과 연결되지 않습니다.
+
+### 저장되는 컬럼
+
+Tier 0 컬럼 전부 + 아래 추가:
+
+| 컬럼 | 내용 |
+|---|---|
+| `anon_id` | 클라이언트 UUID v4 |
+| `meta` | 이벤트별 JSON (256 bytes 이하) |
+
+### 도구별 이벤트
+
+| 이벤트 | 도구 | 의미 |
+|---|---|---|
+| `panel_open` | devtools | 사용자가 패널을 열음 |
+| `tab_view` | devtools | 탭 전환. `meta.tab` 포함 |
+| `session_duration` | devtools | 페이지 unload 시 누적 패널 사용 시간(ms) |
+| `cli_invoked` | console-cli | CLI 명령 실행 |
+| `cli_install` | console-cli | 패키지 설치 이벤트 |
+
+### 동의 흐름
+
+처음 도구를 실행하면 Tier 1 동의 프롬프트가 뜹니다. 이전 버전(`'2026-05-12'`)에 동의한 적 있다면 정책 변경(`'2026-05-18'`)으로 인해 재동의를 요청합니다.
+
+localStorage 상태 키 (devtools):
 
 | 키 | 의미 |
 |---|---|
 | `__ait_telemetry:consent` | `granted` / `denied` / 부재 |
-| `__ait_telemetry:reprompt_after` | 다음 reprompt 가능 시각 (epoch ms) |
-| `__ait_telemetry:policy_version` | 동의한 정책 버전. 정책이 의미 있게 바뀌면 bump되어 reprompt 발생 |
-| `__ait_telemetry:anon_id` | 브라우저별 무작위 UUID v4. cookie 아님 |
+| `__ait_telemetry:policy_version` | 동의한 정책 버전 |
+| `__ait_telemetry:anon_id` | 브라우저별 UUID v4 |
 
-## 삭제 요청
+### 삭제 요청
 
-자신의 `anon_id`에 연결된 모든 이벤트를 즉시 삭제할 수 있습니다.
+`anon_id`에 연결된 모든 이벤트를 즉시 삭제할 수 있습니다.
 
-1. devtools 패널 Environment 탭에서 **"내 anon_id 데이터 삭제"** 클릭, **또는**
-2. 직접 호출:
+1. devtools 패널 Environment 탭 → "데이터 삭제" 버튼, **또는**
+2. console-cli: `aitcc telemetry delete`, **또는**
+3. 직접 호출:
 
 ```bash
 curl -X DELETE 'https://t.aitc.dev/e?anon_id=<당신의-anon_id>'
 ```
 
-`anon_id`는 브라우저 DevTools → Application → Local Storage → `__ait_telemetry:anon_id` 값으로 확인할 수 있습니다.
+응답: `{ "ok": true, "deleted": <삭제된 행 수> }`
 
-응답은 `{ "ok": true, "deleted": <삭제된 행 수> }`입니다.
+## 수집 소스 (도구별)
 
-## 인프라
+| 도구 | 패키지 | Tier 0 | Tier 1 |
+|---|---|---|---|
+| `@ait-co/devtools` | npm `@ait-co/devtools` | 활성 | 활성 |
+| `@ait-co/console-cli` | npm `@ait-co/console-cli` | 활성 | 활성 |
+| agent-plugin | Claude Code / Codex 플러그인 | 활성 | 활성 |
+| `@ait-co/polyfill` | npm `@ait-co/polyfill` | 자체 client 없음 | 자체 client 없음 |
 
-수신 엔드포인트는 Cloudflare Workers로 구동되며 코드는 모두 공개되어 있습니다.
+`@ait-co/polyfill`은 자체적으로 네트워크 요청을 보내지 않습니다. devtools가 함께 사용되는 경우, devtools sentinel 신호를 통해 polyfill 로드 여부가 Tier 1 메타데이터에 간접 포함됩니다.
 
-- 저장소: [`apps-in-toss-community/metrics-ingest`](https://github.com/apps-in-toss-community/metrics-ingest)
-- Production 호스트: `t.aitc.dev`
-- Staging 호스트: `t-staging.aitc.dev` (정책 검증용)
-- 저장소: Cloudflare D1 (이벤트) + KV (rate limit 상태)
-- 분당 IP 당 60요청 rate limit
-- 공개 집계 엔드포인트: `GET /stats` (개수·날짜만, 인증 없음)
+## 저장 정책
 
-스키마는 [`migrations/0001_init.sql`](https://github.com/apps-in-toss-community/metrics-ingest/blob/main/migrations/0001_init.sql), 검증 규칙은 [`src/lib/schema.ts`](https://github.com/apps-in-toss-community/metrics-ingest/blob/main/src/lib/schema.ts)에 있습니다.
+| 항목 | 내용 |
+|---|---|
+| 보존 기간 | 90일 (매일 UTC 03:00 cron 삭제) |
+| 저장소 | Cloudflare D1 (이벤트) + KV (dedupe / rate limit) |
+| 국가 코드 | `cf.country` 2자리만. IP 저장 없음 |
+| Rate limit | IP당 분당 60 요청 |
+| IP·UA·full hash | Tier 0 dedupe 계산 후 즉시 폐기. DB 저장 없음 |
+| 공개 집계 | `GET https://t.aitc.dev/stats` — 날짜별 이벤트 수만 (인증 없음) |
 
-## 정책 변경
+## 절대 수집하지 않는 것
 
-이 페이지에 의미 있는 변경이 있을 때마다 `__ait_telemetry:policy_version`이 bump되어 도구에서 한 번 더 동의를 묻습니다. 단순한 오탈자나 표현 정리는 bump하지 않습니다.
+- IP 주소 (연산 후 즉시 폐기, DB 저장 없음)
+- User-Agent 문자열 (동일)
+- 이름·이메일·전화·계정 식별자 등 개인 식별 정보
+- 모의 호출 인자 또는 사용자가 작성한 코드
 
-## 문의
+## 외부 참조
 
-질문이나 데이터 삭제 요청은 [GitHub Issues](https://github.com/apps-in-toss-community/metrics-ingest/issues)로 부탁드립니다.
+- 정책 정본 spec: [`metrics-ingest/docs/specs/2026-05-18-multi-tier-consent.md`](https://github.com/apps-in-toss-community/metrics-ingest/blob/main/docs/specs/2026-05-18-multi-tier-consent.md)
+- 수신 서버 코드: [`apps-in-toss-community/metrics-ingest`](https://github.com/apps-in-toss-community/metrics-ingest)
+- Production 엔드포인트: `https://t.aitc.dev`
+- 문의·삭제 요청: [GitHub Issues](https://github.com/apps-in-toss-community/metrics-ingest/issues)
+
+## 변경 이력
+
+| 날짜 | 내용 |
+|---|---|
+| 2026-05-18 | single opt-in → multi-tier 재설계 (Tier 0 opt-out daily ping + Tier 1 opt-in 확장 텔레메트리) |
+
+---
+
+커뮤니티 오픈소스 프로젝트입니다.
