@@ -1,8 +1,10 @@
 # docs
 
+[English](./README.en.md)
+
 > 🚧 **Work in Progress** — 콘텐츠는 초기 단계지만, 사이트는 라이브입니다. `main` 푸시 시 GitHub Actions로 자동 배포됩니다.
 
-**Apps in Toss** 미니앱 개발을 위한 커뮤니티 문서 사이트. 앱인토스 공식 문서를 기반으로 재구성한 **가이드/레퍼런스** 세트입니다.
+**Apps in Toss** 미니앱 개발을 위한 커뮤니티 문서 사이트. 원본 SDK 문서를 재구성한 **가이드/레퍼런스** 세트입니다.
 
 ## Goal
 
@@ -75,9 +77,7 @@ CI runs the default mode on every PR (job: `verify-crosslinks`). External fetch 
 
 ## Roadmap
 
-현재 스캐폴드 완료 단계. 남은 작업은 [`TODO.md`](./TODO.md) 참고.
-
-조직 전체 로드맵은 [landing page](https://aitc.dev/) 참고.
+현재 스캐폴드 완료 단계. 조직 전체 로드맵은 [landing page](https://aitc.dev/) 참고.
 
 ## Pair repos
 
