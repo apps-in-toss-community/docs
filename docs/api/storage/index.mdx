@@ -20,6 +20,7 @@ import TryItLink from '@site/src/components/TryItLink';
 | [`Storage.clearItems`](/api/storage/clearItems) | 미니앱이 저장한 모든 키를 지웁니다. |
 | [`Storage.getItem`](/api/storage/getItem) | 키로 값을 읽습니다. 없으면 `null`. |
 | [`Storage.removeItem`](/api/storage/removeItem) | 단일 키를 삭제합니다. |
+| [`saveBase64Data`](/api/storage/saveBase64Data) | Base64 인코딩된 데이터를 파일로 저장합니다. |
 | [`Storage.setItem`](/api/storage/setItem) | 키에 문자열 값을 저장합니다. |
 
 ## 권한
@@ -69,7 +70,7 @@ async function loadPrefs(): Promise<UserPrefs | null> {
 
 ## 직접 실행해 보기
 
-sdk-example의 Storage 페이지에서 네 메서드를 모두 실험해 볼 수 있습니다.
+sdk-example의 Storage 페이지에서 모든 메서드를 실험해 볼 수 있습니다.
 
 <TryItLink group="storage" />
 

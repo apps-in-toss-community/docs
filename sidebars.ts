@@ -167,11 +167,7 @@ const sidebars: SidebarsConfig = {
           type: 'category',
           label: 'haptic',
           collapsed: false,
-          items: [
-            'api/haptic/haptic-overview',
-            'api/haptic/generateHapticFeedback',
-            'api/haptic/saveBase64Data',
-          ],
+          items: ['api/haptic/haptic-overview', 'api/haptic/generateHapticFeedback'],
         },
         {
           type: 'category',
@@ -251,6 +247,7 @@ const sidebars: SidebarsConfig = {
             'api/storage/clearItems',
             'api/storage/getItem',
             'api/storage/removeItem',
+            'api/storage/saveBase64Data',
             'api/storage/setItem',
           ],
         },
