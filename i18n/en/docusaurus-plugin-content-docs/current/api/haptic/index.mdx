@@ -3,21 +3,20 @@ id: haptic-overview
 title: haptic
 sidebar_label: Overview
 slug: /api/haptic
-description: SDK namespace for haptic feedback and file saving.
+description: SDK namespace for haptic feedback.
 ---
 
 import TryItLink from '@site/src/components/TryItLink';
 
 # `haptic`
 
-Control the device's vibration motor to produce haptic feedback, or save Base64-encoded data as a local file. Adding tactile cues at moments like button taps, errors, and completions makes UX feel more alive.
+Control the device's vibration motor to produce haptic feedback. Adding tactile cues at moments like button taps, errors, and completions makes UX feel more alive.
 
 ## Methods
 
 | Method | Purpose |
 | --- | --- |
 | [`generateHapticFeedback`](/api/haptic/generateHapticFeedback) | Trigger a vibration with the specified feedback type. |
-| [`saveBase64Data`](/api/haptic/saveBase64Data) | Save Base64-encoded data as a file on the device. |
 
 ## Permission
 
@@ -49,7 +48,7 @@ No permission required. The `haptic` namespace is not bound to a `PermissionName
 
 ## Try it live
 
-Both methods are available on the Haptic page in sdk-example.
+The method is available on the Haptic page in sdk-example.
 
 <TryItLink group="haptic" />
 

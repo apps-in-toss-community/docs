@@ -19,6 +19,7 @@ A per-mini-app key-value (string-string) store. Use it for lightweight state tha
 | [`Storage.clearItems`](/api/storage/clearItems) | Delete every key the mini-app has stored. |
 | [`Storage.getItem`](/api/storage/getItem) | Read a value by key. Returns `null` if missing. |
 | [`Storage.removeItem`](/api/storage/removeItem) | Delete a single key. |
+| [`saveBase64Data`](/api/storage/saveBase64Data) | Save Base64-encoded data as a file. |
 | [`Storage.setItem`](/api/storage/setItem) | Store a string value at a key. |
 
 ## Permission
@@ -68,7 +69,7 @@ async function loadPrefs(): Promise<UserPrefs | null> {
 
 ## Try it live
 
-All four methods are available on the Storage page in sdk-example.
+All methods are available on the Storage page in sdk-example.
 
 <TryItLink group="storage" />
 

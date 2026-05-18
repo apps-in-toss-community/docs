@@ -1,9 +1,9 @@
 ---
-image: /og/api-haptic-saveBase64Data.png
+image: /og/api-storage-saveBase64Data.png
 id: saveBase64Data
 title: saveBase64Data
 sidebar_label: saveBase64Data
-description: Base64 인코딩된 데이터를 로컬 파일로 저장합니다.
+description: Base64 인코딩된 데이터를 파일로 저장합니다.
 ---
 
 import TryItLink from '@site/src/components/TryItLink';
@@ -39,7 +39,7 @@ declare function saveBase64Data(params: {
 
 ## 권한
 
-권한이 필요하지 않습니다 — `haptic` 네임스페이스는 별도의 `PermissionName`에 바인딩되지 않습니다. 권한이 필요한 다른 네임스페이스의 일반적인 처리 흐름은 [Guides — 권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
+권한이 필요하지 않습니다 — `storage` 네임스페이스는 별도의 `PermissionName`에 바인딩되지 않습니다. 권한이 필요한 다른 네임스페이스의 일반적인 처리 흐름은 [Guides — 권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
 
 ## 예제
 
@@ -81,17 +81,18 @@ async function downloadReceipt(orderId: string) {
 
 ## 직접 실행해 보기
 
-sdk-example의 Haptic 페이지에서 `saveBase64Data` 카드를 실행해 결과를 확인할 수 있습니다.
+sdk-example의 Storage 페이지에서 `saveBase64Data` 카드를 실행해 결과를 확인할 수 있습니다.
 
-<TryItLink group="haptic" method="saveBase64Data" />
+<TryItLink group="storage" method="saveBase64Data" />
 
 ## 관련 API
 
-- [`generateHapticFeedback`](./generateHapticFeedback) — 햅틱 피드백을 발생시킵니다.
+- [`Storage.setItem`](./setItem) — 키에 문자열 값을 저장합니다.
+- [`Storage.getItem`](./getItem) — 키로 값을 읽습니다.
 
 ## 관련 가이드
 
-- [Guides — 권한 처리 패턴](/guides/permissions-pattern) — 다른 네임스페이스의 권한 흐름 (참고용; `haptic`은 권한이 필요하지 않습니다).
+- [Guides — 권한 처리 패턴](/guides/permissions-pattern) — 다른 네임스페이스의 권한 흐름 (참고용; `storage`는 권한이 필요하지 않습니다).
 
 ## 외부 참조
 

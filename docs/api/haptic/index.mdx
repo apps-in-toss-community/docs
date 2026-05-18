@@ -4,21 +4,20 @@ id: haptic-overview
 title: haptic
 sidebar_label: Overview
 slug: /api/haptic
-description: 햅틱 피드백 및 파일 저장을 다루는 SDK 네임스페이스입니다.
+description: 햅틱 피드백을 다루는 SDK 네임스페이스입니다.
 ---
 
 import TryItLink from '@site/src/components/TryItLink';
 
 # `haptic`
 
-장치의 진동 모터를 제어해 햅틱 피드백을 생성하거나, Base64 인코딩된 데이터를 로컬에 파일로 저장합니다. 버튼 탭·오류·완료 같은 순간에 촉각 단서를 추가하면 UX가 한층 생생해집니다.
+장치의 진동 모터를 제어해 햅틱 피드백을 생성합니다. 버튼 탭·오류·완료 같은 순간에 촉각 단서를 추가하면 UX가 한층 생생해집니다.
 
 ## 메서드
 
 | 메서드 | 용도 |
 | --- | --- |
 | [`generateHapticFeedback`](/api/haptic/generateHapticFeedback) | 지정한 피드백 타입으로 진동을 발생시킵니다. |
-| [`saveBase64Data`](/api/haptic/saveBase64Data) | Base64 인코딩된 데이터를 파일로 저장합니다. |
 
 ## 권한
 
@@ -50,7 +49,7 @@ import TryItLink from '@site/src/components/TryItLink';
 
 ## 직접 실행해 보기
 
-sdk-example의 Haptic 페이지에서 두 메서드를 실험해 볼 수 있습니다.
+sdk-example의 Haptic 페이지에서 실험해 볼 수 있습니다.
 
 <TryItLink group="haptic" />
 

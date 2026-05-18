@@ -2,7 +2,7 @@
 id: saveBase64Data
 title: saveBase64Data
 sidebar_label: saveBase64Data
-description: Save Base64-encoded data as a local file on the device.
+description: Save Base64-encoded data as a file.
 ---
 
 import TryItLink from '@site/src/components/TryItLink';
@@ -38,7 +38,7 @@ declare function saveBase64Data(params: {
 
 ## Permission
 
-No permission required — the `haptic` namespace is not bound to a `PermissionName`. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
+No permission required — the `storage` namespace is not bound to a `PermissionName`. For the typical permission flow used by other namespaces, see [Guides — Permissions pattern](/guides/permissions-pattern).
 
 ## Examples
 
@@ -80,17 +80,18 @@ async function downloadReceipt(orderId: string) {
 
 ## Try it live
 
-Open the Haptic page in sdk-example and run the `saveBase64Data` card.
+Open the Storage page in sdk-example and run the `saveBase64Data` card.
 
-<TryItLink group="haptic" method="saveBase64Data" />
+<TryItLink group="storage" method="saveBase64Data" />
 
 ## Related APIs
 
-- [`generateHapticFeedback`](./generateHapticFeedback) — trigger a haptic vibration.
+- [`Storage.setItem`](./setItem) — store a string value at a key.
+- [`Storage.getItem`](./getItem) — read a value by key.
 
 ## Related guides
 
-- [Guides — Permissions pattern](/guides/permissions-pattern) — permission flow for other namespaces (reference only; `haptic` doesn't require a permission).
+- [Guides — Permissions pattern](/guides/permissions-pattern) — permission flow for other namespaces (reference only; `storage` doesn't require a permission).
 
 ## External references
 
