@@ -35,7 +35,24 @@ declare function generateHapticFeedback(options: { type: HapticFeedbackType }): 
 
 | Name | Type | Required | Description |
 | --- | --- | :-: | --- |
-| `options.type` | `HapticFeedbackType` | ✓ | Feedback intensity and character. See the [namespace overview's "Feedback types"](/api/haptic#feedback-types) for a full comparison table. |
+| `options.type` | `HapticFeedbackType` | ✓ | Feedback intensity and character. See [Feedback types](#feedback-types) below for a full comparison table. |
+
+## Feedback types
+
+The `type` parameter distinguishes feedback intensity and character.
+
+| Type | Category | When to use |
+| --- | --- | --- |
+| `tickWeak` | tick | Light list scroll, segment change |
+| `tickMedium` | tick | Medium-strength tap, step transition |
+| `tap` | general | Button tap confirmation |
+| `softMedium` | soft | Toggle, slider interaction |
+| `basicWeak` | basic | Subtle notification, hint |
+| `basicMedium` | basic | Standard selection, confirmation |
+| `success` | semantic | Payment complete, save success |
+| `error` | semantic | Error, failure |
+| `wiggle` | emphasis | Warning, shake |
+| `confetti` | emphasis | Celebration, reward grant |
 
 ## Returns
 

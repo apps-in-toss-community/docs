@@ -12,7 +12,7 @@ Community guides and references for developers building Apps in Toss mini-apps w
 ## What's here
 
 - **Guides** — common scenarios (auth, IAP, permissions, event subscription, ads, viral) explained from a community "why/when" angle. 14 currently.
-- **API reference** — 16 namespaces of SDK methods grouped by namespace, with params, return value, examples, and related guides on one page.
+- **API reference** — 18 namespaces of SDK methods grouped by namespace, with params, return value, examples, and related guides on one page.
 - **Recipes** — short copy-paste snippets. Clipboard UX, analytics tracking, GameCenter integration, environment-based branching, and more. 27 currently.
 - **Try it** — every API page links to the matching page in [sdk-example](https://sdk-example.aitc.dev/) so you can run it live.
 

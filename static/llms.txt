@@ -9,8 +9,8 @@ Community-maintained guide and API reference for the `@apps-in-toss/web-framewor
 
 - [ads](https://docs.aitc.dev/api/ads): 배너 광고, 전면 광고, Google AdMob을 통합하는 SDK 네임스페이스입니다.
 - [ads (en)](https://docs.aitc.dev/en/api/ads): 배너 광고, 전면 광고, Google AdMob을 통합하는 SDK 네임스페이스입니다.
-- [Analytics](https://docs.aitc.dev/api/analytics): 미니앱의 화면 조회·노출·클릭 이벤트를 로깅하는 SDK 네임스페이스입니다.
-- [Analytics (en)](https://docs.aitc.dev/en/api/analytics): 미니앱의 화면 조회·노출·클릭 이벤트를 로깅하는 SDK 네임스페이스입니다.
+- [analytics](https://docs.aitc.dev/api/analytics): 미니앱의 화면 조회·노출·클릭 이벤트를 로깅하는 SDK 네임스페이스입니다.
+- [analytics (en)](https://docs.aitc.dev/en/api/analytics): 미니앱의 화면 조회·노출·클릭 이벤트를 로깅하는 SDK 네임스페이스입니다.
 - [auth](https://docs.aitc.dev/api/auth): 토스 로그인, 인증서 서명, 익명 키 조회, 게임용 deprecated 키 등 인증 관련 기능을 제공하는 SDK 네임스페이스입니다.
 - [auth (en)](https://docs.aitc.dev/en/api/auth): 토스 로그인, 인증서 서명, 익명 키 조회, 게임용 deprecated 키 등 인증 관련 기능을 제공하는 SDK 네임스페이스입니다.
 - [camera](https://docs.aitc.dev/api/camera): 카메라 촬영과 앨범 사진 조회를 제공하는 SDK 네임스페이스입니다.
@@ -23,8 +23,6 @@ Community-maintained guide and API reference for the `@apps-in-toss/web-framewor
 - [events (en)](https://docs.aitc.dev/en/api/events): 플랫폼 이벤트, TDS 이벤트, Granite 이벤트를 구독하기 위한 SDK 네임스페이스입니다.
 - [game](https://docs.aitc.dev/api/game): 토스게임센터 프로필 조회, 리더보드, 프로모션 리워드 지급, 친구 공유 리워드 등 게임 관련 SDK 네임스페이스입니다.
 - [game (en)](https://docs.aitc.dev/en/api/game): 토스게임센터 프로필 조회, 리더보드, 프로모션 리워드 지급, 친구 공유 리워드 등 게임 관련 SDK 네임스페이스입니다.
-- [haptic](https://docs.aitc.dev/api/haptic): 햅틱 피드백 및 파일 저장을 다루는 SDK 네임스페이스입니다.
-- [haptic (en)](https://docs.aitc.dev/en/api/haptic): 햅틱 피드백 및 파일 저장을 다루는 SDK 네임스페이스입니다.
 - [iap](https://docs.aitc.dev/api/iap): 인앱결제(IAP) 관련 기능을 모은 SDK 네임스페이스입니다.
 - [iap (en)](https://docs.aitc.dev/en/api/iap): 인앱결제(IAP) 관련 기능을 모은 SDK 네임스페이스입니다.
 - [location](https://docs.aitc.dev/api/location): 사용자의 현재 위치를 1회 조회하거나 실시간으로 구독하는 SDK 네임스페이스입니다.
@@ -121,7 +119,6 @@ Community-maintained guide and API reference for the `@apps-in-toss/web-framewor
 ### haptic
 
 - [generateHapticFeedback](https://docs.aitc.dev/api/haptic/generateHapticFeedback) — 지정한 타입으로 햅틱 피드백을 발생시킵니다.
-- [saveBase64Data](https://docs.aitc.dev/api/haptic/saveBase64Data) — Base64 인코딩된 데이터를 로컬 파일로 저장합니다.
 
 ### iap
 
@@ -175,4 +172,5 @@ Community-maintained guide and API reference for the `@apps-in-toss/web-framewor
 - [Storage.clearItems](https://docs.aitc.dev/api/storage/clearItems) — 미니앱이 저장한 모든 키를 삭제합니다.
 - [Storage.getItem](https://docs.aitc.dev/api/storage/getItem) — 키로 저장된 값을 읽어 옵니다.
 - [Storage.removeItem](https://docs.aitc.dev/api/storage/removeItem) — 단일 키를 삭제합니다.
+- [saveBase64Data](https://docs.aitc.dev/api/storage/saveBase64Data) — Base64 인코딩된 데이터를 파일로 저장합니다.
 - [Storage.setItem](https://docs.aitc.dev/api/storage/setItem) — 키에 문자열 값을 저장합니다.

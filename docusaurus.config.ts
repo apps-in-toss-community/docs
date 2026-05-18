@@ -121,7 +121,7 @@ const config: Config = {
           ],
         },
         {
-          title: 'Upstream',
+          title: 'SDK Package',
           items: [
             {
               label: '@apps-in-toss/web-framework (npm)',

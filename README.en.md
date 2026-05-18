@@ -2,9 +2,7 @@
 
 [한국어](./README.md)
 
-> 🚧 **Work in Progress** — content is early-stage, but the site is live. Pushed to `main` triggers an automatic deploy via GitHub Actions.
-
-**Apps in Toss** mini-app community documentation site. A reconstruction of the upstream SDK docs into **guides + reference**.
+**Apps in Toss** mini-app community documentation site. A community-curated reference built around the SDK — guides + reference. Content is early-stage; pushes to `main` trigger an automatic deploy via GitHub Actions.
 
 ## Goal
 

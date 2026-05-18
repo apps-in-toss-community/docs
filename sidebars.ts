@@ -21,8 +21,8 @@ const sidebars: SidebarsConfig = {
         'guides/anonymous-key-game-session',
         'guides/auth-flow',
         'guides/camera-album-ux',
-        'guides/event-subscription',
         'guides/event-logging',
+        'guides/event-subscription',
         'guides/iap-payment-flow',
         'guides/iap-state-queries',
         'guides/location-permission-fallback',
@@ -141,16 +141,6 @@ const sidebars: SidebarsConfig = {
         },
         {
           type: 'category',
-          label: 'location',
-          collapsed: false,
-          items: [
-            'api/location/location-overview',
-            'api/location/getCurrentLocation',
-            'api/location/startUpdateLocation',
-          ],
-        },
-        {
-          type: 'category',
           label: 'game',
           collapsed: false,
           items: [
@@ -167,7 +157,7 @@ const sidebars: SidebarsConfig = {
           type: 'category',
           label: 'haptic',
           collapsed: false,
-          items: ['api/haptic/haptic-overview', 'api/haptic/generateHapticFeedback'],
+          items: ['api/haptic/generateHapticFeedback'],
         },
         {
           type: 'category',
@@ -183,6 +173,16 @@ const sidebars: SidebarsConfig = {
             'api/iap/getPendingOrders',
             'api/iap/getProductItemList',
             'api/iap/getSubscriptionInfo',
+          ],
+        },
+        {
+          type: 'category',
+          label: 'location',
+          collapsed: false,
+          items: [
+            'api/location/location-overview',
+            'api/location/getCurrentLocation',
+            'api/location/startUpdateLocation',
           ],
         },
         {
