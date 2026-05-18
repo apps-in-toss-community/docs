@@ -7,7 +7,7 @@ const REPO = 'docs';
 
 const config: Config = {
   title: 'Apps in Toss — Community Docs',
-  tagline: '커뮤니티가 정리한 앱인토스 미니앱 가이드·레퍼런스 (비공식)',
+  tagline: '커뮤니티가 정리한 앱인토스 미니앱 가이드·레퍼런스',
   favicon: 'img/logo.svg',
 
   // Target URL. Docs serves from its own sub-domain (`docs.aitc.dev`) so
@@ -70,14 +70,6 @@ const config: Config = {
     colorMode: {
       defaultMode: 'light',
       respectPrefersColorScheme: true,
-    },
-    announcementBar: {
-      id: 'unofficial-community-notice',
-      content:
-        '이 사이트는 <strong>비공식 커뮤니티 프로젝트</strong>입니다. 토스(Toss) 팀과 제휴되어 있지 않습니다. / This is an <strong>unofficial community project</strong>, not affiliated with Toss.',
-      backgroundColor: '#fff7e0',
-      textColor: '#5c4400',
-      isCloseable: false,
     },
     navbar: {
       title: 'Apps in Toss Community',
@@ -147,7 +139,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `© ${new Date().getFullYear()} apps-in-toss-community contributors. Unofficial community project.`,
+      copyright: `© ${new Date().getFullYear()} apps-in-toss-community contributors. Community open-source project.`,
     },
     prism: {
       theme: prismThemes.github,
