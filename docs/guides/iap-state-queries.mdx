@@ -65,7 +65,7 @@ function IAPStateBootstrap() {
 이 한 컴포넌트가 진입 시 네 가지를 모두 처리합니다. 순서 의도:
 
 1. **상품 목록 먼저** — 가격이 바뀌었거나 SKU가 비활성화됐다면 그걸 본 화면이 그려지기 전에 반영.
-2. **미처리 주문 복구** — 사용자가 결제 직후 앱을 종료해 `completeProductGrant`가 누락된 경우의 자가 회복. ([IAP 결제 흐름](/guides/iap-payment-flow#복구-—-handling-pending-orders) 참고.)
+2. **미처리 주문 복구** — 사용자가 결제 직후 앱을 종료해 `completeProductGrant`가 누락된 경우의 자가 회복. ([IAP 결제 흐름](/guides/iap-payment-flow#복구--pending-주문-회수) 참고.)
 3. **환불 반영** — 사용자가 토스에서 환불을 받았으면 사용자 서버에서 grant를 회수해야 함. **이걸 안 하면 환불받고도 콘텐츠를 계속 쓸 수 있음.**
 4. **구독 상태**는 그 화면이 구독에 의존할 때만(아래 별도 섹션).
 
@@ -96,7 +96,7 @@ const { products } = await IAP.getProductItemList();
 const { orders } = await IAP.getPendingOrders();
 ```
 
-**미니앱 진입 시마다 호출**합니다. 결제 → `processProductGrant` 서버 fulfillment → `completeProductGrant` 사이 어디서든 사용자가 앱을 종료하면 그 주문이 여기 잡힙니다. 자세한 복구 흐름과 idempotent server fulfillment는 [IAP 결제 흐름 — Recovery](/guides/iap-payment-flow#복구-—-handling-pending-orders).
+**미니앱 진입 시마다 호출**합니다. 결제 → `processProductGrant` 서버 fulfillment → `completeProductGrant` 사이 어디서든 사용자가 앱을 종료하면 그 주문이 여기 잡힙니다. 자세한 복구 흐름과 idempotent server fulfillment는 [IAP 결제 흐름 — Recovery](/guides/iap-payment-flow#복구--pending-주문-회수).
 
 추가 주의:
 

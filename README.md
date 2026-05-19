@@ -2,9 +2,7 @@
 
 [English](./README.en.md)
 
-> 🚧 **Work in Progress** — 콘텐츠는 초기 단계지만, 사이트는 라이브입니다. `main` 푸시 시 GitHub Actions로 자동 배포됩니다.
-
-**Apps in Toss** 미니앱 개발을 위한 커뮤니티 문서 사이트. 원본 SDK 문서를 재구성한 **가이드/레퍼런스** 세트입니다.
+**Apps in Toss** 미니앱 개발을 위한 커뮤니티 문서 사이트. 가이드/레퍼런스 세트입니다. 콘텐츠는 초기 단계이며 `main` 푸시 시 GitHub Actions로 자동 배포됩니다.
 
 ## Goal
 

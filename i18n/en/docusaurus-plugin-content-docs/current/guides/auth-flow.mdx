@@ -174,7 +174,7 @@ await appsInTossSignTossCert({ txId: 'order-1234' });
 ## Environment differences
 
 - **Real Toss app**: the auth dialog is system UI. `appLogin` rejects if "Toss login integration" isn't enabled in the operator console.
-- **devtools mock**: the [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) mock resolves `appLogin` immediately with a fake `authorizationCode`. Server-side token exchange must be mocked separately — only the shape is real, not the upstream behavior.
+- **devtools mock**: the [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) mock resolves `appLogin` immediately with a fake `authorizationCode`. Server-side token exchange must be mocked separately — the call shape matches the real SDK, but runtime behaviour is simulated.
 - **External browser**: `appLogin` throws. Don't expose login UI outside the mini-app environment.
 
 ## Related APIs
@@ -191,4 +191,4 @@ await appsInTossSignTossCert({ txId: 'order-1234' });
 
 ## External references
 
-- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — upstream SDK package.
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package.
