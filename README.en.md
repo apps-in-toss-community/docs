@@ -2,7 +2,7 @@
 
 [한국어](./README.md)
 
-**Apps in Toss** mini-app community documentation site. A community-curated reference built around the SDK — guides + reference. Content is early-stage; pushes to `main` trigger an automatic deploy via GitHub Actions.
+**Apps in Toss** mini-app community documentation site. A community-curated reference built around the SDK — guides + reference. Pushes to `main` trigger an automatic deploy via GitHub Actions.
 
 ## Goal
 
@@ -75,7 +75,7 @@ Deploy URL: **`https://docs.aitc.dev/`** (dedicated sub-domain).
 
 ## Roadmap
 
-Scaffold is complete. See the [landing page](https://aitc.dev/) for the org-wide roadmap.
+API reference covers every SDK namespace in both ko and en. Guides (`guides/`) and recipes (`recipes/`) are being filled in. See the [landing page](https://aitc.dev/) for the org-wide roadmap.
 
 ## Pair repos
 

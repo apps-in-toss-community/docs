@@ -2,16 +2,16 @@
 
 [English](./README.en.md)
 
-**Apps in Toss** 미니앱 개발을 위한 커뮤니티 문서 사이트. 가이드/레퍼런스 세트입니다. 콘텐츠는 초기 단계이며 `main` 푸시 시 GitHub Actions로 자동 배포됩니다.
+**Apps in Toss** 미니앱 개발을 위한 커뮤니티 문서 사이트. 가이드/레퍼런스 세트입니다. `main` 푸시 시 GitHub Actions로 자동 배포됩니다.
 
-## Goal
+## 목표
 
 - **Getting started** — 처음부터 미니앱 하나 배포까지의 실전 가이드
 - **Recipes** — 흔한 시나리오(IAP, Ads, Permissions 등)의 복사-붙여넣기 지향 스니펫
 - **API reference** — 원본 SDK 레퍼런스를 더 읽기 쉽게 재구성
 - **한국어 + English** — 한국어 default, 영어 mirror
 
-## Stack
+## 기술 스택
 
 - **Docusaurus 3.10** (classic preset, TypeScript, MDX)
 - **pnpm** 10.33.0 — 패키지 매니저
@@ -20,7 +20,7 @@
 
 프레임워크 선정 근거와 아키텍처 세부는 [`CLAUDE.md`](./CLAUDE.md) 참고.
 
-## Quickstart (contributors)
+## 빠른 시작 (contributor)
 
 ```bash
 pnpm install
@@ -34,7 +34,7 @@ pnpm format       # biome format --write .
 pnpm verify:crosslinks  # check docs ↔ sdk-example name parity
 ```
 
-## Pre-commit hook
+## Pre-commit 훅
 
 선택 사항이지만 권장합니다. clone 후 다음 한 줄로 표준 pre-commit hook을 활성화하세요 (staged 파일에 `biome check` 실행):
 
@@ -44,40 +44,40 @@ git config core.hooksPath .githooks
 
 push 전 빠른 피드백을 위한 개발자 편의 기능입니다. CI가 동일한 검사를 실제 강제 계층으로 실행하므로, hook을 활성화하지 않은 contributor도 PR 단계에서 lint 실패를 확인하게 됩니다.
 
-## Cross-link verification
+## 크로스링크 검증
 
-`pnpm verify:crosslinks` checks that every method documented under `docs/api/<group>/<method>.mdx` (and its `i18n/en/...` mirror) has a matching `ApiCard name="..."` prop in the corresponding `apps-in-toss-community/sdk-example` page. Drift here silently breaks the `TryItLink` deep-links.
+`pnpm verify:crosslinks`는 `docs/api/<group>/<method>.mdx`(및 `i18n/en/...` mirror)에 문서화된 모든 메서드가 대응하는 `apps-in-toss-community/sdk-example` 페이지의 `ApiCard name="..."` prop과 일치하는지 검사합니다. 여기서 drift가 생기면 `TryItLink` deep-link가 조용히 깨집니다.
 
-**Adding a new namespace**: pick the same `<group>` slug in both repos. The docs slug is the lowercase namespace name (e.g. `clipboard`, `storage`); the sdk-example file is `src/pages/<Capitalized>Page.tsx` containing `<ApiCard name="<methodName>" ... />` for each method. Method names are SDK export names (camelCase). The verifier accepts three card-name shapes from sdk-example and reduces them to the docs slug:
+**새 네임스페이스 추가**: 두 repo에서 같은 `<group>` slug를 사용합니다. docs slug는 소문자 네임스페이스 이름(예: `clipboard`, `storage`)이고, sdk-example 파일은 각 메서드마다 `<ApiCard name="<methodName>" ... />`를 담은 `src/pages/<Capitalized>Page.tsx`입니다. 메서드 이름은 SDK export 이름(camelCase)입니다. 검증기는 sdk-example의 card 이름을 세 가지 형태로 받아 docs slug로 환원합니다:
 
 - `setClipboardText` → `setClipboardText`
-- `Storage.setItem` → `setItem` (PascalCase namespace prefix stripped)
-- `partner.addAccessoryButton` → `addAccessoryButton` (lowercase namespace prefix stripped)
+- `Storage.setItem` → `setItem` (PascalCase 네임스페이스 prefix 제거)
+- `partner.addAccessoryButton` → `addAccessoryButton` (소문자 네임스페이스 prefix 제거)
 
-Multi-dot names (`navigator.clipboard.writeText`) are rejected by the regex — only single-prefix form is accepted. Single-dot names with known non-SDK prefixes (`navigator.onLine`, `SafeAreaInsets.get`) are rejected by `PREFIX_SKIP_LIST` in the script — extend it if sdk-example gains demo cards for other Web APIs (`location.*`, `history.*`, etc.). If the sdk-example file casing diverges from `Capitalize(group) + 'Page.tsx'` (acronym groups like `iap → IAPPage.tsx`), add the override in `SDK_PAGE_FILENAME_OVERRIDES`.
+다중 점 이름(`navigator.clipboard.writeText`)은 정규식에서 거부됩니다 — 단일 prefix 형태만 허용합니다. SDK가 아닌 알려진 prefix를 가진 단일 점 이름(`navigator.onLine`, `SafeAreaInsets.get`)은 스크립트의 `PREFIX_SKIP_LIST`에서 거부됩니다 — sdk-example에 다른 Web API(`location.*`, `history.*` 등)의 데모 card가 추가되면 이 목록을 확장하세요. sdk-example 파일 casing이 `Capitalize(group) + 'Page.tsx'`와 다르면(예: `iap → IAPPage.tsx` 같은 약어 group), `SDK_PAGE_FILENAME_OVERRIDES`에 override를 추가합니다.
 
 ```bash
-pnpm verify:crosslinks            # docs methods missing in sdk-example → error
-pnpm verify:crosslinks --strict   # also: sdk-example methods missing in docs → error
-pnpm verify:crosslinks --ref <branch>  # check against a non-main sdk-example ref
+pnpm verify:crosslinks            # sdk-example에 없는 docs 메서드 → error
+pnpm verify:crosslinks --strict   # 추가로: docs에 없는 sdk-example 메서드 → error
+pnpm verify:crosslinks --ref <branch>  # main이 아닌 sdk-example ref로 검사
 ```
 
-CI runs the default mode on every PR (job: `verify-crosslinks`). External fetch failures (GitHub raw down, rate limit) warn and exit 0 by default — sdk-example outage shouldn't block docs PRs. Use `--strict` locally to fail closed when you want certainty.
+CI는 모든 PR에서 default 모드를 실행합니다(job: `verify-crosslinks`). 외부 fetch 실패(GitHub raw 다운, rate limit)는 기본적으로 경고하고 exit 0 — sdk-example 장애가 docs PR을 막아선 안 되기 때문입니다. 확실히 닫고 싶을 때는 로컬에서 `--strict`를 사용하세요.
 
-## Deploy
+## 배포
 
 배포 URL: **`https://docs.aitc.dev/`** (전용 sub-domain).
 
 - **워크플로**: [`.github/workflows/deploy-pages.yml`](./.github/workflows/deploy-pages.yml) — `main` push + `workflow_dispatch`. `pnpm build` → `actions/upload-pages-artifact@v3` → `actions/deploy-pages@v4`.
-- **CI**: [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) — `check` job runs lint + typecheck + build dry-run; `verify-crosslinks` job runs `pnpm verify:crosslinks`.
+- **CI**: [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) — `check` job이 lint + typecheck + build dry-run을 돌리고, `verify-crosslinks` job이 `pnpm verify:crosslinks`를 실행.
 - **버전 정책**: 없음. `main` = 배포 (Type C, Changesets 미사용).
 - **Pages source**: repo Settings → Pages → "GitHub Actions" (이미 활성화됨).
 
-## Roadmap
+## 로드맵
 
-현재 스캐폴드 완료 단계. 조직 전체 로드맵은 [landing page](https://aitc.dev/) 참고.
+전체 SDK 네임스페이스의 API 레퍼런스가 ko/en으로 갖춰져 있습니다. 가이드(`guides/`)와 레시피(`recipes/`)를 채워 나가는 중입니다. 조직 전체 로드맵은 [landing page](https://aitc.dev/) 참고.
 
-## Pair repos
+## 짝 repo
 
 - [`sdk-example`](https://github.com/apps-in-toss-community/sdk-example) — downstream consumer. 각 API 페이지에서 sdk-example로 deep-link (`/docs/api/<group>/<method>` ↔ `/sdk-example/<group>#<method>`). 양방향 URL 계약은 `CLAUDE.md` 참고.
 
