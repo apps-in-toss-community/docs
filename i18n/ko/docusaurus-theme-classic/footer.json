@@ -1,14 +1,14 @@
 {
   "link.title.Community": {
-    "message": "Community",
+    "message": "커뮤니티",
     "description": "The title of the footer links column with title=Community in the footer"
   },
   "link.title.SDK Package": {
-    "message": "SDK Package",
+    "message": "SDK 패키지",
     "description": "The title of the footer links column with title=SDK Package in the footer"
   },
   "link.title.Repo": {
-    "message": "Repo",
+    "message": "저장소",
     "description": "The title of the footer links column with title=Repo in the footer"
   },
   "link.item.label.Landing": {
