@@ -63,8 +63,7 @@ This table covers terms in the **mini-app / Toss host environment / permissions 
 
 | Korean | English | Notes |
 | --- | --- | --- |
-| 비공식 커뮤니티 | unofficial community | "공식 / official / powered by Toss" is banned. |
-| 커뮤니티 프로젝트 | community project | How the `apps-in-toss-community` organization refers to itself. |
+| 커뮤니티 프로젝트 | community project | How the `apps-in-toss-community` organization refers to itself. None of "공식 / official / powered by Toss / 비공식 / unofficial" are used. |
 | 공식 문서 | official docs | Only when *citing* the Apps-in-Toss project's own docs. Never apply it to this site. |
 
 ## Standard H2 headings used by the page template

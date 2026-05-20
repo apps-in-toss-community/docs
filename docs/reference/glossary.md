@@ -63,8 +63,7 @@ description: 본 사이트의 한국어/영어 페이지에서 일관되게 쓰�
 
 | 한국어 | English | 비고 |
 | --- | --- | --- |
-| 비공식 커뮤니티 | unofficial community | "공식 / official / powered by Toss" 금지. |
-| 커뮤니티 프로젝트 | community project | `apps-in-toss-community` 조직 전반의 자기 호칭. |
+| 커뮤니티 프로젝트 | community project | `apps-in-toss-community` 조직 전반의 자기 호칭. "공식 / official / powered by Toss / 비공식 / unofficial"은 모두 쓰지 않습니다. |
 | 공식 문서 | official docs | 앱인토스 측 공식 docs를 *참조*할 때만. 이 사이트 자체에는 쓰지 않습니다. |
 
 ## 페이지 템플릿의 표준 H2 헤딩
