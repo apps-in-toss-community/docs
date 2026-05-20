@@ -9,6 +9,7 @@ build
 .claude/settings.local.json
 .claude/*.lock
 .claude.lock
+.claude/worktrees/
 
 .DS_Store
 *.log
