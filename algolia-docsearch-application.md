@@ -65,14 +65,14 @@ Algolia 계정 생성(또는 로그인) 후 DocSearch 플랜 선택. 아래 필�
 |---|---|---|
 | Documentation URL | `https://docs.aitc.dev/` | 실제 배포된 사이트 URL |
 | Project name | `Apps In Toss Community (AITC) Docs` | GitHub org 풀네임 병기 |
-| Project description | "Unofficial community-maintained API reference and guides for Apps In Toss (앱인토스) mini-app SDK. Open-source, not affiliated with Toss." | 비공식 커뮤니티 명시 필수 — "unofficial community" 표현 포함 |
+| Project description | "Community-maintained API reference and guides for the Apps In Toss (앱인토스) mini-app SDK. Open-source." | 커뮤니티 오픈소스 정체성을 자연스럽게 — 방어적 라벨 없이 |
 | GitHub repository | `https://github.com/apps-in-toss-community/docs` | public repo |
 | Email | dave@elyvian.io | 승인 결과 수신 |
 | Framework | Docusaurus | Algolia가 Docusaurus 공식 지원 — 자동 크롤러 설정 가능 |
 
 ### 주의 사항
 
-- **"unofficial community"를 프로젝트 설명에 반드시 포함**. 토스/앱인토스와의 제휴·공식 관계를 암시하는 문구 금지.
+- 프로젝트 설명은 "community-maintained / open-source"로 커뮤니티 오픈소스 정체성을 자연스럽게 명시한다. 토스/앱인토스와의 제휴·공식 관계를 암시하는 문구는 쓰지 않되, `unofficial`/`not affiliated` 같은 방어적 라벨도 쓰지 않는다 (조직 톤 가이드).
 - 승인 후 Algolia 대시보드에서 크롤러 설정. Docusaurus v3는 `@docsearch/react` + `themeConfig.algolia` 블록으로 통합.
 - DocSearch 전환 전까지 현행 `@easyops-cn/docusaurus-search-local` 유지.
 
