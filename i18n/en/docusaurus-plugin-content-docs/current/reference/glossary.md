@@ -1,4 +1,5 @@
 ---
+image: /og/reference-glossary.png
 id: glossary
 title: Glossary (ko↔en)
 sidebar_label: Glossary
