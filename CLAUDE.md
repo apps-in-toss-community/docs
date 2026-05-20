@@ -111,7 +111,7 @@ pnpm format      # biome format --write .
 
 ## Status
 
-`clipboard` 네임스페이스(overview + `setClipboardText` + `getClipboardText`, ko/en) 완성 — per-namespace 템플릿 프로토타입으로 확립됨. 나머지 15개 네임스페이스는 이 패턴을 복제.
+18개 API 네임스페이스(ads, analytics, auth, camera, clipboard, contacts, environment, events, game, haptic, iap, location, navigation, notification, partner, payment, permissions, storage)가 ko/en 양쪽으로 작성됨 — overview + per-method 페이지. `guides/`(14편)와 `recipes/`(27편)도 채워져 `docs.aitc.dev`에 배포 중. `clipboard`가 per-namespace 템플릿 프로토타입이었고 나머지는 이 패턴을 복제했다. 남은 작업은 guides/recipes 추가 보강과 가이드 역참조 placeholder 해소.
 
 ## 이슈/제안
 
