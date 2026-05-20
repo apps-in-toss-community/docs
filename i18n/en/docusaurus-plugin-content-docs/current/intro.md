@@ -1,4 +1,5 @@
 ---
+image: /og/intro.png
 id: intro
 title: Introduction
 slug: /
