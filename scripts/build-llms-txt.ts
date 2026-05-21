@@ -22,6 +22,7 @@
 import { readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { type Frontmatter, parseFrontmatter } from './lib/frontmatter';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
@@ -34,13 +35,6 @@ const BASE_URL = 'https://docs.aitc.dev';
 // Types
 // ---------------------------------------------------------------------------
 
-interface Frontmatter {
-  title?: string;
-  slug?: string;
-  id?: string;
-  description?: string;
-}
-
 interface PageEntry {
   namespace: string;
   /** Canonical ko URL, e.g. https://docs.aitc.dev/api/clipboard/setClipboardText */
@@ -48,29 +42,6 @@ interface PageEntry {
   title: string;
   description: string;
   isOverview: boolean;
-}
-
-// ---------------------------------------------------------------------------
-// Frontmatter parser — reuses same logic as build-og-images.tsx
-// ---------------------------------------------------------------------------
-
-function parseFrontmatter(source: string): Frontmatter {
-  const fm: Frontmatter = {};
-  const match = source.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-  if (!match) return fm;
-  const block = match[1];
-  for (const line of block.split('\n')) {
-    const colon = line.indexOf(':');
-    if (colon === -1) continue;
-    const key = line.slice(0, colon).trim();
-    const raw = line.slice(colon + 1).trim();
-    const value = raw.replace(/^['"]|['"]$/g, '');
-    if (key === 'title') fm.title = value;
-    else if (key === 'slug') fm.slug = value;
-    else if (key === 'id') fm.id = value;
-    else if (key === 'description') fm.description = value;
-  }
-  return fm;
 }
 
 // ---------------------------------------------------------------------------
