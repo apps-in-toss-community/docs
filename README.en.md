@@ -6,7 +6,7 @@
 
 ## Goal
 
-- **Getting started** — practical guide from zero to deploying a mini-app
+- **Guides** — hands-on walkthroughs of the "why/when" for auth, IAP, permissions, events, ads
 - **Recipes** — copy-paste-oriented snippets for common scenarios (IAP, Ads, Permissions, …)
 - **API reference** — the original SDK reference, re-organized for readability
 - **한국어 + English** — Korean default, English mirror
