@@ -6,7 +6,7 @@
 
 ## 목표
 
-- **Getting started** — 처음부터 미니앱 하나 배포까지의 실전 가이드
+- **Guides** — 인증·IAP·권한·이벤트·광고 등 "왜/언제"를 설명하는 실전 워크스루
 - **Recipes** — 흔한 시나리오(IAP, Ads, Permissions 등)의 복사-붙여넣기 지향 스니펫
 - **API reference** — 원본 SDK 레퍼런스를 더 읽기 쉽게 재구성
 - **한국어 + English** — 한국어 default, 영어 mirror

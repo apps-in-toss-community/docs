@@ -25,13 +25,12 @@
 
 ```
 /docs/
-├── intro                         # Landing (사이트 소개 + 푸터 disclaimer 1회)
-├── getting-started/              # what-is-apps-in-toss, quickstart, project-setup, first-deploy
+├── intro.md                      # Landing (사이트 소개 + 푸터 disclaimer 1회)
 ├── guides/                       # "왜/언제" — auth-flow, iap-workflow, permissions-pattern, events-subscription, ads-integration
 ├── api/                          # "무엇/어떻게" 레퍼런스 — auth, navigation, environment, permissions, storage,
 │                                 #   location, camera, contacts, clipboard, haptic, iap, ads, game, analytics, partner, events
 ├── recipes/                      # 복사-붙여넣기 스니펫
-└── reference/                    # changelog, community-projects, glossary
+└── reference/                    # glossary
 ```
 
 ### API 페이지 템플릿 (`/docs/api/<group>/<method>`)
