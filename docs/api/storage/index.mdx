@@ -77,4 +77,4 @@ sdk-example의 Storage 페이지에서 모든 메서드를 실험해 볼 수 있
 ## 외부 참조
 
 - [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.
-- 표준 Web API 대응: [`Window.localStorage`](https://developer.mozilla.org/docs/Web/API/Window/localStorage) — 동기 API라는 점이 다르고, 격리 단위(원본 origin)도 다릅니다. `polyfill` 패키지(예정)가 표준 API 위에 SDK 호환 비동기 shim을 제공할 예정입니다.
+- 표준 Web API 대응: [`Window.localStorage`](https://developer.mozilla.org/docs/Web/API/Window/localStorage) — 동기 API라는 점이 다르고, 격리 단위(원본 origin)도 다릅니다. 앱인토스 WebView에서는 네이티브 `localStorage`가 그대로 동작하므로 `@ait-co/polyfill`은 이 API를 별도로 shim하지 않습니다(의도적 scope 외).
