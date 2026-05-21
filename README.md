@@ -1,6 +1,6 @@
 # docs
 
-[English](./README.en.md)
+**한국어** · [English](./README.en.md)
 
 **Apps in Toss** 미니앱 개발을 위한 커뮤니티 문서 사이트. 가이드/레퍼런스 세트입니다. `main` 푸시 시 GitHub Actions로 자동 배포됩니다.
 
