@@ -1,6 +1,6 @@
 # docs
 
-[한국어](./README.md)
+[한국어](./README.md) · **English**
 
 **Apps in Toss** mini-app community documentation site. A community-curated reference built around the SDK — guides + reference. Pushes to `main` trigger an automatic deploy via GitHub Actions.
 
