@@ -18,3 +18,4 @@ build
 # (coverage-baseline.json) is tracked; the report regenerates on every CI run
 # and is posted into the weekly drift issue.
 sdk-coverage-report.md
+.codegraph/
