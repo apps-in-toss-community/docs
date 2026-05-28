@@ -15,27 +15,45 @@ To prevent content from overlapping the notch or home bar, apply the safe area i
 `getSafeAreaInsets()` (which returns a single `number`) is deprecated. Use `SafeAreaInsets.get()` instead — it returns `{ top, bottom, left, right }` so you can apply each direction independently.
 :::
 
+:::caution Top inset application differs by webViewType
+When `webViewProps.type` (`granite.config.ts`) is `partner`, the Toss native top bar is drawn outside the WebView viewport — content already starts below the bar. Applying `SafeAreaInsets.get().top` as padding in that case creates a duplicate gap above the content. In partner mini-apps, treat the top inset as **informational only** and do not apply it as padding. `game`/`external` mini-apps overlay the top bar inside the viewport, so the value must be applied as padding. `bottom`/`left`/`right` are applied identically in both types.
+:::
+
+:::caution subscribe payloads can be stale after rotation
+Empirically, `SafeAreaInsets.subscribe` delivers a stale `top` value on landscape→portrait rotation — the channel matches the previous landscape `left`/`right` (deterministic). Treat `subscribe` as a change signal and call `SafeAreaInsets.get()` inside the callback to read consistent insets.
+:::
+
 ## Apply safe area padding to a root layout
 
 ```tsx
 import { SafeAreaInsets } from '@apps-in-toss/web-framework';
 import { useState, useEffect } from 'react';
 
+// Expose `webViewProps.type` from granite.config.ts as a build-time constant
+// (Vite `define`) so client code knows its WebView frame.
+declare const __WEB_VIEW_TYPE__: 'partner' | 'external' | 'game';
+
 function SafeLayout({ children }: { children: React.ReactNode }) {
   const [insets, setInsets] = useState(() => SafeAreaInsets.get());
 
   useEffect(() => {
-    // Subscribe to inset updates on screen mode changes.
+    // subscribe payload can be stale after rotation — use it as a signal only
+    // and re-read with get() to get consistent insets.
     const cleanup = SafeAreaInsets.subscribe({
-      onEvent: (newInsets) => setInsets(newInsets),
+      onEvent: () => setInsets(SafeAreaInsets.get()),
     });
     return cleanup;
   }, []);
 
+  // In a partner WebView the top inset already lives outside the viewport,
+  // so applying it as padding would create a duplicate gap. Zero it for
+  // partner; leave the other edges alone.
+  const paddingTop = __WEB_VIEW_TYPE__ === 'partner' ? 0 : insets.top;
+
   return (
     <div
       style={{
-        paddingTop: insets.top,
+        paddingTop,
         paddingBottom: insets.bottom,
         paddingLeft: insets.left,
         paddingRight: insets.right,

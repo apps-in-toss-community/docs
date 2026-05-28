@@ -15,27 +15,45 @@ description: SafeAreaInsets.get()과 SafeAreaInsets.subscribe()로 노치·홈�
 `getSafeAreaInsets()` (단순 `number` 반환)은 deprecated입니다. 대신 `SafeAreaInsets.get()`을 사용하세요 — `{ top, bottom, left, right }` 객체로 방향별 인셋을 구분할 수 있습니다.
 :::
 
+:::caution webViewType에 따라 top inset 적용 방식이 다릅니다
+`webViewProps.type`(`granite.config.ts`)이 `partner`이면 토스 native 상단바가 WebView viewport 밖에 그려져 콘텐츠가 이미 상단바 아래에서 시작합니다. 이때 `SafeAreaInsets.get().top`을 padding으로 적용하면 콘텐츠 위에 중복 빈 공간이 생깁니다 — partner 미니앱은 top inset을 **정보용으로만** 쓰고 padding으로 적용하지 않습니다. `game`/`external`은 상단바가 viewport 안 overlay이므로 padding으로 그대로 적용해야 합니다. `bottom`/`left`/`right`는 두 type 모두 동일하게 padding으로 적용합니다.
+:::
+
+:::caution subscribe payload는 회전 후 stale일 수 있습니다
+실측에서 `SafeAreaInsets.subscribe`가 landscape→portrait 회전 시 `top` 채널을 직전 landscape의 `left`/`right` 값으로 stale 전달하는 사례가 확인되었습니다 (deterministic). subscribe는 변경 신호로만 사용하고 콜백 안에서 `SafeAreaInsets.get()`을 다시 호출해 정합한 값을 읽는 방식이 안전합니다.
+:::
+
 ## 기본 Safe Area 패딩 적용
 
 ```tsx
 import { SafeAreaInsets } from '@apps-in-toss/web-framework';
 import { useState, useEffect } from 'react';
 
+// granite.config.ts 의 webViewProps.type 을 build-time 상수로 박아두면
+// 미니앱 client 코드가 자기 WebView frame 을 알 수 있습니다 (Vite `define`).
+declare const __WEB_VIEW_TYPE__: 'partner' | 'external' | 'game';
+
 function SafeLayout({ children }: { children: React.ReactNode }) {
   const [insets, setInsets] = useState(() => SafeAreaInsets.get());
 
   useEffect(() => {
-    // 화면 모드 전환 시 인셋 업데이트를 구독합니다.
+    // subscribe payload 가 회전 후 stale 일 수 있으므로 signal 로만 쓰고
+    // get() 으로 다시 읽는다.
     const cleanup = SafeAreaInsets.subscribe({
-      onEvent: (newInsets) => setInsets(newInsets),
+      onEvent: () => setInsets(SafeAreaInsets.get()),
     });
     return cleanup;
   }, []);
 
+  // partner WebView 에선 top 이 이미 viewport 밖 chrome 에 가려진 상태라
+  // padding 으로 적용하면 중복 공간이 생긴다. 이 분기는 top 만 0 으로 떨어뜨리고
+  // 나머지 edge 는 그대로 둔다.
+  const paddingTop = __WEB_VIEW_TYPE__ === 'partner' ? 0 : insets.top;
+
   return (
     <div
       style={{
-        paddingTop: insets.top,
+        paddingTop,
         paddingBottom: insets.bottom,
         paddingLeft: insets.left,
         paddingRight: insets.right,
