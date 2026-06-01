@@ -11,7 +11,7 @@ import TryItLink from '@site/src/components/TryItLink';
 
 # `appsInTossEvent.addEventListener`
 
-Subscribes to Apps in Toss platform-specific events. In the current SDK version (`2.5.0`), the `AppsInTossEvent` type is an empty object — no subscribable events are defined yet. This namespace is reserved for future platform event expansion.
+Subscribes to Apps in Toss platform-specific events. In the current SDK version (`3.0.0-beta.9d42c0b`), the `AppsInTossEvent` type is an empty object — no subscribable events are defined yet. This namespace is reserved for future platform event expansion.
 
 ## Signature
 
@@ -79,12 +79,10 @@ function Page() {
 
 - [`graniteEvent.addEventListener`](./graniteEvent.addEventListener) — subscribe to `backEvent`, `homeEvent`.
 - [`tdsEvent.addEventListener`](./tdsEvent.addEventListener) — subscribe to `navigationAccessoryEvent`.
-- [`onVisibilityChangedByTransparentServiceWeb`](./onVisibilityChangedByTransparentServiceWeb) — subscribe to visibility changes.
-
 ## Related guides
 
 - [Guides — Event subscription patterns](/guides/event-subscription) — addEventListener shape, cleanup, comparison across the three domains, and anti-patterns.
 
 ## External references
 
-- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/webview-bridge`](https://www.npmjs.com/package/@apps-in-toss/webview-bridge).

@@ -39,7 +39,7 @@
 
 페이지마다 별도 disclaimer 배지를 붙이지 않는다. 사이트 정체성은 `intro.md`/en intro 푸터의 차분한 한 줄(`커뮤니티 오픈소스 프로젝트입니다.` / `Community open-source project.`)에서 1회 명시한다 — 위 "프로젝트 성격"의 톤 가이드 참조.
 
-예시 코드에서 `showToast`처럼 **SDK에 실제로 존재하지 않는 API를 import하지 않는다**. 사용자 피드백은 앱 자체 토스트(`showAppToast(...)`) 또는 `setState` 인라인 메시지로. 새 SDK import 추가 시 `../devtools/src/mock/device/` 또는 `@apps-in-toss/web-bridge` 타입에 실재 여부 먼저 확인.
+예시 코드에서 `showToast`처럼 **SDK에 실제로 존재하지 않는 API를 import하지 않는다**. 사용자 피드백은 앱 자체 토스트(`showAppToast(...)`) 또는 `setState` 인라인 메시지로. 새 SDK import 추가 시 `../devtools/src/mock/device/` 또는 `@apps-in-toss/webview-bridge` 타입에 실재 여부 먼저 확인.
 
 ### 네임스페이스 overview 페이지 (`/docs/api/<group>/index.mdx`)
 

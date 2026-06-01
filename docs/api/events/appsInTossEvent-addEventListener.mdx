@@ -11,7 +11,7 @@ import TryItLink from '@site/src/components/TryItLink';
 
 # `appsInTossEvent.addEventListener`
 
-앱인토스 플랫폼 고유 이벤트를 구독합니다. 현재 SDK 버전(`2.5.0`)에서 `AppsInTossEvent` 타입은 빈 객체이므로 구독 가능한 이벤트가 없지만, 이 네임스페이스는 향후 플랫폼 이벤트 확장을 위해 예약되어 있습니다.
+앱인토스 플랫폼 고유 이벤트를 구독합니다. 현재 SDK 버전(`3.0.0-beta.9d42c0b`)에서 `AppsInTossEvent` 타입은 빈 객체이므로 구독 가능한 이벤트가 없지만, 이 네임스페이스는 향후 플랫폼 이벤트 확장을 위해 예약되어 있습니다.
 
 ## 시그니처
 
@@ -81,12 +81,10 @@ sdk-example의 Events 페이지에서 이벤트 구독 동작을 확인할 수 �
 
 - [`graniteEvent.addEventListener`](./graniteEvent.addEventListener) — `backEvent`, `homeEvent` 등 Granite 이벤트를 구독합니다.
 - [`tdsEvent.addEventListener`](./tdsEvent.addEventListener) — `navigationAccessoryEvent` 등 TDS 이벤트를 구독합니다.
-- [`onVisibilityChangedByTransparentServiceWeb`](./onVisibilityChangedByTransparentServiceWeb) — 가시성 변화 이벤트를 구독합니다.
-
 ## 관련 가이드
 
 - [Guides — 이벤트 구독 패턴](/guides/event-subscription) — addEventListener 구조, cleanup, 세 도메인 비교, 안티 패턴.
 
 ## 외부 참조
 
-- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/webview-bridge`](https://www.npmjs.com/package/@apps-in-toss/webview-bridge)에서 가져옵니다.

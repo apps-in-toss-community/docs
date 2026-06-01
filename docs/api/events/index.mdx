@@ -19,7 +19,6 @@ import TryItLink from '@site/src/components/TryItLink';
 | --- | --- | --- |
 | [`appsInTossEvent.addEventListener`](/api/events/appsInTossEvent.addEventListener) | `() => void` | 앱인토스 플랫폼 이벤트를 구독합니다. |
 | [`graniteEvent.addEventListener`](/api/events/graniteEvent.addEventListener) | `() => void` | Granite(토스 내부) 이벤트를 구독합니다. `backEvent`, `homeEvent` 지원. |
-| [`onVisibilityChangedByTransparentServiceWeb`](/api/events/onVisibilityChangedByTransparentServiceWeb) | `() => void` | 투명 서비스 웹 컨테이너 표시 여부 변화를 구독합니다. |
 | [`tdsEvent.addEventListener`](/api/events/tdsEvent.addEventListener) | `() => void` | TDS(Toss Design System) 이벤트를 구독합니다. `navigationAccessoryEvent` 지원. |
 
 ## 권한
@@ -28,7 +27,7 @@ import TryItLink from '@site/src/components/TryItLink';
 
 ## 이벤트 구독 패턴
 
-모든 `addEventListener` 및 `onVisibilityChangedByTransparentServiceWeb`은 **cleanup 함수**를 반환합니다. React에서는 `useEffect`의 반환값으로 사용하세요.
+모든 `addEventListener`는 **cleanup 함수**를 반환합니다. React에서는 `useEffect`의 반환값으로 사용하세요.
 
 ```tsx
 import { graniteEvent } from '@apps-in-toss/web-framework';
@@ -62,4 +61,4 @@ sdk-example의 Events 페이지에서 이벤트를 직접 구독하고 결과를
 
 ## 외부 참조
 
-- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge)에서 가져옵니다.
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/webview-bridge`](https://www.npmjs.com/package/@apps-in-toss/webview-bridge)에서 가져옵니다.

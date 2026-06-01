@@ -1,6 +1,6 @@
 {
   "sdkPackage": "@apps-in-toss/web-framework",
-  "sdkVersion": "2.5.0",
+  "sdkVersion": "3.0.0-beta.9d42c0b",
   "exports": [
     {
       "name": "Analytics",
@@ -10,12 +10,12 @@
     {
       "name": "appLogin",
       "kind": "function",
-      "hash": "b71a1ad1a8353956"
+      "hash": "ff4b813863dc995e"
     },
     {
       "name": "appsInTossEvent",
       "kind": "const",
-      "hash": "6cdbae9665ae3b21"
+      "hash": "6ec564ba723d49dd"
     },
     {
       "name": "appsInTossSignTossCert",
@@ -45,17 +45,17 @@
     {
       "name": "eventLog",
       "kind": "function",
-      "hash": "44f129317807c40e"
+      "hash": "a1ae77ae38741a0b"
     },
     {
       "name": "fetchAlbumPhotos",
       "kind": "const",
-      "hash": "388c3f20b5aa17d4"
+      "hash": "c9ee864c34f102e0"
     },
     {
       "name": "fetchContacts",
       "kind": "const",
-      "hash": "4e5ae61ebe13ed0f"
+      "hash": "7eef96ead940aa2d"
     },
     {
       "name": "generateHapticFeedback",
@@ -65,22 +65,22 @@
     {
       "name": "getAnonymousKey",
       "kind": "function",
-      "hash": "cf34f0a8c002e958"
+      "hash": "662a21a1c93e722e"
     },
     {
       "name": "getAppsInTossGlobals",
-      "kind": "const",
+      "kind": "function",
       "hash": "22666e0b16811a1b"
     },
     {
       "name": "getClipboardText",
       "kind": "const",
-      "hash": "e6664bb6e9b8b281"
+      "hash": "c82ec4a57b99f15a"
     },
     {
       "name": "getCurrentLocation",
       "kind": "const",
-      "hash": "bd179938f29f1232"
+      "hash": "4102b708dc037727"
     },
     {
       "name": "getDeviceId",
@@ -120,7 +120,7 @@
     {
       "name": "getPermission",
       "kind": "function",
-      "hash": "33ba25b48d930047"
+      "hash": "379baf1e58567b93"
     },
     {
       "name": "getPlatformOS",
@@ -150,37 +150,37 @@
     {
       "name": "getTossShareLink",
       "kind": "function",
-      "hash": "e93961d16549aed5"
+      "hash": "4bc719596da8358c"
     },
     {
       "name": "getUserKeyForGame",
-      "kind": "function",
-      "hash": "9600586fa0e5f902"
+      "kind": "const",
+      "hash": "662a21a1c93e722e"
     },
     {
       "name": "GoogleAdMob",
       "kind": "const",
-      "hash": "b0d7c2895ae6a83e"
+      "hash": "9748fc9407c8b304"
     },
     {
       "name": "graniteEvent",
       "kind": "const",
-      "hash": "c086808c0701cebe"
+      "hash": "f52bbbfc3698e79b"
     },
     {
       "name": "grantPromotionReward",
       "kind": "function",
-      "hash": "66192bb021577b38"
+      "hash": "bcf0eb3de1232994"
     },
     {
       "name": "grantPromotionRewardForGame",
-      "kind": "function",
-      "hash": "66192bb021577b38"
+      "kind": "const",
+      "hash": "bcf0eb3de1232994"
     },
     {
       "name": "IAP",
       "kind": "const",
-      "hash": "7a8b2c08d4d3a981"
+      "hash": "1ad3028aee34ad5e"
     },
     {
       "name": "isMinVersionSupported",
@@ -190,17 +190,12 @@
     {
       "name": "loadFullScreenAd",
       "kind": "const",
-      "hash": "358cd1e918d35380"
-    },
-    {
-      "name": "onVisibilityChangedByTransparentServiceWeb",
-      "kind": "function",
-      "hash": "4d9a24bbb922018d"
+      "hash": "7f875acc6441727e"
     },
     {
       "name": "openCamera",
       "kind": "const",
-      "hash": "2dcfde320820f0ed"
+      "hash": "77227552b34efd4a"
     },
     {
       "name": "openGameCenterLeaderboard",
@@ -210,7 +205,7 @@
     {
       "name": "openPermissionDialog",
       "kind": "function",
-      "hash": "96af5c927134d5c7"
+      "hash": "64ba2b48d111cb27"
     },
     {
       "name": "openURL",
@@ -220,17 +215,17 @@
     {
       "name": "partner",
       "kind": "const",
-      "hash": "43671abd33e9c541"
+      "hash": "71e15b7d177d041d"
     },
     {
       "name": "requestNotificationAgreement",
-      "kind": "function",
-      "hash": "9ee3fbb64b05c48b"
+      "kind": "const",
+      "hash": "2e3439295a213193"
     },
     {
       "name": "requestPermission",
       "kind": "function",
-      "hash": "e291ba8a6871b2c1"
+      "hash": "64ba2b48d111cb27"
     },
     {
       "name": "requestReview",
@@ -239,8 +234,8 @@
     },
     {
       "name": "requestTossPayPaysBilling",
-      "kind": "function",
-      "hash": "1292637513d075d8"
+      "kind": "const",
+      "hash": "a6d6797a69107482"
     },
     {
       "name": "saveBase64Data",
@@ -250,12 +245,12 @@
     {
       "name": "setClipboardText",
       "kind": "const",
-      "hash": "46d959d2c8233a70"
+      "hash": "316b0d37b0d93a9d"
     },
     {
       "name": "setDeviceOrientation",
       "kind": "function",
-      "hash": "86ef54d51169be60"
+      "hash": "14c338c76af58302"
     },
     {
       "name": "setIosSwipeGestureEnabled",
@@ -280,17 +275,17 @@
     {
       "name": "showFullScreenAd",
       "kind": "const",
-      "hash": "8638b234a781ecc0"
+      "hash": "88085e4d59d529f0"
     },
     {
       "name": "startUpdateLocation",
       "kind": "const",
-      "hash": "0ec31b97840ca1c6"
+      "hash": "273bb45b90f8f4c2"
     },
     {
       "name": "Storage",
       "kind": "const",
-      "hash": "73b5b0c0f6f210b6"
+      "hash": "44306be38661189c"
     },
     {
       "name": "submitGameCenterLeaderBoardScore",
@@ -300,7 +295,7 @@
     {
       "name": "tdsEvent",
       "kind": "const",
-      "hash": "2f444eec0307238e"
+      "hash": "2c01b3e44023a598"
     },
     {
       "name": "TossAds",
