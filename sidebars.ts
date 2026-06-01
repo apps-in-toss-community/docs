@@ -135,7 +135,6 @@ const sidebars: SidebarsConfig = {
             'api/events/events-overview',
             'api/events/appsInTossEvent-addEventListener',
             'api/events/graniteEvent-addEventListener',
-            'api/events/onVisibilityChangedByTransparentServiceWeb',
             'api/events/tdsEvent-addEventListener',
           ],
         },

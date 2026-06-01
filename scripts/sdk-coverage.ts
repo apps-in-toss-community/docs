@@ -18,8 +18,8 @@
  * The SDK is installed as a regular `devDependency`. Its dist `.d.ts` is read
  * with the TypeScript Compiler API so we get real signature types, not
  * regex-parsed strings. The package re-exports
- * `@apps-in-toss/web-bridge` + `@apps-in-toss/web-analytics`, so we also pull
- * those transitively.
+ * `@apps-in-toss/webview-bridge` (which absorbed web-analytics in 3.0), so we
+ * also pull those transitively.
  *
  * Group resolution: docs `<group>` slugs ≠ SDK export names. A static
  * group-map (`GROUP_MAP` below) assigns every SDK export to a docs `<group>`.
@@ -65,7 +65,7 @@ const BASELINE_PATH = join(REPO_ROOT, 'coverage-baseline.json');
  *
  * Source of truth: `sidebars.ts` defines docs `<group>`s; sdk-example
  * `pages/XxxPage.tsx` mirrors them. SDK exports come from
- * `@apps-in-toss/web-bridge` + `@apps-in-toss/web-analytics`. The mapping is
+ * `@apps-in-toss/webview-bridge` (which absorbed web-analytics in 3.0). The mapping is
  * static (not heuristic) so a typo here is loud — the script prints
  * `ungrouped:` for any export not listed.
  *
@@ -81,7 +81,8 @@ const GROUP_MAP: Record<string, string> = {
   setClipboardText: 'clipboard',
   // haptic
   generateHapticFeedback: 'haptic',
-  saveBase64Data: 'haptic',
+  // storage
+  saveBase64Data: 'storage',
   // location
   getCurrentLocation: 'location',
   startUpdateLocation: 'location',
@@ -154,7 +155,6 @@ const GROUP_MAP: Record<string, string> = {
   appsInTossEvent: 'events',
   tdsEvent: 'events',
   graniteEvent: 'events',
-  onVisibilityChangedByTransparentServiceWeb: 'events',
   // notification
   requestNotificationAgreement: 'notification',
   // partner
@@ -175,6 +175,8 @@ const IGNORED_EXPORTS = new Set<string>([
   // (e.g. `GetClipboardTextPermissionError` from `getClipboardText`) and are
   // documented inside the method page's "Permissions" section. No standalone
   // page makes sense; flagging them as undocumented is pure noise.
+  // Base class added in 3.0.
+  'PermissionError',
   'FetchAlbumPhotosPermissionError',
   'FetchContactsPermissionError',
   'GetClipboardTextPermissionError',
@@ -182,6 +184,9 @@ const IGNORED_EXPORTS = new Set<string>([
   'OpenCameraPermissionError',
   'SetClipboardTextPermissionError',
   'StartUpdateLocationPermissionError',
+  // New 3.0 exports not yet documented — tracked in separate issues.
+  'fetchAlbumItems',
+  'openPDFViewer',
   // Bridge construction helpers re-exported from `@apps-in-toss/bridge-core`.
   // These are SDK-internal building blocks for defining new bridges, not
   // consumer-facing API. Not part of our docs surface.
@@ -234,16 +239,21 @@ function isDir(p: string): boolean {
 }
 
 function findPackageRoot(pkg: string): string {
-  // Resolve the package's `package.json` via Node's CJS resolver. The SDK is a
-  // regular devDependency so `node_modules/.../package.json` will be on disk.
-  // We avoid `import.meta.resolve` because tsx's loader doesn't expose it
-  // reliably across Node versions; createRequire is the boring, stable path.
+  // Resolve the package root by walking up from any resolved file in the
+  // package. We first try `package.json` directly (works when the package
+  // exposes it via `exports`), then fall back to resolving any known entry
+  // point and traversing up until we find a `package.json` — this covers
+  // packages that lock down their `exports` map (3.0+ pattern).
   try {
     const pkgJson = require.resolve(`${pkg}/package.json`);
     return dirname(pkgJson);
-  } catch (err) {
+  } catch {
+    // package.json not in exports map — resolve the package root from the
+    // node_modules path of the package itself.
+    const pkgDir = join(REPO_ROOT, 'node_modules', pkg);
+    if (existsSync(join(pkgDir, 'package.json'))) return pkgDir;
     throw new Error(
-      `${SDK_PACKAGE} is not installed. Run \`pnpm install\` (it's a devDependency). (${(err as Error).message})`,
+      `${SDK_PACKAGE} is not installed. Run \`pnpm install\` (it's a devDependency).`,
     );
   }
 }
@@ -330,7 +340,7 @@ function readSdkExports(): ExportInfo[] {
     if (IGNORED_EXPORTS.has(name)) continue;
 
     // Resolve through alias chains (re-exports). The SDK chains
-    // `index → web-bridge → ./bridge → ./getClipboardText`; the final
+    // `index → webview-bridge → ./bridge → ./getClipboardText`; the final
     // declaration is what tells us whether this is a value vs type-only.
     let resolved = sym;
     if ((sym.getFlags() & ts.SymbolFlags.Alias) !== 0) {
@@ -422,7 +432,7 @@ function scanDocs(): Map<string, NamespaceDocs> {
  * `docs/api/storage/getItem.mdx`), so we expand those container exports here.
  *
  * For now, the expansion is hardcoded — we know the member names from the
- * dist d.ts at 2.5.0. If we want to track member-level signature drift, we'd
+ * dist d.ts at 3.0.0-beta.9d42c0b. If we want to track member-level signature drift, we'd
  * need to recurse into the container's properties via the checker. Out of
  * scope for this first cut; the script's job is to surface missing
  * top-level coverage. Member-level drift is caught by sidebars + manual PR

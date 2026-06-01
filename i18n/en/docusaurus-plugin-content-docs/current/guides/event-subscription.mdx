@@ -18,7 +18,6 @@ To receive events that originate in the Toss container (back button, home button
 | `appsInTossEvent` | [`appsInTossEvent.addEventListener`](/api/events/appsInTossEvent.addEventListener) | Apps-in-Toss platform events (the type map is empty today, but it follows the same pattern when entries are added). |
 | `tdsEvent` | [`tdsEvent.addEventListener`](/api/events/tdsEvent.addEventListener) | Toss Design System component events. Today: `navigationAccessoryEvent` (accessory button taps). |
 | `graniteEvent` | [`graniteEvent.addEventListener`](/api/events/graniteEvent.addEventListener) | Container navigation events. Today: `backEvent`, `homeEvent`. |
-| One-off | [`onVisibilityChangedByTransparentServiceWeb`](/api/events/onVisibilityChangedByTransparentServiceWeb) | Transparent service web visibility. Not part of the `addEventListener` family, but uses the same cleanup pattern. |
 
 ## Common call shape
 
@@ -100,34 +99,6 @@ The only event defined today is `navigationAccessoryEvent`, fired when a button 
 
 The current type map (`AppsInTossEvent = {}`) is empty, but the API is in place for future additions. **You rarely need this today**, but the API exists for forward-compat.
 
-## The one-off — `onVisibilityChangedByTransparentServiceWeb`
-
-[`onVisibilityChangedByTransparentServiceWeb`](/api/events/onVisibilityChangedByTransparentServiceWeb) isn't part of the `addEventListener` family but follows **the same cleanup contract**.
-
-```tsx
-import { onVisibilityChangedByTransparentServiceWeb } from '@apps-in-toss/web-framework';
-import { useEffect } from 'react';
-
-function TransparentServiceWidget({ callbackId }: { callbackId: string }) {
-  useEffect(() => {
-    const remove = onVisibilityChangedByTransparentServiceWeb({
-      options: { callbackId },
-      onEvent: (isVisible) => {
-        if (isVisible) startAnalytics();
-        else stopAnalytics();
-      },
-      onError: (error) => console.warn('visibility subscription failed', error),
-    });
-
-    return remove;
-  }, [callbackId]);
-
-  return <Widget />;
-}
-```
-
-`callbackId` is an identifier issued by Toss. Wrong values either trigger `onError` immediately or silently drop events.
-
 ## Cleanup checklist
 
 - Are you **capturing the return value** of `addEventListener` into a variable? If not, you can't unsubscribe.
@@ -173,7 +144,6 @@ A subscription without `onError` silently drops failures. The mock will look fin
 - [`appsInTossEvent.addEventListener`](/api/events/appsInTossEvent.addEventListener) — platform events.
 - [`tdsEvent.addEventListener`](/api/events/tdsEvent.addEventListener) — TDS component events (`navigationAccessoryEvent`).
 - [`graniteEvent.addEventListener`](/api/events/graniteEvent.addEventListener) — container navigation (`backEvent`, `homeEvent`).
-- [`onVisibilityChangedByTransparentServiceWeb`](/api/events/onVisibilityChangedByTransparentServiceWeb) — transparent service web visibility.
 
 ## Related guides
 

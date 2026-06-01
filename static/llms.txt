@@ -104,7 +104,6 @@ Community-maintained guide and API reference for the `@apps-in-toss/web-framewor
 
 - [appsInTossEvent.addEventListener](https://docs.aitc.dev/api/events/appsInTossEvent.addEventListener) — 앱인토스 플랫폼 이벤트를 구독합니다.
 - [graniteEvent.addEventListener](https://docs.aitc.dev/api/events/graniteEvent.addEventListener) — Granite(토스 내부) 이벤트를 구독합니다. backEvent, homeEvent를 지원합니다.
-- [onVisibilityChangedByTransparentServiceWeb](https://docs.aitc.dev/api/events/onVisibilityChangedByTransparentServiceWeb) — 투명 서비스 웹 컨테이너의 표시 여부 변화를 구독합니다.
 - [tdsEvent.addEventListener](https://docs.aitc.dev/api/events/tdsEvent.addEventListener) — TDS(Toss Design System) 이벤트를 구독합니다. navigationAccessoryEvent를 지원합니다.
 
 ### game

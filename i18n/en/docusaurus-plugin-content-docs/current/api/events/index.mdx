@@ -19,7 +19,6 @@ Functions for subscribing to platform events (appsInToss, TDS, Granite). Every `
 | --- | --- | --- |
 | [`appsInTossEvent.addEventListener`](/api/events/appsInTossEvent.addEventListener) | `() => void` | Subscribe to Apps in Toss platform events. |
 | [`graniteEvent.addEventListener`](/api/events/graniteEvent.addEventListener) | `() => void` | Subscribe to Granite (Toss internal) events — `backEvent`, `homeEvent`. |
-| [`onVisibilityChangedByTransparentServiceWeb`](/api/events/onVisibilityChangedByTransparentServiceWeb) | `() => void` | Subscribe to visibility changes of the transparent service web container. |
 | [`tdsEvent.addEventListener`](/api/events/tdsEvent.addEventListener) | `() => void` | Subscribe to TDS (Toss Design System) events — `navigationAccessoryEvent`. |
 
 ## Permission
@@ -28,7 +27,7 @@ No permission required. None of the `events` namespace functions are bound to a 
 
 ## Event subscription pattern
 
-All `addEventListener` and `onVisibilityChangedByTransparentServiceWeb` calls return a **cleanup function**. In React, use it as the `useEffect` return value.
+All `addEventListener` calls return a **cleanup function**. In React, use it as the `useEffect` return value.
 
 ```tsx
 import { graniteEvent } from '@apps-in-toss/web-framework';
@@ -62,4 +61,4 @@ Subscribe to events directly on the Events page in sdk-example.
 
 ## External references
 
-- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/web-bridge`](https://www.npmjs.com/package/@apps-in-toss/web-bridge).
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/webview-bridge`](https://www.npmjs.com/package/@apps-in-toss/webview-bridge).
