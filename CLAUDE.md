@@ -78,14 +78,19 @@
 ## 명령어
 
 ```bash
-pnpm dev         # Docusaurus dev (http://localhost:3000)
-pnpm build       # build/ 정적 생성
-pnpm serve       # 빌드 결과 로컬 미리보기
-pnpm typecheck   # tsc --noEmit
-pnpm lint        # biome check .
-pnpm lint:fix    # biome check --write .
-pnpm format      # biome format --write .
+pnpm dev              # Docusaurus dev (http://localhost:3000)
+pnpm build            # build/ 정적 생성
+pnpm serve            # 빌드 결과 로컬 미리보기
+pnpm typecheck        # tsc --noEmit
+pnpm lint             # biome check .
+pnpm lint:fix         # biome check --write .
+pnpm format           # biome format --write .
+pnpm verify:crosslinks  # sdk-example↔docs 경로 계약 검증 (CI 게이트)
+pnpm coverage:check   # SDK 커버리지 검증
+pnpm coverage:baseline  # SDK 커버리지 기준선 갱신
 ```
+
+전체 목록은 package.json scripts 참조.
 
 ## 공통 스택
 
