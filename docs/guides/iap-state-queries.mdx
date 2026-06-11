@@ -205,7 +205,7 @@ function PremiumGate({ orderId, children }: { orderId: string; children: ReactNo
 ## 환경별 차이
 
 - **실 토스 앱**: 네 호출 모두 정상. 결제·환불은 토스 서버에서 즉시 반영.
-- **devtools mock**: [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools)에서 mock 데이터 — 상품 목록, 임의 pending 주문, 임의 status 등을 패널에서 조작. 실제 결제 동기화는 실기에서만.
+- **devtools mock**: [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools)에서 mock 데이터 — 상품 목록, 임의 pending 주문, 임의 status 등을 패널에서 조작. 실제 결제 동기화는 실 토스 앱에서만.
 - **외부 브라우저**: 모든 호출이 throw. 미니앱 환경 밖에서는 사용 안 함.
 
 ## 관련 API
