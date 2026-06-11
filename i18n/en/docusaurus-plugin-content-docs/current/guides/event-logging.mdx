@@ -280,8 +280,8 @@ async function handleAction() {
 
 ## Environment differences
 
-- **Real Apps-in-Toss app**: `eventLog` calls are forwarded to the logging system. Entries may be routed into different pipelines depending on `log_type`.
-- **Sandbox / devtools mock**: the mock injected by [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) prints `eventLog` calls to the **browser console**, letting you inspect `log_name`, `log_type`, and `params` without a real device.
+- **Real Toss app**: `eventLog` calls are forwarded to the logging system. Entries may be routed into different pipelines depending on `log_type`.
+- **devtools mock**: the mock injected by [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) prints `eventLog` calls to the **browser console**, letting you inspect `log_name`, `log_type`, and `params` without a real device.
 - **External browser (outside the mini-app environment)**: `eventLog` throws. Do not call it from utility code that runs outside a mini-app context.
 
 ## Related APIs

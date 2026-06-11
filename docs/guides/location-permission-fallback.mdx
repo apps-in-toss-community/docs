@@ -212,7 +212,7 @@ if (coords.accuracy > 500) {
 ## 환경별 차이
 
 - **실 토스 앱**: `geolocation` 권한은 OS 권한과 토스 자체 권한 두 단계를 거칩니다. 시스템 다이얼로그 → 토스 권한 다이얼로그 순으로 뜰 수 있으므로 한 번의 `openPermissionDialog` 호출이 두 단계 모두를 커버합니다.
-- **devtools mock**: [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) 패널에서 `allowed`/`denied`/`notDetermined`를 직접 전환할 수 있습니다. 실제 좌표는 고정값이라 거리·정확도 변화는 실기에서만 검증.
+- **devtools mock**: [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) 패널에서 `allowed`/`denied`/`notDetermined`를 직접 전환할 수 있습니다. 실제 좌표는 고정값이라 거리·정확도 변화는 실 토스 앱에서만 검증.
 - **외부 브라우저**: 표준 `navigator.geolocation`이 떠 있지 않으면 호출이 throw. polyfill 적용 시에도 권한 모델이 달라 실 미니앱 환경에서 다시 검증.
 
 ## 관련 API
