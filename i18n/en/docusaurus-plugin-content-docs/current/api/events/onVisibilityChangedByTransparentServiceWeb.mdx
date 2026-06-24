@@ -1,0 +1,91 @@
+---
+image: /og/api-events-onVisibilityChangedByTransparentServiceWeb.png
+id: onVisibilityChangedByTransparentServiceWeb
+title: onVisibilityChangedByTransparentServiceWeb
+sidebar_label: onVisibilityChangedByTransparentServiceWeb
+slug: /api/events/onVisibilityChangedByTransparentServiceWeb
+description: Subscribe to visibility change events of the transparent service web.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `onVisibilityChangedByTransparentServiceWeb`
+
+Subscribes to visibility change events fired when a transparent service web becomes visible or hidden. The callback receives the current visibility state as `isVisible: boolean`. Returns an unsubscribe function that cancels the subscription when called.
+
+## Signature
+
+```ts
+import { onVisibilityChangedByTransparentServiceWeb } from '@apps-in-toss/web-framework';
+
+const unsubscribe = onVisibilityChangedByTransparentServiceWeb({
+  options: { callbackId: 'my-callback-id' },   // callbackId: string
+  onEvent: (isVisible) => { /* isVisible: boolean */ },
+  onError: (err) => { /* err: Error */ },
+});
+// unsubscribe(): () => void — removes the listener
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `options.callbackId` | `string` | ✓ | Unique ID that identifies this callback. Re-subscribing with the same ID replaces the previous subscription. |
+| `onEvent` | `(isVisible: boolean) => void` | ✓ | Handler called when visibility changes. `isVisible` is `true` when the view becomes visible, `false` when hidden. |
+| `onError` | `(error: Error) => void` | — | Handler called when an error occurs during event processing. |
+
+## Returns
+
+- `() => void` — unsubscribe function that removes the listener. Use as the `useEffect` return value.
+
+## Permission
+
+No permission required — `onVisibilityChangedByTransparentServiceWeb` is not bound to a `PermissionName`.
+
+## Examples
+
+### Minimal — subscribing to visibility inside useEffect
+
+```tsx
+import { onVisibilityChangedByTransparentServiceWeb } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+function TransparentWebPage() {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onVisibilityChangedByTransparentServiceWeb({
+      options: { callbackId: 'transparent-web-visibility' },
+      onEvent: (visible) => {
+        setIsVisible(visible);
+      },
+      onError: (err) => {
+        console.error('Visibility event error:', err);
+      },
+    });
+    return unsubscribe;
+  }, []);
+
+  return <main>{isVisible ? 'Visible' : 'Hidden'}</main>;
+}
+```
+
+## Try it live
+
+Subscribe to `onVisibilityChangedByTransparentServiceWeb` directly on the Events page in sdk-example.
+
+<TryItLink group="events" method="onVisibilityChangedByTransparentServiceWeb" />
+
+## Related APIs
+
+- [`graniteEvent.addEventListener`](./graniteEvent.addEventListener) — subscribe to Granite events (backEvent, homeEvent).
+- [`tdsEvent.addEventListener`](./tdsEvent.addEventListener) — subscribe to TDS events.
+- [`appsInTossEvent.addEventListener`](./appsInTossEvent.addEventListener) — subscribe to platform events.
+
+## Related guides
+
+- [Guides — Event subscription patterns](/guides/event-subscription) — addEventListener shape, cleanup, comparison across the three domains, and anti-patterns.
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/webview-bridge`](https://www.npmjs.com/package/@apps-in-toss/webview-bridge).
