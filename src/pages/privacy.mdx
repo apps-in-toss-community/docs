@@ -1,154 +1,23 @@
 ---
-title: 프라이버시 — 텔레메트리 정책
-description: apps-in-toss-community 도구가 수집하는 텔레메트리 데이터 안내 — Tier 0 opt-out 일일 핑 / Tier 1 opt-in 확장 텔레메트리
+title: 프라이버시
+description: apps-in-toss-community 도구의 데이터 수집 정책 안내
 ---
 
-# 프라이버시 — 텔레메트리 정책
+# 프라이버시
 
-apps-in-toss-community 도구는 텔레메트리를 두 계층으로 분리합니다.
+apps-in-toss-community의 도구(devtools, console-cli, agent-plugin, polyfill)는 **사용량 텔레메트리를 수집하지 않습니다.**
 
-- **Tier 0 (opt-out)** — 서버가 파생하는 익명 일일 핑. 어떤 ID도 클라이언트가 보내지 않습니다. 기본값 켜짐이지만 언제든 끌 수 있습니다.
-- **Tier 1 (opt-in)** — 도구별 세부 이벤트 스트림. 명시적 동의 후에만 전송됩니다.
+이전에 이 페이지는 두 계층 텔레메트리 시스템(Tier 0 opt-out 일일 핑 / Tier 1 opt-in 확장 텔레메트리)을 설명했습니다. 조직 차원의 결정으로 텔레메트리가 전면 제거됐고, 수신 서버(`metrics-ingest`)는 폐기됐습니다. 모든 도구에서 관련 코드가 제거된 상태입니다.
 
-두 계층 모두 PII(개인 식별 정보)를 수집하지 않습니다.
+향후 텔레메트리가 재도입된다면, 명확한 동의 흐름과 함께 이 페이지에서 새로 안내합니다. 현재는 어떤 데이터도 수집되지 않습니다.
 
-## Tier 0 — 익명 일일 핑 (opt-out)
-
-### 무엇을 전송하나요
-
-하루 한 번, 도구가 실행될 때 `daily_ping` 이벤트 하나를 서버로 전송합니다. 서버는 **KV dedupe**를 통해 같은 날 이미 기록된 신호가 있으면 D1 쓰기를 생략합니다 — 하루 1회만 저장됩니다.
-
-### 식별자: server-derived, 저장 안 됨
-
-클라이언트는 어떤 ID도 함께 보내지 않습니다. 서버가 요청 수신 시점에 IP + User-Agent + 날짜 + 일별 salt를 sha256해 16자 hex를 만들어 KV dedupe key로만 사용하고, 해시 값 자체는 D1에 **저장하지 않습니다**. 매일 UTC 자정에 salt가 교체되어 어제의 핑과 오늘의 핑을 연결할 수 없습니다.
-
-### 저장되는 컬럼
-
-| 컬럼 | 내용 |
-|---|---|
-| `source` | 도구 식별자 (`"devtools"`, `"console-cli"`, `"agent-plugin"`) |
-| `event` | 항상 `"daily_ping"` |
-| `tier` | `0` |
-| `ts` | 이벤트 타임스탬프 (epoch ms) |
-| `country` | Cloudflare `cf.country` 2자리 국가 코드 |
-| `version` | 도구 버전 |
-
-`anon_id`와 `meta` 컬럼은 Tier 0에서 사용하지 않습니다.
-
-### opt-out 방법
-
-| 방법 | 적용 범위 |
-|---|---|
-| 환경 변수 `AITC_TELEMETRY=off` | 모든 도구, 두 계층 모두 비활성 |
-| `--no-telemetry` 플래그 | console-cli / agent-plugin, 단일 실행 비활성 |
-| devtools 패널 토글 | devtools, Environment 탭에서 Tier 0/1 모두 제어 |
-
-opt-out 상태에서는 어떤 네트워크 요청도 전송되지 않습니다.
-
-### 삭제 요청
-
-server-derived hash는 서버가 연산 즉시 폐기합니다. IP·UA·full hash가 저장되지 않으므로 특정 사용자의 Tier 0 기록을 찾아 삭제하는 것이 기술적으로 불가능합니다. opt-out하면 이후 핑이 즉시 중단됩니다.
-
-## Tier 1 — 확장 텔레메트리 (opt-in)
-
-### 무엇을 전송하나요
-
-도구별 세부 이벤트를 전송합니다. 예: devtools 패널 열기, 탭 전환, 세션 시간. 동의하기 전에는 어떤 이벤트도 전송되지 않습니다.
-
-### 식별자: anon_id
-
-`anon_id`는 클라이언트가 처음 동의 시점에 생성하는 무작위 UUID v4입니다.
-
-- devtools: 브라우저 localStorage `__ait_telemetry:anon_id`
-- console-cli / agent-plugin: `~/.config/aitcc/telemetry.json`
-
-cookie가 아니며 계정 또는 사용자 신원과 연결되지 않습니다.
-
-### 저장되는 컬럼
-
-Tier 0 컬럼 전부 + 아래 추가:
-
-| 컬럼 | 내용 |
-|---|---|
-| `anon_id` | 클라이언트 UUID v4 |
-| `meta` | 이벤트별 JSON (256 bytes 이하) |
-
-### 도구별 이벤트
-
-| 이벤트 | 도구 | 의미 |
-|---|---|---|
-| `panel_open` | devtools | 사용자가 패널을 열음 |
-| `tab_view` | devtools | 탭 전환. `meta.tab` 포함 |
-| `session_duration` | devtools | 페이지 unload 시 누적 패널 사용 시간(ms) |
-| `cli_invoked` | console-cli | CLI 명령 실행 |
-| `cli_install` | console-cli | 패키지 설치 이벤트 |
-
-### 동의 흐름
-
-처음 도구를 실행하면 Tier 1 동의 프롬프트가 뜹니다. 이전 버전(`'2026-05-12'`)에 동의한 적 있다면 정책 변경(`'2026-05-18'`)으로 인해 재동의를 요청합니다.
-
-localStorage 상태 키 (devtools):
-
-| 키 | 의미 |
-|---|---|
-| `__ait_telemetry:consent` | `granted` / `denied` / 부재 |
-| `__ait_telemetry:policy_version` | 동의한 정책 버전 |
-| `__ait_telemetry:anon_id` | 브라우저별 UUID v4 |
-
-### 삭제 요청
-
-`anon_id`에 연결된 모든 이벤트를 즉시 삭제할 수 있습니다.
-
-1. devtools 패널 Environment 탭 → "데이터 삭제" 버튼, **또는**
-2. console-cli: `aitcc telemetry delete`, **또는**
-3. 직접 호출:
-
-```bash
-curl -X DELETE 'https://t.aitc.dev/e?anon_id=<당신의-anon_id>'
-```
-
-응답: `{ "ok": true, "deleted": <삭제된 행 수> }`
-
-## 수집 소스 (도구별)
-
-| 도구 | 패키지 | Tier 0 | Tier 1 |
-|---|---|---|---|
-| `@ait-co/devtools` | npm `@ait-co/devtools` | 활성 | 활성 |
-| `@ait-co/console-cli` | npm `@ait-co/console-cli` | 활성 | 활성 |
-| agent-plugin | Claude Code / Codex 플러그인 | 활성 | 활성 |
-| `@ait-co/polyfill` | npm `@ait-co/polyfill` | 자체 client 없음 | 자체 client 없음 |
-
-`@ait-co/polyfill`은 자체적으로 네트워크 요청을 보내지 않습니다. devtools가 함께 사용되는 경우, devtools sentinel 신호를 통해 polyfill 로드 여부가 Tier 1 메타데이터에 간접 포함됩니다.
-
-## 저장 정책
-
-| 항목 | 내용 |
-|---|---|
-| 보존 기간 | 90일 (매일 UTC 03:00 cron 삭제) |
-| 저장소 | Cloudflare D1 (이벤트) + KV (dedupe / rate limit) |
-| 국가 코드 | `cf.country` 2자리만. IP 저장 없음 |
-| Rate limit | IP당 분당 60 요청 |
-| IP·UA·full hash | Tier 0 dedupe 계산 후 즉시 폐기. DB 저장 없음 |
-| 공개 집계 | `GET https://t.aitc.dev/stats` — 날짜별 이벤트 수만 (인증 없음) |
-
-## 절대 수집하지 않는 것
-
-- IP 주소 (연산 후 즉시 폐기, DB 저장 없음)
-- User-Agent 문자열 (동일)
-- 이름·이메일·전화·계정 식별자 등 개인 식별 정보
-- 모의 호출 인자 또는 사용자가 작성한 코드
-
-## 외부 참조
-
-- 정책 정본 spec: [`metrics-ingest/docs/specs/2026-05-18-multi-tier-consent.md`](https://github.com/apps-in-toss-community/metrics-ingest/blob/main/docs/specs/2026-05-18-multi-tier-consent.md)
-- 수신 서버 코드: [`apps-in-toss-community/metrics-ingest`](https://github.com/apps-in-toss-community/metrics-ingest)
-- Production 엔드포인트: `https://t.aitc.dev`
-- 문의·삭제 요청: [GitHub Issues](https://github.com/apps-in-toss-community/metrics-ingest/issues)
+문의는 [GitHub Issues](https://github.com/apps-in-toss-community/docs/issues)로 남겨주세요.
 
 ## 변경 이력
 
 | 날짜 | 내용 |
 |---|---|
+| 2026-06 | 텔레메트리 전면 제거, metrics-ingest 폐기 — 수집 정책 전부 삭제 |
 | 2026-05-18 | single opt-in → multi-tier 재설계 (Tier 0 opt-out daily ping + Tier 1 opt-in 확장 텔레메트리) |
 
 ---

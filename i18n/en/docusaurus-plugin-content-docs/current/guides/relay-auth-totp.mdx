@@ -1,0 +1,62 @@
+---
+image: /og/guides-relay-auth-totp.png
+id: relay-auth-totp
+title: Relay TOTP Authentication
+sidebar_label: Relay TOTP Authentication
+slug: /guides/relay-auth-totp
+description: Gating the CDP relay trycloudflare tunnel with TOTP so a third party who obtains the tunnel URL cannot attach a debugger.
+---
+
+# Relay TOTP Authentication
+
+The CDP relay is exposed through a trycloudflare tunnel. Because trycloudflare tunnels are unauthenticated by default, anyone who obtains the tunnel URL could attach a debugger. **TOTP (Time-based One-Time Password)** closes this gap.
+
+## Threat model
+
+- **What it blocks**: a third party who happens to obtain the tunnel URL (via leak or interception) attaching to the relay.
+- **Out of scope**: a determined attacker who extracts the secret from the bundle. Mitigating that requires bundle obfuscation, signing, or other separate layers — it is outside the relay TOTP threat model (no security theater).
+
+## How it works
+
+When the relay starts, it reads a secret from `.env` at runtime and uses it to validate incoming TOTP codes. Any client connecting to the relay must present a valid TOTP code.
+
+```
+[Agent]                      [Relay Node server]            [Toss app WebView]
+  │  connect + TOTP code          │                               │
+  ├──────────────────────────────►│                               │
+  │                               │  TOTP check (process.env)     │
+  │                               │  ✓ → allow attach             │
+  │◄──────────────────────────────┤                               │
+  │  CDP session                  │◄──────────────────────────────┤
+```
+
+**Authoritative gate**: the relay-side Node process. It reads the secret from `process.env` at runtime and validates the TOTP code.
+
+**Secondary fail-fast**: the in-app gate performs a second check after the relay-side gate passes.
+
+## Secret setup
+
+Set the secret in the `.env` (or equivalent secret store) of the environment running the relay server:
+
+```
+# .env example — never share the actual value
+AIT_RELAY_TOTP_SECRET=<your-secret-here>
+```
+
+The secret value must never appear in `stdout`, `stderr`, logs, or error messages. In deployed environments, use a secure secret store such as GitHub Secrets or Cloudflare Workers Secrets.
+
+:::caution Secret handling
+Never log, print, or include the secret or TOTP code value in any output. Only validate the code; discard the value immediately after.
+:::
+
+## Generating a TOTP code (agent side)
+
+The `/ait debug` command automates TOTP code generation. If you need to generate one manually, use any standard TOTP library (RFC 6238) with the same shared secret.
+
+## Related guides
+
+- [On-device CDP Relay Debugging](/guides/debug-relay) — full relay structure and entry path.
+
+## External references
+
+- [`@ait-co/devtools`](https://www.npmjs.com/package/@ait-co/devtools) — Debugging MCP (relay client included).

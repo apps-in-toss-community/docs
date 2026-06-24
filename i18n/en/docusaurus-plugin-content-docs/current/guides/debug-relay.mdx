@@ -1,0 +1,66 @@
+---
+image: /og/guides-debug-relay.png
+id: debug-relay
+title: On-device CDP Relay Debugging
+sidebar_label: CDP Relay Debugging
+slug: /guides/debug-relay
+description: How the agent attaches to a mini-app running in the real Toss app WebView via a relay tunnel — the four-environment fidelity model and QR/deep-link entry.
+---
+
+# On-device CDP Relay Debugging
+
+**Relay debugging** is a channel that lets the agent attach directly to a mini-app running inside the real Toss app WebView on a physical device. The agent can observe and analyse runtime state without the developer watching the phone.
+
+## Position in the four-environment fidelity model
+
+Relay debugging occupies the **third and fourth layers** of the fidelity ladder.
+
+| Layer | Runtime surface | Fidelity ceiling |
+|---|---|---|
+| 1 | Local browser + mock SDK | State/contract + visual layout |
+| 2 | AITC Sandbox PWA (real-device WebKit) | Real-device WebKit engine |
+| **3** | **Real-device Toss app WebView + CDP relay (dev)** | **Toss WebView runtime + dev loop** |
+| **4** | **Real-device Toss app WebView + CDP relay (live)** | **Live production runtime, read-only** |
+
+Layers 1 and 2 cannot structurally cover **Toss WebView native bridge behaviour**, **real SDK event timing**, or **real swipe-gesture regressions** — relay debugging fills that gap.
+
+## Entry point: QR / deep-link query-param
+
+The canonical entry path for relay debugging is the **deep-link query-param injection** route.
+
+Fire the following deep-link at the Toss app on a physical device (via QR scan or direct invocation):
+
+```
+intoss-private://…?_deploymentId=<ID>&debug=1&relay=<wss-url>
+```
+
+- `_deploymentId` — the deployment ID of the bundle to debug. Works even in `PREPARE` state (cold-load).
+- `debug=1` — debug-mode flag checked by the gate layer.
+- `relay=<wss-url>` — the agent-side WebSocket relay server URL (e.g. a trycloudflare tunnel).
+
+The `/ait debug` command automates deep-link generation and QR display.
+
+:::caution test-push is not used
+`test-push` (a separate notification channel) cannot carry the `debug=1&relay` query parameters, so the gate blocks it. The QR/deep-link route is the only supported entry.
+:::
+
+## Relay authentication
+
+The trycloudflare tunnel is unauthenticated by default, so a third party who obtains the tunnel URL could attach a debugger. **TOTP-based authentication** closes this gap. See the [Relay TOTP Authentication](/guides/relay-auth-totp) guide for details.
+
+## Layer 3 vs layer 4
+
+| Item | Layer 3 (dev relay) | Layer 4 (live relay) |
+|---|---|---|
+| Bundle state | Development bundle (including PREPARE) | Review-approved live bundle |
+| Write access | Allowed (debug commands execute) | Read-only (observe only) |
+| Use case | Regression verification during development | Runtime observation post-deployment |
+
+## Related guides
+
+- [Relay TOTP Authentication](/guides/relay-auth-totp) — relay tunnel access control.
+- [Toss Login Flow](/guides/auth-flow) — authentication flow in the real WebView.
+
+## External references
+
+- [`@ait-co/devtools`](https://www.npmjs.com/package/@ait-co/devtools) — devtools package (includes the Debugging MCP).
