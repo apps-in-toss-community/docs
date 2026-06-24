@@ -155,6 +155,7 @@ const GROUP_MAP: Record<string, string> = {
   appsInTossEvent: 'events',
   tdsEvent: 'events',
   graniteEvent: 'events',
+  onVisibilityChangedByTransparentServiceWeb: 'events',
   // notification
   requestNotificationAgreement: 'notification',
   // partner
