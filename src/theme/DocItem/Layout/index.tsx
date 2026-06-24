@@ -22,8 +22,8 @@ import DocItemLayout from '@theme-original/DocItem/Layout';
 import type { ReactNode } from 'react';
 
 const SITE_URL = 'https://docs.aitc.dev';
-const SITE_NAME = 'Apps In Toss Community Docs';
-const AUTHOR_NAME = 'Apps In Toss Community';
+const SITE_NAME = 'Apps in Toss Community Docs';
+const AUTHOR_NAME = 'Apps in Toss Community';
 
 /** Returns the inLanguage value based on the current URL path. */
 function useInLanguage(): string {

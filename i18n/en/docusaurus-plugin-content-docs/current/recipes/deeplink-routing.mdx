@@ -1,13 +1,13 @@
 ---
 image: /og/recipes-deeplink-routing.png
 id: deeplink-routing
-title: Deeplink parameter parsing and routing
-sidebar_label: Deeplink parameter routing
+title: deep-link parameter parsing and routing
+sidebar_label: deep-link parameter routing
 slug: /recipes/deeplink-routing
 description: Read the entry URI with getSchemeUri, parse path and query params with the URL API, then push to the app router. Includes defensive parsing for non-standard scheme URIs.
 ---
 
-# Deeplink parameter parsing and routing
+# deep-link parameter parsing and routing
 
 `getSchemeUri()` returns the scheme URI that was used when the mini-app was first opened. Parse the path and query parameters from it, then navigate to the matching screen.
 
@@ -71,7 +71,7 @@ export function DeeplinkRouter() {
 }
 ```
 
-Unknown paths (not in `ROUTES`) are silently ignored — the default entry screen remains. Centralising the route map means adding a new deeplink only requires one table update.
+Unknown paths (not in `ROUTES`) are silently ignored — the default entry screen remains. Centralising the route map means adding a new deep-link only requires one table update.
 
 ## Related APIs
 

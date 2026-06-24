@@ -1,0 +1,66 @@
+---
+image: /og/guides-debug-relay.png
+id: debug-relay
+title: On-device CDP 릴레이 디버깅
+sidebar_label: CDP 릴레이 디버깅
+slug: /guides/debug-relay
+description: 에이전트가 실기기 토스 앱 WebView에 붙는 relay 디버깅 구조와 진입 방법 — QR/deep-link query-param 주입 경로.
+---
+
+# On-device CDP 릴레이 디버깅
+
+**relay 디버깅**은 에이전트가 실기기 토스 앱 WebView에서 실행 중인 미니앱에 직접 붙어 디버깅할 수 있게 해주는 채널입니다. 개발자가 폰을 직접 보지 않아도 에이전트가 런타임 상태를 관측·분석할 수 있습니다.
+
+## 환경 fidelity 모델에서의 위치
+
+relay 디버깅은 **4겹 fidelity 사다리**의 세 번째·네 번째 겹입니다.
+
+| 겹 | 실행 면 | fidelity 천장 |
+|---|---|---|
+| 1 | 로컬 브라우저 + mock SDK | 상태/계약 + 시각 레이아웃 |
+| 2 | AITC Sandbox PWA (실기기 WebKit) | 실기기 WebKit 엔진 |
+| **3** | **실기기 토스 앱 WebView + CDP relay (dev)** | **토스 WebView 런타임 + 개발 루프** |
+| **4** | **실기기 토스 앱 WebView + CDP relay (live)** | **실 출시 런타임 read-only 디버깅** |
+
+겹 1·2에서 구조적으로 불가능한 **토스 WebView 네이티브 브리지 동작**, **실 SDK 이벤트 타이밍**, **실 스와이프 제스처 회귀**를 relay 디버깅에서 검증할 수 있습니다.
+
+## relay 진입: QR / deep-link query-param
+
+relay 디버깅의 정식 진입 경로는 **deep-link query-param 주입 단일 경로**입니다.
+
+실기기 토스 앱에 다음 형태의 deep-link를 발사하면(QR 스캔 또는 직접 실행) relay가 붙습니다:
+
+```
+intoss-private://…?_deploymentId=<ID>&debug=1&relay=<wss-url>
+```
+
+- `_deploymentId` — 디버깅할 번들의 deployment ID. `PREPARE` 상태에서도 cold-load됩니다.
+- `debug=1` — 디버그 모드 플래그. gate Layer가 이 파라미터를 확인합니다.
+- `relay=<wss-url>` — 에이전트 쪽 WebSocket relay 서버 URL (예: trycloudflare 터널).
+
+`/ait debug` 명령이 이 deep-link 생성과 QR 표시를 자동화합니다.
+
+:::caution test-push는 사용하지 않습니다
+`test-push`(별도 알림 채널)는 `debug=1&relay` 쿼리를 실어 보낼 수 없어 gate에서 차단됩니다. deep-link/QR이 유일한 진입 경로입니다.
+:::
+
+## relay 인증
+
+trycloudflare 터널은 인증 없이 공개되므로, URL 유출 시 제3자가 디버거를 attach할 수 있습니다. 이를 막기 위해 **TOTP 기반 인증**을 사용합니다. 자세한 메커니즘은 [relay TOTP 인증](/guides/relay-auth-totp) 가이드를 참조하세요.
+
+## 겹 3 vs 겹 4 차이
+
+| 항목 | 겹 3 (dev relay) | 겹 4 (live relay) |
+|---|---|---|
+| 번들 상태 | `PREPARE` 포함 개발 번들 | 검수 통과 live 번들 |
+| 쓰기 권한 | 가능 (디버그 명령 실행) | read-only (관측만) |
+| 용도 | 개발 중 회귀 검증 | 실 출시 런타임 관측 |
+
+## 관련 가이드
+
+- [relay TOTP 인증](/guides/relay-auth-totp) — relay 터널 접근 제어 메커니즘.
+- [토스 로그인 흐름](/guides/auth-flow) — 실기기 WebView에서의 인증 흐름.
+
+## 외부 참조
+
+- [`@ait-co/devtools`](https://www.npmjs.com/package/@ait-co/devtools) — devtools 패키지 (Debugging MCP 포함).

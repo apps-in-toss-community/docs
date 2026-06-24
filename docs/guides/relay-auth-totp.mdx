@@ -1,0 +1,62 @@
+---
+image: /og/guides-relay-auth-totp.png
+id: relay-auth-totp
+title: Relay TOTP 인증
+sidebar_label: Relay TOTP 인증
+slug: /guides/relay-auth-totp
+description: trycloudflare 터널을 통한 CDP relay 접근을 TOTP로 제한해 URL 유출 시 제3자 attach를 차단하는 메커니즘.
+---
+
+# Relay TOTP 인증
+
+CDP relay는 trycloudflare 터널을 통해 노출됩니다. trycloudflare 터널은 기본적으로 인증이 없으므로, 터널 URL을 획득한 제3자가 디버거를 attach할 수 있는 갭이 있습니다. 이를 **TOTP(Time-based One-Time Password)** 로 닫습니다.
+
+## 위협 모델
+
+- **막는 것**: 터널 URL을 우연히 얻은(유출·도청) 제3자의 relay attach.
+- **범위 밖**: 번들에서 시크릿을 추출하는 결정형 공격자. 이 수준의 위협을 막으려면 번들 난독화·서명 등 별도 레이어가 필요하며, relay TOTP의 목적이 아닙니다(security theater 금지).
+
+## 동작 방식
+
+relay를 시작할 때 `.env`에 저장된 시크릿을 기반으로 TOTP를 생성합니다. relay에 연결을 시도하는 쪽은 유효한 TOTP 코드를 제시해야 합니다.
+
+```
+[에이전트]                    [relay Node 서버]              [토스 앱 WebView]
+     │  connect + TOTP code        │                               │
+     ├────────────────────────────►│                               │
+     │                             │  TOTP 검증 (process.env 시크릿)  │
+     │                             │  ✓ → attach 허용              │
+     │◄────────────────────────────┤                               │
+     │  CDP session                │◄──────────────────────────────┤
+```
+
+**권위 있는 관문(authoritative gate)**: relay-side Node 프로세스. `process.env`에서 시크릿을 런타임에 읽어 TOTP를 검증합니다.
+
+**2차 fail-fast**: in-app gate. relay-side 검증을 통과한 연결이 앱 내부 gate에서 한 번 더 확인됩니다.
+
+## 시크릿 설정
+
+relay 서버를 구동하는 환경의 `.env`(또는 등가 시크릿 저장소)에 시크릿을 설정합니다:
+
+```
+# .env 예시 — 실제 값은 절대 공유하지 마세요
+AIT_RELAY_TOTP_SECRET=<your-secret-here>
+```
+
+시크릿 값은 `stdout`/`stderr`/로그/에러 메시지 어디에도 출력하지 않습니다. 배포 환경에서는 GitHub Secrets, Cloudflare Workers Secrets 등 안전한 저장소를 사용하세요.
+
+:::caution 시크릿 취급 원칙
+시크릿·TOTP 코드 값은 로그·디버그 출력·에러 메시지에 절대 포함하지 않습니다. 유효성만 검증하고 값 자체는 폐기하세요.
+:::
+
+## TOTP 코드 생성 (에이전트 쪽)
+
+`/ait debug` 명령이 TOTP 생성을 자동화합니다. 수동으로 생성이 필요한 경우, 표준 TOTP 라이브러리(RFC 6238)와 동일한 시크릿으로 생성합니다.
+
+## 관련 가이드
+
+- [On-device CDP 릴레이 디버깅](/guides/debug-relay) — relay 디버깅의 전체 구조와 진입 방법.
+
+## 외부 참조
+
+- [`@ait-co/devtools`](https://www.npmjs.com/package/@ait-co/devtools) — Debugging MCP (relay 클라이언트 포함).
