@@ -13,8 +13,8 @@ Community-maintained guide and API reference for the `@apps-in-toss/web-framewor
 - [analytics (en)](https://docs.aitc.dev/en/api/analytics): 미니앱의 화면 조회·노출·클릭 이벤트를 로깅하는 SDK 네임스페이스입니다.
 - [auth](https://docs.aitc.dev/api/auth): 토스 로그인, 인증서 서명, 익명 키 조회, 게임용 deprecated 키 등 인증 관련 기능을 제공하는 SDK 네임스페이스입니다.
 - [auth (en)](https://docs.aitc.dev/en/api/auth): 토스 로그인, 인증서 서명, 익명 키 조회, 게임용 deprecated 키 등 인증 관련 기능을 제공하는 SDK 네임스페이스입니다.
-- [camera](https://docs.aitc.dev/api/camera): 카메라 촬영과 앨범 사진 조회를 제공하는 SDK 네임스페이스입니다.
-- [camera (en)](https://docs.aitc.dev/en/api/camera): 카메라 촬영과 앨범 사진 조회를 제공하는 SDK 네임스페이스입니다.
+- [camera](https://docs.aitc.dev/api/camera): 카메라 촬영과 앨범 사진·동영상 조회를 제공하는 SDK 네임스페이스입니다.
+- [camera (en)](https://docs.aitc.dev/en/api/camera): 카메라 촬영과 앨범 사진·동영상 조회를 제공하는 SDK 네임스페이스입니다.
 - [clipboard](https://docs.aitc.dev/api/clipboard): 시스템 클립보드에 텍스트를 쓰고 읽는 SDK 네임스페이스입니다.
 - [clipboard (en)](https://docs.aitc.dev/en/api/clipboard): 시스템 클립보드에 텍스트를 쓰고 읽는 SDK 네임스페이스입니다.
 - [environment](https://docs.aitc.dev/api/environment): 기기·네트워크·앱 버전 등 실행 환경 정보를 조회하는 SDK 네임스페이스입니다.
@@ -113,6 +113,7 @@ Community-maintained guide and API reference for the `@apps-in-toss/web-framewor
 
 ### camera
 
+- [fetchAlbumItems](https://docs.aitc.dev/api/camera/fetchAlbumItems) — 기기 앨범에서 사진·동영상 목록을 가져옵니다.
 - [fetchAlbumPhotos](https://docs.aitc.dev/api/camera/fetchAlbumPhotos) — 기기 앨범에서 사진 목록을 가져옵니다.
 - [openCamera](https://docs.aitc.dev/api/camera/openCamera) — 카메라를 실행해 촬영된 이미지를 반환합니다.
 
@@ -181,6 +182,7 @@ Community-maintained guide and API reference for the `@apps-in-toss/web-framewor
 
 - [closeView](https://docs.aitc.dev/api/navigation/closeView) — 현재 미니앱 뷰를 닫습니다.
 - [getTossShareLink](https://docs.aitc.dev/api/navigation/getTossShareLink) — 토스 인앱 공유 링크를 생성합니다.
+- [openPDFViewer](https://docs.aitc.dev/api/navigation/openPDFViewer) — Base64 PDF 데이터를 네이티브 PDF 뷰어로 엽니다.
 - [openURL](https://docs.aitc.dev/api/navigation/openURL) — 외부 URL을 엽니다.
 - [requestReview](https://docs.aitc.dev/api/navigation/requestReview) — 앱 스토어 리뷰 요청 다이얼로그를 트리거합니다.
 - [setDeviceOrientation](https://docs.aitc.dev/api/navigation/setDeviceOrientation) — 화면 방향을 세로 또는 가로로 설정합니다.

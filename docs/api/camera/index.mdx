@@ -4,30 +4,32 @@ id: camera-overview
 title: camera
 sidebar_label: Overview
 slug: /api/camera
-description: 카메라 촬영과 앨범 사진 조회를 제공하는 SDK 네임스페이스입니다.
+description: 카메라 촬영과 앨범 사진·동영상 조회를 제공하는 SDK 네임스페이스입니다.
 ---
 
 import TryItLink from '@site/src/components/TryItLink';
 
 # `camera`
 
-카메라로 이미지를 촬영하거나 기기 앨범에서 사진 목록을 가져오는 함수 모음입니다. 두 함수 모두 권한이 필요하지만 서로 다른 `PermissionName`을 사용합니다 — `openCamera`는 `camera`, `fetchAlbumPhotos`는 `photos`.
+카메라로 이미지를 촬영하거나 기기 앨범에서 사진·동영상 목록을 가져오는 함수 모음입니다. 권한이 필요한 함수는 서로 다른 `PermissionName`을 사용합니다 — `openCamera`는 `camera`, `fetchAlbumPhotos`와 `fetchAlbumItems`는 `photos`.
 
 ## 메서드
 
 | 메서드 | 반환 타입 | 용도 |
 | --- | --- | --- |
+| [`fetchAlbumItems`](/api/camera/fetchAlbumItems) | `Promise<AlbumItemResponse[]>` | 기기 앨범에서 사진·동영상 목록을 가져옵니다. |
 | [`fetchAlbumPhotos`](/api/camera/fetchAlbumPhotos) | `Promise<ImageResponse[]>` | 기기 앨범에서 사진 목록을 가져옵니다. |
 | [`openCamera`](/api/camera/openCamera) | `Promise<ImageResponse>` | 카메라를 실행해 사용자가 촬영한 이미지를 반환합니다. |
 
 ## 권한
 
-두 함수 모두 `PermissionFunctionWithDialog` 형태이며 `getPermission()` / `openPermissionDialog()` 유틸이 함수 객체에 직접 붙어있습니다.
+`PermissionFunctionWithDialog` 형태의 함수는 `getPermission()` / `openPermissionDialog()` 유틸이 함수 객체에 직접 붙어있습니다.
 
 | 메서드 | PermissionName |
 | --- | --- |
 | `openCamera` | `camera` |
 | `fetchAlbumPhotos` | `photos` |
+| `fetchAlbumItems` | `photos` |
 
 - 권한이 **`denied`** 상태이면 호출 시 실패합니다. `try/catch`로 감싸세요.
 - 아직 결정되지 않은 상태(`notDetermined`)라면 `openPermissionDialog()`로 다이얼로그를 띄우세요.
@@ -42,7 +44,7 @@ import TryItLink from '@site/src/components/TryItLink';
 
 ## 직접 실행해 보기
 
-sdk-example의 Camera 페이지에서 두 메서드를 직접 실행해 볼 수 있습니다.
+sdk-example의 Camera 페이지에서 세 메서드를 직접 실행해 볼 수 있습니다.
 
 <TryItLink group="camera" />
 

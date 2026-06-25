@@ -91,6 +91,7 @@ const sidebars: SidebarsConfig = {
           collapsed: false,
           items: [
             'api/camera/camera-overview',
+            'api/camera/fetchAlbumItems',
             'api/camera/fetchAlbumPhotos',
             'api/camera/openCamera',
           ],
@@ -197,6 +198,7 @@ const sidebars: SidebarsConfig = {
             'api/navigation/navigation-overview',
             'api/navigation/closeView',
             'api/navigation/getTossShareLink',
+            'api/navigation/openPDFViewer',
             'api/navigation/openURL',
             'api/navigation/requestReview',
             'api/navigation/setDeviceOrientation',
