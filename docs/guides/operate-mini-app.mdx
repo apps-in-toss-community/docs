@@ -1,0 +1,147 @@
+---
+image: /og/guides-operate-mini-app.png
+id: operate-mini-app
+title: 미니앱 운영 상태 조회 (operate)
+sidebar_label: 운영 상태 조회
+slug: /guides/operate-mini-app
+description: 배포한 미니앱의 콘솔 상태를 커뮤니티 aitcc CLI로 조회하는 방법 — app status(클라이언트 derive)와 app service-status(서버 권위)의 차이, PREPARE vs OPENED serviceStatus, 두 검수 상태머신, 그리고 런타임 로그가 없는 이유와 그 대안(이벤트 카탈로그·전환 지표).
+---
+
+# 미니앱 운영 상태 조회 (operate)
+
+미니앱을 콘솔에 등록하고 번들을 배포한 뒤에는 "지금 콘솔에서 이 앱이 어떤 상태인가"를 알아야 합니다. 검수가 진행 중인지, 출시(공개)됐는지, 사용자에게 어떤 지표가 잡히는지를 보는 단계입니다. 이 가이드는 커뮤니티 [`@ait-co/console-cli`](https://github.com/apps-in-toss-community/console-cli)(`aitcc`)로 그 상태를 조회하는 두 명령과, 둘이 왜 다른 답을 줄 수 있는지를 정리합니다.
+
+이 단계는 `/ait status` 스킬이 묶어 주는 운영 station입니다 — 아래 명령들을 직접 외우지 않아도 `/ait status`가 인증·앱 목록·현재 프로젝트 상태를 한 번에 보여주고 다음 단계를 분기 제시합니다. 이 페이지는 그 스킬이 부르는 명령의 의미와 경계를 자세히 다룹니다.
+
+:::info 두 CLI를 섞지 않습니다
+이 페이지의 모든 조회 명령은 콘솔 자동화 CLI인 **`aitcc`**(`@ait-co/console-cli`)입니다. 번들을 만드는 **`ait`**(`@apps-in-toss/cli`, `ait build`로 `.ait` 생성)와는 다른 도구입니다. 배포 흐름은 "`ait build`로 번들 생성 → `aitcc app deploy`로 업로드"이고, 운영 조회는 전부 `aitcc app …`입니다.
+:::
+
+## 두 가지 상태 조회 명령
+
+`aitcc`는 미니앱 상태를 보는 명령을 두 개 제공합니다. 비슷해 보이지만 **데이터 출처와 권위가 다릅니다**.
+
+| 명령 | 출처 | 성격 | 답하는 질문 |
+|---|---|---|---|
+| `aitcc app status` | `/with-draft` 엔벨로프에서 **클라이언트 측 derive** | 검수(등록) 상태 + draft/current + lock | "내 앱 등록 검수는 어디까지 갔나?" |
+| `aitcc app service-status` | `/review-status` 엔드포인트, **서버 권위** | `serviceStatus` + 종료(shutdown) 일정 | "이 앱이 사용자에게 열려 있나?" |
+
+두 명령 모두 cwd의 `aitcc.yaml`에서 `miniAppId`를 자동으로 읽으므로, 등록된 프로젝트 디렉토리 안에서는 ID 인자 없이 호출할 수 있습니다.
+
+### `aitcc app status` — 등록 검수 상태 (클라이언트 derive)
+
+```bash
+aitcc app status --json
+```
+
+이 명령은 콘솔의 `/with-draft` 응답(앱 상세 + draft)을 받아 **클라이언트 측에서 사람이 읽기 좋은 상태로 derive**합니다. 응답 엔벨로프의 `approvalType`(`REVIEW` / `APPROVED` / `REJECTED`) + `current` + `draft` + `rejectedMessage` 조합을 다음 같은 `reviewState`로 정규화합니다.
+
+- `not-submitted` — 등록은 됐지만 검수를 한 번도 제출하지 않음
+- `under-review` — 등록 검수 진행 중 (운영팀 처리 대기)
+- `rejected` — 반려 (`rejectedMessage`에 사유)
+- `approved` / `approved-with-edits` — 등록 검수 통과
+- `unknown` — 위로 분류 안 되는 경우
+
+JSON 모드에는 `locked: boolean`과 `lockReason`(`'review-pending' | null`)도 함께 나옵니다. 검수 중이면 메타데이터 수정(update)이 잠겨 있다는 신호입니다.
+
+### `aitcc app service-status` — 서비스 상태 (서버 권위)
+
+```bash
+aitcc app service-status --json
+```
+
+이 명령은 `/review-status` 엔드포인트를 그대로 읽습니다 — **서버가 직접 권위로 가진 상태**입니다. 핵심 필드는 `serviceStatus`(`PREPARE` / `OPENED` 등)와 종료 예정(`shutdownCandidateStatus`, `scheduledShutdownAt`)입니다.
+
+`app status`의 derive 라벨과 `app service-status`의 `serviceStatus`가 어긋나 보일 때는 **서버 권위인 `service-status`를 믿습니다.** derive 라벨은 편의를 위한 가공값이고, 실제로 사용자에게 앱이 열려 있는지는 `serviceStatus`만이 답합니다.
+
+## PREPARE vs OPENED — 그리고 왜 "검수 통과"가 "출시"가 아닌가
+
+`serviceStatus`는 운영 단계에서 가장 자주 보게 되는 값입니다.
+
+- **`PREPARE`** — 앱이 아직 사용자에게 열리지 않은 준비 상태. 등록 검수를 통과했더라도, 번들이 실제 출시(release)되기 전까지는 여기 머뭅니다.
+- **`OPENED`** — 출시된 번들이 있어 사용자에게 노출되는 상태. 첫 번들이 RELEASED로 넘어가는 순간 `PREPARE → OPENED`로 전이합니다.
+
+여기서 자주 헷갈리는 지점이 있습니다: **앱 등록 검수와 번들 출시 검수는 별개의 상태머신입니다.** `app status`가 `approved`라고 해서 `serviceStatus`가 자동으로 `OPENED`가 되지 않습니다.
+
+```
+앱 등록 검수 (approvalType)        번들 출시 검수 (reviewStatus)
+─────────────────────────         ──────────────────────────────────
+REVIEW → APPROVED / REJECTED       CREATED → REVIEWING → APPROVED → RELEASED
+
+  app status가 derive하는 층          app deploy / bundles가 움직이는 층
+                                       첫 RELEASED 번들 → serviceStatus: OPENED
+```
+
+번들의 `reviewStatus`는 업로드 직후 `CREATED`(출시 검수 미제출)에서 시작합니다. `aitcc app deploy --request-review --release-notes "<text>"`로 출시 검수를 제출하면 `REVIEWING`으로, 운영팀 검수를 통과하면 `APPROVED`로, 마지막으로 `aitcc app deploy --release --confirm`으로 release하면 `RELEASED`가 됩니다. 그 첫 `RELEASED` 번들이 `serviceStatus`를 `OPENED`로 올립니다.
+
+따라서 다음 조합이 정상입니다 — **앱 등록은 `approved`인데 `serviceStatus`는 여전히 `PREPARE`.** 등록 메타데이터 검수는 통과했지만 어떤 번들도 출시 검수까지 통과해 release되지 않았기 때문입니다. release된 번들이 없으면 `aitcc app bundles deployed --json`도 `bundle: null`을 돌려줍니다.
+
+:::caution `--request-review`는 `--release-notes`가 필수입니다
+출시 검수 제출(`aitcc app deploy --request-review`)은 `--release-notes "<text>"` 없이 호출하면 에러로 거부됩니다. 또한 검수 큐 진입은 되돌리기 어려운 동작이니, 릴리즈 노트를 의식적으로 작성해 제출합니다. 실제 출시인 `--release`는 `--confirm` 가드가 붙어야 진행되며, 이건 사용자에게 노출되는 비가역 publish입니다.
+:::
+
+### 검수 lock (errorCode 4046)을 만났을 때
+
+앱 메타데이터를 update하려는데 `errorCode: 4046`(REVIEW lock)이 떨어지면, 그 앱은 현재 등록 검수 큐에 들어가 있어 사용자가 직접 큐에서 뺄 방법이 없는 상태입니다. **운영팀이 검수 결과를 낼 때까지 기다리는 것이 올바른 경로**입니다 — 새 앱을 만들어 우회하지 않습니다. 새 앱으로 우회하면 잠긴 앱이 그대로 남고 추적 대상만 늘어납니다.
+
+## 운영 지표 조회 — 그리고 "런타임 로그"가 없다는 점
+
+운영 단계에서 "로그를 보고 싶다"는 요구가 자연스럽게 따라옵니다. 여기서 정확히 짚어야 할 사실이 하나 있습니다.
+
+**콘솔은 원시 런타임 로그(stdout/stderr, 예외 스택, 요청별 라인)를 노출하지 않습니다.** 콘솔이 서피스하는 것은 두 가지뿐입니다 — 커스텀 이벤트 카탈로그와 전환 지표. 둘 다 집계된 비즈니스 신호이지, 프로세스 런타임 로그가 아닙니다. 그래서 `aitcc logs` 같은 명령은 제공되지 않고, `/ait logs` 스킬도 이 사실을 명시한 뒤 대안으로 안내합니다.
+
+### 커스텀 이벤트 카탈로그 — `aitcc app events`
+
+앱에서 `app.logEvent()`로 계측한 **커스텀 이벤트의 카탈로그**를 조회합니다. 등록·검수·상태 변경 이력이 아니라, 앱이 직접 보낸 이벤트들이 어떤 이름으로 잡히는지를 봅니다.
+
+```bash
+aitcc app events ls --json        # 현재 디렉토리의 aitcc.yaml 기준
+aitcc app events ls <appId>       # appId 직접 지정
+```
+
+### 전환 지표 — `aitcc app metrics`
+
+배포된 미니앱의 **전환 지표**(노출·전환 등 날짜 범위별 집계)를 조회합니다. 런타임 성능·오류율·응답 시간은 이 명령의 범위 밖입니다.
+
+```bash
+aitcc app metrics --json
+aitcc app metrics --time-unit DAY|WEEK|MONTH --start YYYY-MM-DD --end YYYY-MM-DD --json
+```
+
+기본 조회 범위는 오늘 기준 최근 30일(`--time-unit DAY`)입니다. `serviceStatus`가 `PREPARE`(미출시)이면 `events`·`metrics` 모두 빈 배열을 반환하는 것이 정상입니다 — 사용자에게 노출된 적이 없으니 집계할 트래픽이 없습니다.
+
+### 실제 런타임 관측이 필요하면
+
+집계 지표가 아니라 실제 화면 동작·콘솔 오류·네트워크를 봐야 한다면, 콘솔 조회가 아니라 디버깅 경로를 씁니다. 로컬 개발 중에는 브라우저 DevTools(환경 1)로, 실기기의 실 토스 WebView 런타임은 on-device CDP relay(환경 3·4)로 관측합니다. 외부 텔레메트리(예: Sentry)를 앱에 직접 연동하는 것도 한 방법입니다 — 이건 콘솔과 무관하게 동작합니다. 실기기 relay 진입(QR/deep-link 주입)의 전체 절차는 아래 관련 가이드를 참고하세요.
+
+## 상태에 따라 다음에 할 일
+
+조회 결과별로 다음 단계는 이렇게 갈립니다.
+
+| 관측된 상태 | 다음 단계 |
+|---|---|
+| `aitcc.yaml` 없음 (미등록) | `/ait register`로 콘솔 등록부터 시작 |
+| `reviewState: not-submitted` | `ait build`로 번들 생성 후 `aitcc app deploy --request-review --release-notes "<릴리즈 노트>" <번들.ait>`로 출시 검수 제출 |
+| `under-review` / `errorCode 4046` | 운영팀 처리 대기. 그 사이 실기기 확인은 디버그 relay(아래 가이드)로 |
+| `rejected` | `aitcc app status --json`의 `rejectedMessage`에서 사유 확인 → 수정 후 재제출 |
+| `approved` + `serviceStatus: PREPARE` | 출시 검수 통과 후 `aitcc app deploy --release --confirm <번들.ait>`로 출시 → `serviceStatus: OPENED` |
+| `serviceStatus: OPENED` | 실서비스 중. `aitcc app events` / `aitcc app metrics`로 운영 지표 조회 |
+
+`/ait status`는 이 분기를 관측 결과에 맞춰 자동으로 제시합니다 — 직접 명령을 실행하지 않고 다음 마디를 가리키기만 합니다.
+
+## 관련 가이드
+
+- [이벤트 로깅 패턴](/guides/event-logging) — `app.logEvent()` / `analytics.eventLog`로 어떤 이벤트를 어떤 이름으로 계측할지. `aitcc app events`가 보여주는 카탈로그를 채우는 쪽.
+- [디버그 relay로 실기기 런타임 관측](/guides/debug-relay) — PREPARE 상태에서도 실기기 토스 WebView에 CDP relay를 붙여 콘솔·네트워크·예외를 보는 경로(QR/deep-link 주입).
+- [oidc-bridge로 토스 로그인 연동](/guides/oidc-bridge) — 운영 전 단계인 auth station 배선.
+
+## 외부 참조
+
+- [`@ait-co/console-cli`](https://github.com/apps-in-toss-community/console-cli) — `aitcc` CLI 소스. `app status` / `app service-status` / `app events` / `app metrics` / `app deploy` 명령 레퍼런스.
+- [`@apps-in-toss/cli`](https://www.npmjs.com/package/@apps-in-toss/cli) — `ait build`로 `.ait` 번들을 만드는 번들러 CLI.
+- [analytics SDK 네임스페이스](/api/analytics) — `app.logEvent()` 계측에 쓰는 SDK API.
+- [events SDK 네임스페이스](/api/events) — 플랫폼·TDS·Granite 이벤트 구독 API.
+
+---
+
+커뮤니티 오픈소스 프로젝트입니다.

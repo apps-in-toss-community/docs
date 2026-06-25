@@ -1,0 +1,292 @@
+---
+image: /og/guides-ship-mini-app.png
+id: ship-mini-app
+title: Build, Register, and Ship a Mini-app Bundle
+sidebar_label: Build · Register · Ship
+slug: /guides/ship-mini-app
+description: From empty bundle to launch — build a .ait bundle with ait build, register it on the console with aitcc app register, issue a Deploy Key, upload with ait deploy, and submit for release review with aitcc app deploy. Covers why app-registration review and bundle-release review are separate state machines, errorCode 4046 REVIEW lock, and the role split between the two CLIs (ait vs aitcc).
+---
+
+# Build, Register, and Ship a Mini-app Bundle
+
+This guide walks a single mini-app through the full station 5 (register+ship) path: **build the bundle → register on the console → upload → submit for release review**. The commands are split across two different CLIs, and review proceeds as two independent state machines. Blurring either of these makes it easy to get stuck on things like "registration clearly succeeded, so why won't the app open?" — so throughout this guide we state explicitly which CLI and which state machine is in play at every step.
+
+:::info Automate with the `/ait` skills
+Every step below can be completed inside the agent with the `/ait` skills from [agent-plugin](https://github.com/apps-in-toss-community/agent-plugin) — `/ait setup-bundle` → `/ait register` → `/ait deploy-key` → `/ait deploy`. This guide explains what commands those skills actually call under the hood, and why they call them that way.
+:::
+
+## First: tell the two CLIs apart
+
+The ship flow involves two similarly-named CLIs. They are **different tools** with non-overlapping roles.
+
+| CLI | Package | Role | Commands used in this guide |
+|---|---|---|---|
+| `ait` | `@apps-in-toss/cli` (bundler) | Builds a mini-app into a `.ait` bundle and uploads the bundle to the deploy queue | `ait build`, `ait deploy --profile <name>` |
+| `aitcc` | `@ait-co/console-cli` (community console automation) | Automates the Apps in Toss console — app registration, Deploy Key issuance, release-review submission and status lookups | `aitcc app register`, `aitcc keys create`, `aitcc app deploy`, `aitcc app status` |
+
+The core split:
+
+- **Building and uploading the bundle is `ait`** (the bundler binary). `ait build` produces `<appName>.ait`, and `ait deploy` PUTs that bundle into the console's deploy queue.
+- **Everything on the console is `aitcc`** (the community console CLI). App metadata registration, Deploy Key issuance, release-review submission, and status lookups are all `aitcc`.
+
+One thing that trips people up: the bundle upload can be done with either `ait deploy` or `aitcc app deploy`. Both hit the same console deploy endpoint. As a rule, **do the upload with `ait deploy --profile`** (which uses a Deploy Key — clean for local/CI auth), and **submit for release review with `aitcc app deploy --request-review`** (which uses the console session) — review submission is irreversible, so we keep it deliberately separate. We point this out step by step below.
+
+## The whole flow at a glance
+
+```
+ait build                      → produces <appName>.ait bundle             (bundler, local)
+aitcc app register             → registers app metadata + submits for review (console)
+aitcc keys create              → issues a Deploy Key                         (console)
+ait deploy --profile <name>    → uploads the bundle to the deploy queue      (bundler)
+aitcc app deploy --request-review --release-notes "<text>"
+                               → submits the uploaded bundle for release review (console)
+aitcc app deploy --release --confirm
+                               → releases the reviewed bundle to users        (console, 2nd run)
+```
+
+Adding the bundle-build environment is handled by `/ait setup-bundle`, registration by `/ait register`, the Deploy Key by `/ait deploy-key`, and the upload by `/ait deploy`.
+
+## Step 1 — Build the bundle (`ait build`)
+
+First, the project needs a bundle-build environment. `/ait setup-bundle` adds `@apps-in-toss/cli` as a devDependency, generates `granite.config.ts`, and installs a `bundle:ait` script in `package.json` (which runs `ait build` internally).
+
+The minimal shape of `granite.config.ts`:
+
+```ts
+import { defineConfig } from '@apps-in-toss/web-framework/config';
+
+export default defineConfig({
+  appName: 'my-mini-app',
+  brand: {
+    displayName: 'My Mini-app',
+    primaryColor: '#3182F6',
+    icon: 'https://example.com/icon.png', // required in SDK 2.x — must be a hosted https URL
+  },
+  web: {
+    host: 'localhost',
+    port: 5173,
+    commands: { dev: 'vite', build: 'vite build' },
+  },
+  permissions: [],
+  outdir: 'dist',
+});
+```
+
+Build the bundle.
+
+```bash
+pnpm bundle:ait        # runs ait build internally → produces <appName>.ait
+```
+
+`brand.icon` is a required field in SDK 2.x — leaving it empty or pointing it at a local file path fails the build with `[Apps In Toss Plugin] 플러그인 옵션이 올바르지 않습니다.` (invalid plugin options). Use a hosted `https://` URL.
+
+The `.ait` bundle has a `deploymentId` embedded inside it — `ait deploy` extracts this value automatically later, so you don't need to specify it on upload.
+
+## Step 2 — Register the app on the console (`aitcc app register`)
+
+Building the bundle is a local operation that needs no authentication, but **from console registration onward you need a logged-in `aitcc` session**. `aitcc login` opens a system Chrome window so you can log in to the console (`apps-in-toss.toss.im`), then stores the session cookies locally. (It's an interactive login, so the agent never calls it directly — you run it once yourself.)
+
+Registration automates the console's app-registration wizard from a single `aitcc.yaml` manifest. `/ait register` generates this manifest non-interactively (the console UI's `aitcc app init` is TTY-only, so an agent can't run it).
+
+Some constraints on the manifest's required fields:
+
+| Field | Constraint |
+|---|---|
+| `titleKo` | Korean/Latin letters, digits, spaces + `: · ?` only. ≤ 10 code points excluding spaces |
+| `titleEn` | `[A-Za-z0-9 :·?]` only. ≤ 15 code points excluding spaces. Each word Title-Case (e.g. `Aitc Sdk Example` — all-caps tokens like `AITC`·`SDK` are rejected) |
+| `appName` | `^[a-z][a-z0-9-]*$` (lowercase-leading kebab-case), unique across all of Apps in Toss |
+| `categoryIds` | One or more integers. Look up live with `aitcc app categories --selectable --json` |
+| `logo` / `horizontalThumbnail` / `verticalScreenshots` | Spec-compliant PNGs (600×600 / 1932×828 / 636×1048 each, at least 3 vertical) |
+
+Place image assets directly under `./assets/`. Producing spec-compliant PNGs is the job of the design station (`/ait design`).
+
+Before submitting, always validate the manifest and image specs first with `--dry-run`. A dry-run requires no terms acceptance.
+
+```bash
+aitcc app register --config ./aitcc.yaml --dry-run --json
+```
+
+The real submission entails accepting the console's required terms, so it needs `--accept-terms`.
+
+```bash
+aitcc app register --config ./aitcc.yaml --accept-terms --json
+```
+
+:::caution `--accept-terms` requires explicit consent
+`--accept-terms` means submitting the app for review and accepting the console's required legal terms. Without this flag the CLI refuses to submit and stops with `exit 2` (`terms-not-accepted`). Add it only after you have confirmed what you are agreeing to — the agent must not add it on its own.
+:::
+
+When registration succeeds, the `miniAppId` returned by the server is written back into `aitcc.yaml` automatically. From then on, commands like `aitcc app deploy`·`aitcc app status` point at the same app without an `--app` argument.
+
+## The two reviews are separate state machines
+
+This is the most important part of the guide. Shipping a mini-app involves **two reviews that proceed independently of each other**.
+
+| | App-registration review | Bundle-release review |
+|---|---|---|
+| Subject | App metadata (title, icon, screenshots, category) | An individual bundle (per `deploymentId`) |
+| Status field | `approvalType` (per app) | `reviewStatus` (per bundle) |
+| Trigger | `aitcc app register` | `aitcc app deploy --request-review` |
+| State transitions | `REVIEW → APPROVED` / `REJECTED` | `CREATED → REVIEWING → APPROVED → RELEASED` |
+
+One review passing has no effect on the other. So it is normal for **the app registration to be `approved` while the app is still not visible to users** — because the uploaded bundle has not yet cleared release review.
+
+### App-registration review (`approvalType`)
+
+```
+create (aitcc app register, no miniAppId)
+  → REVIEW ──(ops approves)──→ APPROVED
+         └──(ops rejects)──→ REJECTED (rejectedMessage filled in)
+
+APPROVED ──(update)──→ REVIEW   (current preserved, new changes go to draft)
+REJECTED ──(update)──→ REVIEW   (overwrites draft)
+REVIEW   ──(update)──→ ❌ errorCode 4046 (locked)
+```
+
+An already-registered app is changed via the update mode of the same `aitcc app register`, with `miniApp.miniAppId` included in the payload — there is no separate update endpoint.
+
+### Bundle-release review (`reviewStatus`)
+
+```
+upload (ait deploy / aitcc app deploy)
+  → CREATED ──(--request-review)──→ REVIEWING
+          REVIEWING ──(ops approves)──→ APPROVED ──(--release --confirm)──→ RELEASED
+          REVIEWING ──(ops rejects)──→ REJECTED ──(re-submit)──→ REVIEWING
+```
+
+Uploading alone leaves the bundle at `CREATED` (release review not submitted). `--request-review` puts it in the review queue; after ops moves it to `APPROVED`, `--release --confirm` performs the actual release.
+
+### The link between the two: `serviceStatus`
+
+Whether the app is actually open to users is decided by `serviceStatus` (per app).
+
+- Even when app registration is `APPROVED`, **`serviceStatus` stays at `PREPARE` until the first `RELEASED` bundle exists**.
+- Once the first `RELEASED` bundle appears, `serviceStatus` flips to `OPENED`, and from that point the app is exposed to users.
+
+To put it all together, the complete path to launch is:
+
+```
+app registration APPROVED  +  bundle CREATED → REVIEWING → APPROVED → RELEASED
+                                                                          ↓
+                                              serviceStatus: PREPARE → OPENED
+```
+
+## Step 3 — Issue a Deploy Key (`aitcc keys create`)
+
+The bundle upload (`ait deploy`) authenticates not with a console session but with a **Deploy Key** — a workspace-scoped deploy credential. The console UI calls this an "API key", but you issue it with `aitcc keys create`.
+
+`/ait deploy-key` handles issuance and storage in one go.
+
+```bash
+aitcc keys create --name <label> --json
+```
+
+By default `aitcc keys create` **auto-saves the issued key into `~/.ait/credentials` (JSON, mode `0600`) under a profile named the same as `--name`** — so subsequent `ait deploy --profile <name>` calls authenticate immediately without ever putting the key value on the command line. Pass `--save-profile <profile-name>` to override the auto-save profile name, or `--no-save-profile` to disable saving entirely (stdout-only, for CI pipes that store the key elsewhere).
+
+:::caution A Deploy Key is shown only once
+The issued Deploy Key value is exposed once, at issuance time (the same pattern as a GitHub PAT). Because the key is auto-saved to your credentials file, you don't need to copy it by hand — but never print the key value to a log, chat, or command line again. To use it in CI, put it in a GitHub repo secret (`AITCC_API_KEY`) and consume it with `ait deploy --api-key "$AITCC_API_KEY"` — but locally, `--api-key` is exposed in plaintext to `ps`, so use `--profile`.
+:::
+
+## Step 4 — Upload the bundle (`ait deploy --profile`)
+
+Now upload the `.ait` bundle you built to the console deploy queue. `ait deploy` (the bundler) extracts the `deploymentId` from the bundle and uploads it automatically.
+
+```bash
+pnpm exec ait deploy --profile <profile-name> --scheme-only -m "v0.1.2 $(date +%Y-%m-%dT%H:%M:%S)"
+```
+
+- `--profile <name>`: authenticate with the Deploy Key profile saved in Step 3.
+- `--scheme-only`: after the upload completes, print only the `intoss-private://...` scheme URL on the last line.
+- `-m`: deploy memo (a timestamp makes a reasonable default).
+
+After this step the bundle is on the console at `reviewStatus: CREATED`. It has not yet entered release review, and `serviceStatus` is still `PREPARE`.
+
+:::info In PREPARE, opening the scheme URL directly won't load
+While `serviceStatus` is `PREPARE` (before clearing release review), simply opening the `intoss-private://` URL in the Toss app will not load the bundle. To verify on a physical device before review, you need the QR/deep-link relay-injection path — see [bundle debug relay](/guides/debug-relay). (the `/ait debug` environment 3 path)
+:::
+
+## Step 5 — Submit for release review (`aitcc app deploy --request-review`)
+
+Submit the uploaded bundle to the release-review queue. `aitcc app deploy` (the console CLI) can bundle the upload and the review request into one command, and the review request **requires release notes**.
+
+```bash
+aitcc app deploy <path-to.ait> --request-review --release-notes "<release notes>" --json
+```
+
+If you use `--request-review` but omit `--release-notes`, the CLI refuses with `exit 2` (`missing-release-notes`) — the two flags always go together.
+
+:::caution Release-review submission is irreversible
+`--request-review` moves the bundle `CREATED → REVIEWING` into the ops review queue. There is no way for the submitter to pull the bundle back out of the queue (no review withdrawal), so it is a deliberate action. This is why we keep the automated upload (`ait deploy`) and the review submission separate — the `/ait deploy` skill does not automate review submission.
+:::
+
+## Step 6 — Actually release (`aitcc app deploy --release --confirm`)
+
+Once ops moves the bundle to `APPROVED` (usually a few days later), you release the same bundle for real. This is a second run, separate from the review submission.
+
+```bash
+aitcc app deploy <path-to.ait> --release --confirm --json
+```
+
+`--release` is an irreversible action that exposes the bundle to users, so it requires the `--confirm` guard — using `--release` without `--confirm` makes the CLI refuse with `exit 2` (`not-confirmed`). `--release` only succeeds when the bundle is already in `APPROVED` state (the server rejects it for `CREATED`/`REVIEWING`). Once the first `RELEASED` bundle appears, `serviceStatus` flips to `OPENED` and the app opens to users.
+
+## Getting unstuck
+
+### errorCode 4046 — app-registration REVIEW lock
+
+When the app is already in registration review (`approvalType: REVIEW`) and you try an update via `aitcc app register`, you get `errorCode: 4046` ("There is a request under review, so a review request cannot be made."). This is the locked state of app-registration review.
+
+```
+{ "resultType": "FAIL", "error": { "errorCode": "4046", "reason": "검수중인 요청이 있어 검수요청을 할 수 없어요." } }
+```
+
+The correct response here is **to wait until ops returns a review result**. There is no way for the submitter to pull the app out of the review queue themselves (app registration has no review-withdrawal endpoint). Do not register a new app to break the lock — a new app just hits the same lock, and you only accumulate leftover apps to clean up.
+
+### Terms not accepted (4037 / 4039 / 4040 / 4099 / 5001 / 5010)
+
+When a deploy or registration is blocked by un-accepted terms, the errorCode tells you which terms. Workspace-scoped terms are handled with `aitcc workspace terms`.
+
+```bash
+aitcc workspace terms --json              # list un-accepted items
+aitcc workspace terms agree --all --json  # accept all (idempotent)
+```
+
+`5010` is not a workspace term but the **account-scoped AI risk-disclosure terms (AI_RISK_USE)** being un-accepted, and uses a different command — `aitcc me terms agree --scope AI_RISK_USE --yes`. Accepting is a legal act, so proceed only after reviewing the terms. You can catch un-accepted terms ahead of running `ait deploy` directly with `aitcc app deploy --dry-run --json`.
+
+### Checking status — `app status` vs `app service-status`
+
+The two commands for looking up app status differ in authority.
+
+- `aitcc app status --json` — a status derived client-side from `/with-draft` (`not-submitted`/`under-review`/`rejected`/`approved`/`approved-with-edits`). Fast, but a derived label.
+- `aitcc app service-status --json` — the **server-authoritative** status (`serviceStatus`) from the `/review-status` endpoint. When the two disagree, trust `service-status`.
+
+For bundle status, use `aitcc app bundles ls --json` (each bundle's `reviewStatus`). The `/ait status` skill walks you through the full branching of what comes next based on the state.
+
+### There are no runtime logs
+
+The Apps in Toss console has no endpoint for server runtime logs (stdout/stderr, exception stacks, per-request lines). What the console offers is only two things.
+
+- **A custom event catalog** — `aitcc app events ls --json`. An aggregation of events instrumented in the app via `app.logEvent()`, not raw runtime logs.
+- **Conversion metrics** — `aitcc app metrics --json`. Date-range aggregates of impressions, conversions, etc. An empty array is normal in the `PREPARE` (un-launched) state.
+
+To observe the real Toss WebView's runtime console, network, and exceptions, use the on-device CDP relay path (`/ait debug` environments 3·4). The `/ait logs`·`/ait status` skills guide the detailed operational lookups.
+
+## Related guides
+
+- [Toss login flow](/guides/auth-flow) — when wiring login into a shipped app.
+- [Bundle debug relay](/guides/debug-relay) — the QR/deep-link relay path to cold-load a bundle on a physical device in the PREPARE state.
+- [Relay auth TOTP](/guides/relay-auth-totp) — secret-based authentication for the debug relay.
+- [Event logging](/guides/event-logging) — `app.logEvent()` instrumentation (the source of the console events catalog).
+- [Wiring Toss login with oidc-bridge](/guides/oidc-bridge) — server wiring for login on a shipped app.
+
+## External references
+
+- [console-cli (`aitcc`)](https://github.com/apps-in-toss-community/console-cli) — console automation CLI. Registration, Deploy Key, review submission, status lookups.
+- [console-cli mini-app registration API](https://github.com/apps-in-toss-community/console-cli/blob/main/docs/api/mini-apps.md) — the `approvalType` state machine, errorCode 4046, update mode.
+- [console-cli bundles · deployments API](https://github.com/apps-in-toss-community/console-cli/blob/main/docs/api/mini-app-bundles.md) — the `reviewStatus` state machine, the `app deploy` step flow.
+- [`@apps-in-toss/cli`](https://www.npmjs.com/package/@apps-in-toss/cli) — the `ait build`·`ait deploy` bundler.
+- [agent-plugin](https://github.com/apps-in-toss-community/agent-plugin) — the `/ait setup-bundle`·`/ait register`·`/ait deploy-key`·`/ait deploy` skills.
+
+---
+
+Community open-source project.
+
