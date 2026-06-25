@@ -40,6 +40,47 @@ Community-maintained guide and API reference for the `@apps-in-toss/web-framewor
 - [storage](https://docs.aitc.dev/api/storage): 미니앱 전용 키-값 저장소를 다루는 SDK 네임스페이스입니다.
 - [storage (en)](https://docs.aitc.dev/en/api/storage): 미니앱 전용 키-값 저장소를 다루는 SDK 네임스페이스입니다.
 
+## Guides
+
+- [네비게이션 악세서리 버튼 UX 패턴](https://docs.aitc.dev/guides/accessory-button-ux): partner.addAccessoryButton·removeAccessoryButton과 tdsEvent.navigationAccessoryEvent를 잇는 라이프사이클 — 화면 단위 mount/unmount, 단일 책임 ID, 멀티 버튼·상태 토글까지 한 곳에 정리.
+- [네비게이션 악세서리 버튼 UX 패턴 (en)](https://docs.aitc.dev/en/guides/accessory-button-ux): partner.addAccessoryButton·removeAccessoryButton과 tdsEvent.navigationAccessoryEvent를 잇는 라이프사이클 — 화면 단위 mount/unmount, 단일 책임 ID, 멀티 버튼·상태 토글까지 한 곳에 정리.
+- [광고 통합 패턴](https://docs.aitc.dev/guides/ads-integration): 배너·전면 광고를 안전하게 통합하는 라이프사이클 패턴 — initialize, attach/destroy, load → show 흐름.
+- [광고 통합 패턴 (en)](https://docs.aitc.dev/en/guides/ads-integration): 배너·전면 광고를 안전하게 통합하는 라이프사이클 패턴 — initialize, attach/destroy, load → show 흐름.
+- [익명 키를 활용한 게임 세션 식별 패턴](https://docs.aitc.dev/guides/anonymous-key-game-session): auth.getAnonymousKey와 auth.getUserKeyForGame을 활용해 토스 로그인을 강제하지 않고 게임 진행도·리더보드·세션을 식별하는 패턴 — 익명 키의 수명, 디바이스 교체 시 동작, appLogin과의 차이, 그리고 anonymous → logged-in 마이그레이션.
+- [익명 키를 활용한 게임 세션 식별 패턴 (en)](https://docs.aitc.dev/en/guides/anonymous-key-game-session): auth.getAnonymousKey와 auth.getUserKeyForGame을 활용해 토스 로그인을 강제하지 않고 게임 진행도·리더보드·세션을 식별하는 패턴 — 익명 키의 수명, 디바이스 교체 시 동작, appLogin과의 차이, 그리고 anonymous → logged-in 마이그레이션.
+- [토스 로그인 흐름](https://docs.aitc.dev/guides/auth-flow): 미니앱에서 토스 로그인을 통합하는 표준 흐름 — appLogin으로 authorization code를 받고 서버에서 토큰으로 교환하기까지.
+- [토스 로그인 흐름 (en)](https://docs.aitc.dev/en/guides/auth-flow): 미니앱에서 토스 로그인을 통합하는 표준 흐름 — appLogin으로 authorization code를 받고 서버에서 토큰으로 교환하기까지.
+- [카메라·앨범 UX 패턴 — openCamera와 fetchAlbumPhotos를 함께 다루기](https://docs.aitc.dev/guides/camera-album-ux): openCamera로 사진 한 장을 즉시 촬영하는 흐름과 fetchAlbumPhotos로 앨범에서 골라오는 흐름의 차이, 권한 처리, 결과 base64 처리, 그리고 사용자가 "촬영 / 앨범에서 선택" 둘 다 고를 수 있는 ActionSheet 패턴.
+- [카메라·앨범 UX 패턴 — openCamera와 fetchAlbumPhotos를 함께 다루기 (en)](https://docs.aitc.dev/en/guides/camera-album-ux): openCamera로 사진 한 장을 즉시 촬영하는 흐름과 fetchAlbumPhotos로 앨범에서 골라오는 흐름의 차이, 권한 처리, 결과 base64 처리, 그리고 사용자가 "촬영 / 앨범에서 선택" 둘 다 고를 수 있는 ActionSheet 패턴.
+- [On-device CDP 릴레이 디버깅](https://docs.aitc.dev/guides/debug-relay): 에이전트가 실기기 토스 앱 WebView에 붙는 relay 디버깅 구조와 진입 방법 — QR/deep-link query-param 주입 경로.
+- [On-device CDP 릴레이 디버깅 (en)](https://docs.aitc.dev/en/guides/debug-relay): 에이전트가 실기기 토스 앱 WebView에 붙는 relay 디버깅 구조와 진입 방법 — QR/deep-link query-param 주입 경로.
+- [이벤트 로깅 패턴 — log_name 컨벤션과 log_type 선택](https://docs.aitc.dev/guides/event-logging): analytics.eventLog의 log_type 9종을 언제 어떻게 골라 쓰는지, log_name 네이밍 컨벤션, params 안에 절대 넣으면 안 되는 것들, 그리고 사용자 액션·화면·노출·에러 4개 축을 한 페이지에서 일관되게 로깅하는 패턴.
+- [이벤트 로깅 패턴 — log_name 컨벤션과 log_type 선택 (en)](https://docs.aitc.dev/en/guides/event-logging): analytics.eventLog의 log_type 9종을 언제 어떻게 골라 쓰는지, log_name 네이밍 컨벤션, params 안에 절대 넣으면 안 되는 것들, 그리고 사용자 액션·화면·노출·에러 4개 축을 한 페이지에서 일관되게 로깅하는 패턴.
+- [이벤트 구독 패턴](https://docs.aitc.dev/guides/event-subscription): 미니앱이 컨테이너에서 발생하는 이벤트를 구독하는 표준 패턴 — addEventListener 구조, cleanup 보장, 그리고 세 가지 이벤트 도메인의 비교.
+- [이벤트 구독 패턴 (en)](https://docs.aitc.dev/en/guides/event-subscription): 미니앱이 컨테이너에서 발생하는 이벤트를 구독하는 표준 패턴 — addEventListener 구조, cleanup 보장, 그리고 세 가지 이벤트 도메인의 비교.
+- [IAP 결제 흐름 — processProductGrant와 completeProductGrant](https://docs.aitc.dev/guides/iap-payment-flow): SKU 기반 IAP 주문의 표준 흐름 — createOrder → processProductGrant 콜백에서 서버 fulfillment → completeProductGrant로 종료.
+- [IAP 결제 흐름 — processProductGrant와 completeProductGrant (en)](https://docs.aitc.dev/en/guides/iap-payment-flow): SKU 기반 IAP 주문의 표준 흐름 — createOrder → processProductGrant 콜백에서 서버 fulfillment → completeProductGrant로 종료.
+- [IAP 상태 조회 패턴 — 상품·주문·구독 상태 한 곳에서 관리하기](https://docs.aitc.dev/guides/iap-state-queries): getProductItemList·getPendingOrders·getCompletedOrRefundedOrders·getSubscriptionInfo 네 메서드를 진입 시 한 번에 조회해서 상품 목록·복구·환불 반영·구독 상태를 한 곳에서 관리하는 패턴.
+- [IAP 상태 조회 패턴 — 상품·주문·구독 상태 한 곳에서 관리하기 (en)](https://docs.aitc.dev/en/guides/iap-state-queries): getProductItemList·getPendingOrders·getCompletedOrRefundedOrders·getSubscriptionInfo 네 메서드를 진입 시 한 번에 조회해서 상품 목록·복구·환불 반영·구독 상태를 한 곳에서 관리하는 패턴.
+- [위치 권한 요청과 fallback 패턴](https://docs.aitc.dev/guides/location-permission-fallback): getCurrentLocation·startUpdateLocation 호출 전후의 권한 단계 — notDetermined·denied 분기, FINE/COARSE 정확도 차이, 그리고 권한 없이도 동작하는 fallback UX를 한 곳에 정리.
+- [위치 권한 요청과 fallback 패턴 (en)](https://docs.aitc.dev/en/guides/location-permission-fallback): getCurrentLocation·startUpdateLocation 호출 전후의 권한 단계 — notDetermined·denied 분기, FINE/COARSE 정확도 차이, 그리고 권한 없이도 동작하는 fallback UX를 한 곳에 정리.
+- [미니앱 화면 흐름 패턴](https://docs.aitc.dev/guides/navigation-flow): 토스 앱 안에서 미니앱 화면이 어떻게 들어오고 떠나는지 — 진입·종료, 외부 URL 열기, 방향/가독성 같은 화면 컨텍스트를 다루는 패턴.
+- [미니앱 화면 흐름 패턴 (en)](https://docs.aitc.dev/en/guides/navigation-flow): 토스 앱 안에서 미니앱 화면이 어떻게 들어오고 떠나는지 — 진입·종료, 외부 URL 열기, 방향/가독성 같은 화면 컨텍스트를 다루는 패턴.
+- [oidc-bridge로 토스 로그인 연동](https://docs.aitc.dev/guides/oidc-bridge): 토스 authorizationCode를 표준 OIDC id_token으로 교환하는 커뮤니티 oidc-bridge 연동 — consumer backend 요구사항, 공용 인스턴스 등록과 운영자 mTLS 인증서, self-host mock 어댑터, devtools mock의 한계.
+- [oidc-bridge로 토스 로그인 연동 (en)](https://docs.aitc.dev/en/guides/oidc-bridge): 토스 authorizationCode를 표준 OIDC id_token으로 교환하는 커뮤니티 oidc-bridge 연동 — consumer backend 요구사항, 공용 인스턴스 등록과 운영자 mTLS 인증서, self-host mock 어댑터, devtools mock의 한계.
+- [미니앱 운영 상태 조회 (operate)](https://docs.aitc.dev/guides/operate-mini-app): 배포한 미니앱의 콘솔 상태를 커뮤니티 aitcc CLI로 조회하는 방법 — app status(클라이언트 derive)와 app service-status(서버 권위)의 차이, PREPARE vs OPENED serviceStatus, 두 검수 상태머신, 그리고 런타임 로그가 없는 이유와 그 대안(이벤트 카탈로그·전환 지표).
+- [미니앱 운영 상태 조회 (operate) (en)](https://docs.aitc.dev/en/guides/operate-mini-app): 배포한 미니앱의 콘솔 상태를 커뮤니티 aitcc CLI로 조회하는 방법 — app status(클라이언트 derive)와 app service-status(서버 권위)의 차이, PREPARE vs OPENED serviceStatus, 두 검수 상태머신, 그리고 런타임 로그가 없는 이유와 그 대안(이벤트 카탈로그·전환 지표).
+- [권한 처리 패턴](https://docs.aitc.dev/guides/permissions-pattern): SDK가 권한을 다루는 일반 패턴 — check → prompt → invoke 흐름과 거절·환경별 차이.
+- [권한 처리 패턴 (en)](https://docs.aitc.dev/en/guides/permissions-pattern): SDK가 권한을 다루는 일반 패턴 — check → prompt → invoke 흐름과 거절·환경별 차이.
+- [Relay TOTP 인증](https://docs.aitc.dev/guides/relay-auth-totp): trycloudflare 터널을 통한 CDP relay 접근을 TOTP로 제한해 URL 유출 시 제3자 attach를 차단하는 메커니즘.
+- [Relay TOTP 인증 (en)](https://docs.aitc.dev/en/guides/relay-auth-totp): trycloudflare 터널을 통한 CDP relay 접근을 TOTP로 제한해 URL 유출 시 제3자 attach를 차단하는 메커니즘.
+- [미니앱 번들 빌드·등록·배포 (ship)](https://docs.aitc.dev/guides/ship-mini-app): 빈 번들에서 출시까지 — ait build로 .ait 번들 생성, aitcc app register로 콘솔 등록, Deploy Key 발급, ait deploy로 업로드, aitcc app deploy로 출시 검수 제출. 앱 등록 검수와 번들 출시 검수가 별개 상태머신인 이유, errorCode 4046 REVIEW lock, 두 CLI(ait vs aitcc)의 역할 구분까지 정리합니다.
+- [미니앱 번들 빌드·등록·배포 (ship) (en)](https://docs.aitc.dev/en/guides/ship-mini-app): 빈 번들에서 출시까지 — ait build로 .ait 번들 생성, aitcc app register로 콘솔 등록, Deploy Key 발급, ait deploy로 업로드, aitcc app deploy로 출시 검수 제출. 앱 등록 검수와 번들 출시 검수가 별개 상태머신인 이유, errorCode 4046 REVIEW lock, 두 CLI(ait vs aitcc)의 역할 구분까지 정리합니다.
+- [토스페이 결제 흐름 — payToken 발급부터 결제 실행까지](https://docs.aitc.dev/guides/tosspay-checkout-flow): iap.checkoutPayment를 사용한 일반 결제 (non-SKU) 흐름 — 서버에서 payToken을 발급하고, 클라이언트가 checkoutPayment를 호출해 토스페이 결제 시트를 띄우고, 콜백으로 성공/실패를 받아 서버에서 검증하는 표준 시퀀스.
+- [토스페이 결제 흐름 — payToken 발급부터 결제 실행까지 (en)](https://docs.aitc.dev/en/guides/tosspay-checkout-flow): iap.checkoutPayment를 사용한 일반 결제 (non-SKU) 흐름 — 서버에서 payToken을 발급하고, 클라이언트가 checkoutPayment를 호출해 토스페이 결제 시트를 띄우고, 콜백으로 성공/실패를 받아 서버에서 검증하는 표준 시퀀스.
+- [Viral 리워드 설정과 이벤트 처리 패턴](https://docs.aitc.dev/guides/viral-reward-flow): game.contactsViral로 사용자에게 친구 초대 흐름을 트리거하고, grantPromotionReward로 리워드를 지급하는 표준 시퀀스 — 권한 처리, 중복 지급 방지, 그리고 콘솔 설정과 클라이언트 코드의 결합점.
+- [Viral 리워드 설정과 이벤트 처리 패턴 (en)](https://docs.aitc.dev/en/guides/viral-reward-flow): game.contactsViral로 사용자에게 친구 초대 흐름을 트리거하고, grantPromotionReward로 리워드를 지급하는 표준 시퀀스 — 권한 처리, 중복 지급 방지, 그리고 콘솔 설정과 클라이언트 코드의 결합점.
+
 ## API reference
 
 ### ads
@@ -104,6 +145,7 @@ Community-maintained guide and API reference for the `@apps-in-toss/web-framewor
 
 - [appsInTossEvent.addEventListener](https://docs.aitc.dev/api/events/appsInTossEvent.addEventListener) — 앱인토스 플랫폼 이벤트를 구독합니다.
 - [graniteEvent.addEventListener](https://docs.aitc.dev/api/events/graniteEvent.addEventListener) — Granite(토스 내부) 이벤트를 구독합니다. backEvent, homeEvent를 지원합니다.
+- [onVisibilityChangedByTransparentServiceWeb](https://docs.aitc.dev/api/events/onVisibilityChangedByTransparentServiceWeb) — 투명 서비스 웹의 가시성 변경 이벤트를 구독합니다.
 - [tdsEvent.addEventListener](https://docs.aitc.dev/api/events/tdsEvent.addEventListener) — TDS(Toss Design System) 이벤트를 구독합니다. navigationAccessoryEvent를 지원합니다.
 
 ### game
