@@ -32,6 +32,15 @@ jobs:
 
       - run: pnpm typecheck
 
+      # OG 카드 PNG는 static/og/에 커밋되고 build:og가 frontmatter image: 선언
+      # 페이지 전수에 대해 생성한다. 페이지를 추가하면서 PNG 생성을 빠뜨리면
+      # OG 카드가 404가 된다(#107·#105·#108 → #112). check:og-images가 각
+      # image: 선언에 대응하는 PNG 존재를 검사해 누락이면 fail(로컬에서
+      # `pnpm build:og` 후 커밋하면 해소). byte-equality가 아니라 존재만 보는
+      # 이유는 스크립트 주석 참조 — satori 래스터화가 macOS↔Linux 비결정적이라
+      # diff 검사는 모든 PR에서 오탐. #112·#114 참조.
+      - run: pnpm check:og-images
+
       - run: pnpm build
 
   # Verifies that docs/api/<group>/<method>.mdx names line up 1:1 with the
