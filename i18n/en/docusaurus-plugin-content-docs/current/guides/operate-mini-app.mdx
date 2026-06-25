@@ -1,0 +1,148 @@
+---
+image: /og/guides-operate-mini-app.png
+id: operate-mini-app
+title: Checking mini-app operational state (operate)
+sidebar_label: Operational state
+slug: /guides/operate-mini-app
+description: How to query the console state of a deployed mini-app with the community aitcc CLI — the difference between app status (client-side derive) and app service-status (server-authoritative), PREPARE vs OPENED serviceStatus, the two separate review state machines, and why there are no runtime logs along with the alternatives (event catalog and conversion metrics).
+---
+
+# Checking mini-app operational state (operate)
+
+Once you've registered a mini-app on the console and deployed a bundle, you need to know "what state is this app in on the console right now?" This is the step where you check whether review is in progress, whether the app has been released (made public), and what metrics are being captured for your users. This guide covers the two commands the community [`@ait-co/console-cli`](https://github.com/apps-in-toss-community/console-cli) (`aitcc`) gives you for querying that state, and why the two can return different answers.
+
+This step is the operate station that the `/ait status` skill ties together — you don't have to memorize the commands below, because `/ait status` shows your auth, app list, and current project state at once and branches you toward the next step. This page covers in detail what the commands that skill calls mean and where their boundaries lie.
+
+:::info Don't mix up the two CLIs
+Every query command on this page uses **`aitcc`** (`@ait-co/console-cli`), the console-automation CLI. It is a different tool from **`ait`** (`@apps-in-toss/cli`, which produces the `.ait` bundle via `ait build`). The deploy flow is "build the bundle with `ait build` → upload it with `aitcc app deploy`," and all operational queries are `aitcc app …`.
+:::
+
+## Two state-query commands
+
+`aitcc` provides two commands for viewing a mini-app's state. They look similar, but **their data source and authority differ**.
+
+| Command | Source | Nature | Question it answers |
+|---|---|---|---|
+| `aitcc app status` | **client-side derive** from the `/with-draft` envelope | registration review state + draft/current + lock | "How far has my app's registration review gotten?" |
+| `aitcc app service-status` | `/review-status` endpoint, **server-authoritative** | `serviceStatus` + shutdown schedule | "Is this app open to users?" |
+
+Both commands read `miniAppId` automatically from the `aitcc.yaml` in the cwd, so inside a registered project directory you can call them without an ID argument.
+
+### `aitcc app status` — registration review state (client-side derive)
+
+```bash
+aitcc app status --json
+```
+
+This command takes the console's `/with-draft` response (app detail + draft) and **derives a human-readable state on the client side**. It normalizes the combination of `approvalType` (`REVIEW` / `APPROVED` / `REJECTED`) + `current` + `draft` + `rejectedMessage` from the response envelope into a `reviewState` like the following:
+
+- `not-submitted` — registered, but review has never been submitted
+- `under-review` — registration review in progress (waiting on the ops team)
+- `rejected` — rejected (reason in `rejectedMessage`)
+- `approved` / `approved-with-edits` — registration review passed
+- `unknown` — anything that doesn't classify into the above
+
+JSON mode also includes `locked: boolean` and `lockReason` (`'review-pending' | null`). If review is in progress, that's the signal that metadata edits (updates) are locked.
+
+### `aitcc app service-status` — service status (server-authoritative)
+
+```bash
+aitcc app service-status --json
+```
+
+This command reads the `/review-status` endpoint directly — **the state the server holds authoritatively**. The key fields are `serviceStatus` (`PREPARE` / `OPENED` etc.) and the shutdown schedule (`shutdownCandidateStatus`, `scheduledShutdownAt`).
+
+When the derived label from `app status` and the `serviceStatus` from `app service-status` appear to disagree, **trust the server-authoritative `service-status`.** The derived label is a convenience-processed value; only `serviceStatus` answers whether the app is actually open to users.
+
+## PREPARE vs OPENED — and why "review passed" is not "released"
+
+`serviceStatus` is the value you'll see most often during operations.
+
+- **`PREPARE`** — the app is in a prepared state, not yet open to users. Even after registration review passes, it stays here until a bundle is actually released.
+- **`OPENED`** — there is a released bundle, so the app is exposed to users. The moment the first bundle moves to RELEASED, it transitions `PREPARE → OPENED`.
+
+Here's a point that often confuses people: **app registration review and bundle release review are separate state machines.** `app status` being `approved` does not automatically make `serviceStatus` become `OPENED`.
+
+```
+App registration review (approvalType)   Bundle release review (reviewStatus)
+─────────────────────────────────────    ──────────────────────────────────────
+REVIEW → APPROVED / REJECTED              CREATED → REVIEWING → APPROVED → RELEASED
+
+  the layer app status derives             the layer app deploy / bundles moves
+                                            first RELEASED bundle → serviceStatus: OPENED
+```
+
+A bundle's `reviewStatus` starts at `CREATED` (release review not yet submitted) right after upload. Submitting it for release review with `aitcc app deploy --request-review --release-notes "<text>"` moves it to `REVIEWING`; passing the ops-team review moves it to `APPROVED`; and finally releasing it with `aitcc app deploy --release --confirm` makes it `RELEASED`. That first `RELEASED` bundle is what raises `serviceStatus` to `OPENED`.
+
+So the following combination is normal — **the app registration is `approved`, but `serviceStatus` is still `PREPARE`.** The registration-metadata review passed, but no bundle has passed release review and been released. When there is no released bundle, `aitcc app bundles deployed --json` returns `bundle: null`.
+
+:::caution `--request-review` requires `--release-notes`
+Submitting for release review (`aitcc app deploy --request-review`) is rejected with an error if called without `--release-notes "<text>"`. Also, entering the review queue is hard to undo, so write your release notes deliberately before submitting. The actual release, `--release`, requires the `--confirm` guard to proceed — this is an irreversible publish that is exposed to users.
+:::
+
+### When you hit a review lock (errorCode 4046)
+
+If you try to update app metadata and get `errorCode: 4046` (REVIEW lock), that app is currently in the registration review queue and there is no way for you to pull it out of the queue yourself. **Waiting until the ops team produces a review result is the correct path** — don't work around it by creating a new app. Working around it with a new app leaves the locked app sitting there and only grows the set of things to track.
+
+## Querying operational metrics — and the fact that there are no "runtime logs"
+
+A "I want to see the logs" need naturally follows during operations. There's one fact to be precise about here.
+
+**The console does not expose raw runtime logs (stdout/stderr, exception stacks, per-request lines).** The console surfaces only two things — a custom event catalog and conversion metrics. Both are aggregated business signals, not process runtime logs. That's why there is no `aitcc logs` command, and the `/ait logs` skill states this fact and then guides you to alternatives.
+
+### Custom event catalog — `aitcc app events`
+
+Query the **catalog of custom events** instrumented in your app via `app.logEvent()`. This isn't a registration/review/state-change history — it shows under what names the events your app sends are captured.
+
+```bash
+aitcc app events ls --json        # based on the aitcc.yaml in the current directory
+aitcc app events ls <appId>       # specify appId directly
+```
+
+### Conversion metrics — `aitcc app metrics`
+
+Query the **conversion metrics** of a deployed mini-app (impressions, conversions, etc., aggregated by date range). Runtime performance, error rate, and response time are outside this command's scope.
+
+```bash
+aitcc app metrics --json
+aitcc app metrics --time-unit DAY|WEEK|MONTH --start YYYY-MM-DD --end YYYY-MM-DD --json
+```
+
+The default query range is the last 30 days from today (`--time-unit DAY`). When `serviceStatus` is `PREPARE` (not released), it's normal for both `events` and `metrics` to return empty arrays — the app has never been exposed to users, so there's no traffic to aggregate.
+
+### When you need actual runtime observation
+
+If you need to see the actual screen behavior, console errors, or network — not aggregated metrics — use a debugging path rather than a console query. During local development, observe via the browser DevTools (environment 1); for the real Toss WebView runtime on a physical device, observe via the on-device CDP relay (environments 3 and 4). Wiring external telemetry (such as Sentry) directly into your app is another approach — this works independently of the console. For the full procedure for entering the on-device relay (QR/deep-link injection), see the related guide below.
+
+## What to do next, based on state
+
+The next step branches by what you observe.
+
+| Observed state | Next step |
+|---|---|
+| no `aitcc.yaml` (not registered) | Start with console registration via `/ait register` |
+| `reviewState: not-submitted` | Build the bundle with `ait build`, then submit for release review with `aitcc app deploy --request-review --release-notes "<release notes>" <bundle.ait>` |
+| `under-review` / `errorCode 4046` | Wait on the ops team. Meanwhile, check on a physical device via the debug relay (guide below) |
+| `rejected` | Find the reason in `rejectedMessage` from `aitcc app status --json` → fix and resubmit |
+| `approved` + `serviceStatus: PREPARE` | After release review passes, release with `aitcc app deploy --release --confirm <bundle.ait>` → `serviceStatus: OPENED` |
+| `serviceStatus: OPENED` | Live in production. Query operational metrics with `aitcc app events` / `aitcc app metrics` |
+
+`/ait status` presents this branching automatically based on what it observes — it only points to the next step rather than running commands for you.
+
+## Related guides
+
+- [Event logging patterns](/guides/event-logging) — which events to instrument under which names via `app.logEvent()` / `analytics.eventLog`. The side that fills the catalog `aitcc app events` shows.
+- [On-device CDP relay debugging](/guides/debug-relay) — the path to seeing the console, network, and exceptions by attaching a CDP relay to the real Toss app WebView on a physical device, even in PREPARE state (QR/deep-link injection).
+- [Toss login via oidc-bridge](/guides/oidc-bridge) — wiring the auth station that precedes operations.
+
+## External references
+
+- [`@ait-co/console-cli`](https://github.com/apps-in-toss-community/console-cli) — source for the `aitcc` CLI. Reference for the `app status` / `app service-status` / `app events` / `app metrics` / `app deploy` commands.
+- [`@apps-in-toss/cli`](https://www.npmjs.com/package/@apps-in-toss/cli) — the bundler CLI that produces the `.ait` bundle via `ait build`.
+- [analytics SDK namespace](/api/analytics) — the SDK API used for `app.logEvent()` instrumentation.
+- [events SDK namespace](/api/events) — the platform/TDS/Granite event subscription API.
+
+---
+
+Community open-source project.
+
