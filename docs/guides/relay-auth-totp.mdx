@@ -40,7 +40,7 @@ relay 서버를 구동하는 환경의 `.env`(또는 등가 시크릿 저장소)
 
 ```
 # .env 예시 — 실제 값은 절대 공유하지 마세요
-AIT_RELAY_TOTP_SECRET=<your-secret-here>
+AIT_DEBUG_TOTP_SECRET=<your-secret-here>
 ```
 
 시크릿 값은 `stdout`/`stderr`/로그/에러 메시지 어디에도 출력하지 않습니다. 배포 환경에서는 GitHub Secrets, Cloudflare Workers Secrets 등 안전한 저장소를 사용하세요.
