@@ -40,7 +40,7 @@ Set the secret in the `.env` (or equivalent secret store) of the environment run
 
 ```
 # .env example — never share the actual value
-AIT_RELAY_TOTP_SECRET=<your-secret-here>
+AIT_DEBUG_TOTP_SECRET=<your-secret-here>
 ```
 
 The secret value must never appear in `stdout`, `stderr`, logs, or error messages. In deployed environments, use a secure secret store such as GitHub Secrets or Cloudflare Workers Secrets.
