@@ -41,6 +41,16 @@ jobs:
       # diff 검사는 모든 PR에서 오탐. #112·#114 참조.
       - run: pnpm check:og-images
 
+      # static/llms.txt(llmstxt.org 인덱스)는 build:llms가 docs/api/ + docs/guides/
+      # 전수에서 생성하고 커밋된다. 메서드·가이드 페이지를 추가하면서 llms.txt를
+      # 재생성·커밋하지 않으면 인덱스가 stale해진다(#107에서 추가된 메서드가
+      # 빠진 채로 drift). OG와 달리 llms.txt는 결정적 텍스트라(satori 같은
+      # 플랫폼 비결정성 없음) byte-diff가 유효한 가드다 — check:llms가
+      # build:llms 후 git diff로 drift를 잡는다(로컬에서 `pnpm build:llms` 후
+      # 커밋하면 해소). #118 참조. 반드시 build 앞에 둔다 — build의 prebuild가
+      # llms.txt를 재생성해 drift를 가려버리므로.
+      - run: pnpm check:llms
+
       - run: pnpm build
 
   # Verifies that docs/api/<group>/<method>.mdx names line up 1:1 with the

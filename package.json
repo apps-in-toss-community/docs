@@ -12,6 +12,7 @@
     "build:og": "tsx --tsconfig tsconfig.json scripts/build-og-images.tsx",
     "check:og-images": "tsx scripts/check-og-images.ts",
     "build:llms": "tsx --tsconfig tsconfig.json scripts/build-llms-txt.ts",
+    "check:llms": "pnpm build:llms && git diff --exit-code -- static/llms.txt",
     "prebuild": "pnpm build:og && pnpm build:llms",
     "build": "docusaurus build",
     "swizzle": "docusaurus swizzle",

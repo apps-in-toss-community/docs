@@ -7,16 +7,21 @@
  *
  * Structure emitted:
  *   - H1 site title + one-paragraph description
- *   - ## Overview pages  — 18 namespace overview URLs (ko + en), one line each
+ *   - ## Overview pages  — namespace overview URLs (ko + en), one line each
+ *   - ## Guides          — all guide pages (ko + en), with URL + description
  *   - ## API reference   — all method pages grouped by namespace, with URL + description
  *
  * Walk strategy:
  *   1. Walk docs/api/<namespace>/index.mdx → overview pages
  *   2. Walk docs/api/<namespace>/<method>.mdx → method pages, group by namespace
- *   3. For each page: derive canonical URL from frontmatter (slug preferred, id fallback)
- *   4. Emit to static/llms.txt
+ *   3. Walk docs/guides/<slug>.mdx → guide pages
+ *   4. For each page: derive canonical URL from frontmatter (slug preferred, id fallback)
+ *   5. Emit to static/llms.txt
  *
  * Runs as `pnpm build:llms`, hooked into `prebuild` alongside build:og.
+ * A freshness guard (`pnpm check:llms`) fails CI if the committed static/llms.txt
+ * drifts from a fresh build — llms.txt is deterministic text (no satori-style
+ * platform nondeterminism), so a byte-diff is a valid guard here.
  */
 
 import { readdir, readFile, stat, writeFile } from 'node:fs/promises';
@@ -27,6 +32,7 @@ import { type Frontmatter, parseFrontmatter } from './lib/frontmatter';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
 const DOCS_API_DIR = resolve(ROOT, 'docs', 'api');
+const DOCS_GUIDES_DIR = resolve(ROOT, 'docs', 'guides');
 const OUT_PATH = resolve(ROOT, 'static', 'llms.txt');
 
 const BASE_URL = 'https://docs.aitc.dev';
@@ -42,6 +48,13 @@ interface PageEntry {
   title: string;
   description: string;
   isOverview: boolean;
+}
+
+interface GuideEntry {
+  /** Canonical ko URL, e.g. https://docs.aitc.dev/guides/ship-mini-app */
+  url: string;
+  title: string;
+  description: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -117,11 +130,45 @@ async function walkApiDir(): Promise<PageEntry[]> {
   return pages;
 }
 
+/**
+ * Walk docs/guides/<slug>.mdx → guide pages. Guides carry an absolute `slug`
+ * frontmatter (`/guides/<slug>`), so the URL derivation is the slug case of
+ * deriveUrl. Index/README files (no `title`) are skipped.
+ */
+async function walkGuidesDir(): Promise<GuideEntry[]> {
+  let files: string[];
+  try {
+    files = await readdir(DOCS_GUIDES_DIR);
+  } catch {
+    // No guides dir → no guide section (don't fail the whole build).
+    return [];
+  }
+
+  const guides: GuideEntry[] = [];
+
+  for (const file of files.sort()) {
+    if (!file.endsWith('.mdx') && !file.endsWith('.md')) continue;
+    const filePath = join(DOCS_GUIDES_DIR, file);
+    const source = await readFile(filePath, 'utf8');
+    const fm = parseFrontmatter(source);
+
+    if (!fm.title || !fm.slug) continue;
+
+    guides.push({
+      url: `${BASE_URL}${fm.slug}`,
+      title: fm.title,
+      description: fm.description ?? '',
+    });
+  }
+
+  return guides;
+}
+
 // ---------------------------------------------------------------------------
 // llms.txt emitter
 // ---------------------------------------------------------------------------
 
-function buildLlmsTxt(pages: PageEntry[]): string {
+function buildLlmsTxt(pages: PageEntry[], guides: GuideEntry[]): string {
   const lines: string[] = [];
 
   // H1 + description block (llmstxt.org spec: first section is site description)
@@ -147,6 +194,20 @@ function buildLlmsTxt(pages: PageEntry[]): string {
     lines.push(`- [${p.title} (en)](${enUrl})${desc}`);
   }
   lines.push('');
+
+  // --- Guides (why/when) ---
+  if (guides.length > 0) {
+    lines.push('## Guides');
+    lines.push('');
+    for (const g of guides) {
+      const desc = g.description ? `: ${g.description}` : '';
+      lines.push(`- [${g.title}](${g.url})${desc}`);
+      // en mirror URL
+      const enUrl = g.url.replace(BASE_URL, `${BASE_URL}/en`);
+      lines.push(`- [${g.title} (en)](${enUrl})${desc}`);
+    }
+    lines.push('');
+  }
 
   // --- API reference grouped by namespace ---
   const methodPages = pages.filter((p) => !p.isOverview);
@@ -178,12 +239,15 @@ function buildLlmsTxt(pages: PageEntry[]): string {
 
 async function main(): Promise<void> {
   const pages = await walkApiDir();
+  const guides = await walkGuidesDir();
   const overviewCount = pages.filter((p) => p.isOverview).length;
   const methodCount = pages.filter((p) => !p.isOverview).length;
 
-  console.log(`[llms] ${overviewCount} namespace overviews, ${methodCount} method pages`);
+  console.log(
+    `[llms] ${overviewCount} namespace overviews, ${methodCount} method pages, ${guides.length} guides`,
+  );
 
-  const content = buildLlmsTxt(pages);
+  const content = buildLlmsTxt(pages, guides);
   await writeFile(OUT_PATH, content, 'utf8');
 
   console.log(`[llms] wrote static/llms.txt (${content.length} bytes)`);
