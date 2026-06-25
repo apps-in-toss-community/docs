@@ -1,0 +1,181 @@
+---
+image: /og/guides-oidc-bridge.png
+id: oidc-bridge
+title: oidc-bridge로 토스 로그인 연동
+sidebar_label: oidc-bridge 연동
+slug: /guides/oidc-bridge
+description: 토스 authorizationCode를 표준 OIDC id_token으로 교환하는 커뮤니티 oidc-bridge 연동 — consumer backend 요구사항, 공용 인스턴스 등록과 운영자 mTLS 인증서, self-host mock 어댑터, devtools mock의 한계.
+---
+
+# oidc-bridge로 토스 로그인 연동
+
+[oidc-bridge](https://github.com/apps-in-toss-community/oidc-bridge)는 토스 로그인을 표준 OIDC 발급자(issuer)로 중계하는 **커뮤니티 어댑터**입니다. 미니앱이 `appLogin()`으로 받은 토스 `authorizationCode`를 OIDC `id_token`으로 교환해주므로, Supabase·Firebase·Auth0·Keycloak 같은 일반 IdP 통합 흐름으로 토스 로그인을 붙일 수 있습니다.
+
+이 가이드는 bridge를 미니앱에 연결할 때 알아야 할 사실을 한 곳에 정리합니다 — 특히 흩어져 있던 "zero-code", consumer backend, mTLS 인증서, mock 어댑터에 대한 정확한 경계를 다룹니다.
+
+:::info 토스 로그인 흐름 자체는 별도 가이드
+`appLogin()` → authorizationCode → 서버 토큰 교환이라는 **토스 로그인의 기본 OAuth 흐름**은 [토스 로그인 흐름](/guides/auth-flow)에서 다룹니다. 이 페이지는 그 "서버 토큰 교환" 자리에 bridge를 끼우는 경우에 집중합니다.
+:::
+
+## "zero-code"의 진짜 의미
+
+bridge README는 "별도 백엔드 코드가 필요 없습니다(zero-code 모드)"라고 표현합니다. 이 말의 주어는 **bridge 운영자(operator)**이지 **미니앱 개발자**가 아닙니다.
+
+- **운영자 관점**: bridge가 OIDC discovery·JWKS·토큰 교환·mTLS 호출 같은 OIDC 로직을 전부 처리하므로, 운영자는 그 로직을 직접 구현하지 않습니다 — 이게 "zero-code"입니다.
+- **미니앱 개발자 관점**: 여전히 얇은 **consumer backend**가 필요합니다. 미니앱은 bridge의 토큰 엔드포인트를 **클라이언트 코드에서 직접 호출하면 안 됩니다**.
+
+미니앱이 bridge를 직접 부르면 안 되는 이유는 bridge가 **등록된 앱 단위로 caller를 인증**하기 때문입니다 — public client는 Origin allow-list로, confidential client는 `client_secret`으로 검증합니다. 이 인증은 서버 사이드에서 이뤄져야 하고, confidential client의 secret은 브라우저에 노출돼선 안 됩니다.
+
+## consumer backend 요구사항
+
+올바른 흐름은 미니앱과 bridge 사이에 개발자 소유의 서버 사이드 엔드포인트(consumer backend)를 두는 것입니다. Supabase Edge Function, Next.js API route, Cloudflare Worker 등 무엇이든 됩니다.
+
+```
+mini-app → appLogin() → authorizationCode
+         → POST /your-backend (authorizationCode)
+             → backend가 bridge POST /t/<tenantId>/oidc/token  (공용 인스턴스)
+             →                  bridge POST /oidc/token          (self-host)
+             ← bridge가 { access_token, id_token, ... } 반환
+         ← backend가 { id_token } 반환
+         → client가 signInWithIdToken(id_token)  ← Supabase 또는 Firebase
+```
+
+토큰 엔드포인트 경로는 배포 형태에 따라 다릅니다.
+
+- **공용 인스턴스**(`oidc-bridge.aitc.dev`)는 tenant-scoped dispatcher라 `POST /t/<tenantId>/oidc/token`.
+- **self-host**는 루트 마운트라 `POST /oidc/token`.
+
+### Supabase Edge Function 패턴
+
+아래는 [`sdk-example`](https://github.com/apps-in-toss-community/sdk-example)의 `supabase/functions/toss-login` 정본 구현을 요약한 consumer backend 스케치입니다. 미니앱에서 받은 `authorizationCode`를 bridge로 중계하고 `id_token`만 클라이언트로 돌려줍니다.
+
+```ts
+// supabase/functions/toss-login/index.ts (Deno)
+// 필수 환경변수 (supabase secrets set으로 주입):
+//   OIDC_BRIDGE_BASE_URL       e.g. https://oidc-bridge.aitc.dev
+//   OIDC_BRIDGE_CLIENT_ID      bridge에 등록된 client_id
+//   OIDC_BRIDGE_TENANT_ID      공용 인스턴스만; self-host는 비움 (루트 마운트)
+//   OIDC_BRIDGE_CLIENT_SECRET  (optional) confidential client만
+
+Deno.serve(async (req) => {
+  const { authorizationCode, referrer } = await req.json();
+
+  const baseUrl = Deno.env.get('OIDC_BRIDGE_BASE_URL');
+  const clientId = Deno.env.get('OIDC_BRIDGE_CLIENT_ID');
+  const tenantId = Deno.env.get('OIDC_BRIDGE_TENANT_ID'); // 공용 인스턴스만
+  const clientSecret = Deno.env.get('OIDC_BRIDGE_CLIENT_SECRET');
+
+  // 공용 인스턴스 → /t/<tenantId>/oidc/token, self-host → /oidc/token
+  const tokenUrl = tenantId
+    ? `${baseUrl}/t/${tenantId}/oidc/token`
+    : `${baseUrl}/oidc/token`;
+
+  const tokenRequest: Record<string, string> = {
+    grant_type: 'authorization_code',
+    code: authorizationCode,
+    client_id: clientId,
+    referrer: referrer ?? 'DEFAULT',
+  };
+  if (clientSecret) tokenRequest.client_secret = clientSecret;
+
+  const res = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(tokenRequest),
+  });
+  const tokens = await res.json();
+
+  if (!res.ok) {
+    // bridge는 OAuth 2.0 에러 엔벨로프를 그대로 돌려준다.
+    return Response.json(
+      { error: tokens.error, error_description: tokens.error_description },
+      { status: res.status },
+    );
+  }
+  // 클라이언트에는 id_token만 반환하면 충분
+  return Response.json({ id_token: tokens.id_token, expires_in: tokens.expires_in });
+});
+```
+
+클라이언트는 그 `id_token`을 IdP에 그대로 넘깁니다 — Supabase는 `supabase.auth.signInWithIdToken({ provider: 'oidc', token: id_token })`, Firebase는 `signInWithCredential`로. (전체 클라이언트 코드와 provider 등록 절차는 `/ait auth-setup` 스킬과 sdk-example의 `AuthPage`가 정본입니다.)
+
+:::caution authorizationCode는 단기 일회용
+`authorizationCode`는 짧은 만료 시간을 가진 일회용 코드입니다 — 로그·URL·`localStorage`에 저장하지 말고 즉시 backend로 넘깁니다. 같은 코드로 재시도하면 교환이 실패합니다.
+:::
+
+## 공용 인스턴스 사용 (등록 + 운영자 mTLS 인증서)
+
+커뮤니티 공용 인스턴스 `oidc-bridge.aitc.dev`는 rate-limited이며 SLA 없는 best-effort입니다. 보안이 민감한 워크로드는 [self-host](#self-host--mock-어댑터-로컬-개발)를 권장합니다.
+
+공용 인스턴스를 쓰려면 운영자에게 앱 등록을 요청해야 합니다 — `client_id`와 `tenantId`는 운영자(bridge 관리자)만 발급할 수 있습니다. [oidc-bridge Issue](https://github.com/apps-in-toss-community/oidc-bridge/issues/new)를 열어 다음을 포함해 요청합니다:
+
+- **미니앱 ID** (appIdToss, e.g. `31146`)
+- **allowed origin** (e.g. `https://my-mini-app.example.com`)
+- **public / confidential client 여부**
+
+운영자는 `client_id`와 함께 `tenantId`를 발급하고, token URL은 `/t/<tenantId>/oidc/token` 형태가 됩니다. 두 값을 모두 consumer backend의 환경변수(`OIDC_BRIDGE_CLIENT_ID`, `OIDC_BRIDGE_TENANT_ID`)에 넣습니다.
+
+:::caution 등록 성공 ≠ 토큰 교환 가능 (운영자 mTLS 인증서 전제)
+토스 partner API는 mTLS만 받으므로, bridge가 토스에 토큰 교환을 호출하려면 **등록한 미니앱 ID마다 토스 partner mTLS 인증서**가 필요합니다(토스 콘솔에서 발급, sandbox/production 단일 cert, ~390일 유효).
+
+등록(Issue 제출)은 성공해도, 운영자가 그 앱에 대한 인증서를 보유하기 전까지는 `/oidc/token` 교환이 **upstream에서 실패**합니다. 기대치를 맞추세요 — 운영자 처리에 지연이 있을 수 있고, 운영자가 인증서를 발급받을 수 없는 앱은 공용 인스턴스로 동작하지 않습니다. 그런 경우 self-host가 유일한 길입니다.
+:::
+
+## Self-host + mock 어댑터 (로컬 개발) {#self-host--mock-어댑터-로컬-개발}
+
+self-host는 자체 인프라에서 bridge를 직접 운영하는 경로입니다. 단일 앱이면 sqlite + 파일 백업 master key로 5분 내 셋업됩니다. 전체 절차(`bootstrap` + `doctor`)는 oidc-bridge repo의 [`docs/SELF_HOSTING.md`](https://github.com/apps-in-toss-community/oidc-bridge/blob/main/docs/SELF_HOSTING.md)가 정본입니다.
+
+self-host 셋업도 앱마다 토스 mTLS 인증서가 필요한 것은 공용 인스턴스와 같습니다 — 차이는 인증서를 **운영자가 아니라 본인이** 보유한다는 점입니다.
+
+### 토스 없이 로컬 개발: mock 어댑터
+
+토스 인증서·실 세션 없이 흐름을 로컬에서 끝까지 돌려보고 싶다면, self-host bridge를 **mock 어댑터**로 띄울 수 있습니다.
+
+```bash
+BRIDGE_TOSS_ADAPTER=mock node dist/server.mjs
+```
+
+`BRIDGE_TOSS_ADAPTER=mock`이면 bridge는 실제 토스 mTLS 호출 대신 mock 어댑터(`MockTossAdapter`)를 사용합니다 — 토스 인증서나 실 세션 없이 `/oidc/token`이 합성 `id_token`을 반환하므로, consumer backend와 IdP 로그인 배선을 토스 없이 검증할 수 있습니다. 이 환경변수는 self-host 운영자가 제어하는 서버 사이드 설정입니다.
+
+## devtools mock의 한계 (왜 "토스 없는 e2e"가 아닌가)
+
+[`@ait-co/devtools`](https://www.npmjs.com/package/@ait-co/devtools) unplugin의 mock은 **클라이언트 측 `appLogin()`만 intercept**해 가짜 `authorizationCode`를 즉시 반환합니다. 브라우저에서 토스 앱 없이 UI 흐름을 개발할 때 유용합니다.
+
+하지만 그 가짜 코드는 **실제 토스 API에는 의미가 없습니다**. devtools mock의 `authorizationCode`를 그대로 공용 bridge에 보내면, bridge가 토스에 mTLS 교환을 시도하다 upstream에서 실패합니다. 즉:
+
+- devtools mock + 공용 bridge로는 **토스 없는 end-to-end 인증 테스트가 성립하지 않습니다**. mock은 클라이언트 `appLogin()` 한 겹만 가짜로 만들 뿐, 그 뒤 bridge↔토스 교환은 진짜를 요구합니다.
+- 진짜 로컬 dev 경로는 둘 중 하나입니다:
+  1. **실 mTLS 인증서 + 실 토스 세션** — 실제 토스가 발급한 코드를 실 인증서로 교환.
+  2. **self-host bridge + mock 어댑터**(`BRIDGE_TOSS_ADAPTER=mock`) — 서버 측에서 토스 교환 자체를 합성. 이 경우 클라이언트 `appLogin()`도 devtools mock으로 두면 양 끝이 모두 mock이라 토스 없이 흐름이 닫힙니다.
+
+정리하면, devtools mock과 bridge mock 어댑터는 **다른 겹**을 가짜로 만듭니다 — 전자는 클라이언트 SDK 호출, 후자는 서버↔토스 교환. 토스 없는 완결 테스트는 두 겹을 모두 mock으로 둘 때만 성립합니다.
+
+## 문제 해결
+
+bridge는 OAuth 2.0/OIDC 관례대로 `{ error, error_description }` 엔벨로프로 에러를 돌려줍니다. 자주 보는 경우:
+
+| 증상 | 흔한 원인 |
+|---|---|
+| `upstream_error` (HTTP 502) | bridge가 토스 partner API 호출에 실패. devtools mock의 가짜 코드를 실 bridge에 보냈거나, 운영자가 해당 앱의 mTLS 인증서를 아직 보유하지 않았거나, 토스 세션이 만료된 경우. |
+| `invalid_grant` (HTTP 401) | `authorizationCode`가 만료됐거나 이미 사용됨(일회용). 같은 코드 재시도는 항상 실패 — `appLogin()`을 새로 호출. |
+| `invalid_client` (HTTP 401) | `client_id`가 등록되지 않았거나, confidential client인데 `client_secret`이 틀림, 또는 public client인데 요청 Origin이 allow-list에 없음. |
+| `app_not_verified` (HTTP 403) | 등록은 됐지만 해당 앱이 토큰 발급 자격을 아직 갖추지 못함. 운영자 처리 또는 앱 등록 상태를 확인. |
+| `server_misconfigured` (HTTP 500) | consumer backend의 환경변수(`OIDC_BRIDGE_BASE_URL`·`OIDC_BRIDGE_CLIENT_ID`)가 placeholder 그대로이거나 누락. 실제 발급 값으로 채웠는지 확인. |
+
+self-host 진단(`doctor`의 `toss` probe 등)으로 mTLS 핸드셰이크 단계를 분리해 좁힐 수 있습니다 — `docs/SELF_HOSTING.md`의 "Troubleshooting" 참조.
+
+## 관련 가이드
+
+- [토스 로그인 흐름](/guides/auth-flow) — `appLogin()` → authorizationCode → 서버 토큰 교환의 기본 OAuth 흐름.
+- [익명 키 기반 게임 세션](/guides/anonymous-key-game-session) — 정식 로그인보다 가벼운 사용자 식별 경로.
+
+## 외부 참조
+
+- [oidc-bridge repo](https://github.com/apps-in-toss-community/oidc-bridge) — 어댑터 소스, 설계 스펙.
+- [oidc-bridge self-hosting 가이드](https://github.com/apps-in-toss-community/oidc-bridge/blob/main/docs/SELF_HOSTING.md) — `bootstrap` + `doctor` 셋업.
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — `appLogin()`을 제공하는 SDK.
+- [`@ait-co/devtools`](https://www.npmjs.com/package/@ait-co/devtools) — `appLogin()` mock을 제공하는 devtools 패키지.
+
+---
+
+커뮤니티 오픈소스 프로젝트입니다.

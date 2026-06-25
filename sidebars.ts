@@ -28,6 +28,7 @@ const sidebars: SidebarsConfig = {
         'guides/iap-state-queries',
         'guides/location-permission-fallback',
         'guides/navigation-flow',
+        'guides/oidc-bridge',
         'guides/permissions-pattern',
         'guides/relay-auth-totp',
         'guides/tosspay-checkout-flow',

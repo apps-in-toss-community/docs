@@ -1,0 +1,181 @@
+---
+image: /og/guides-oidc-bridge.png
+id: oidc-bridge
+title: Toss login via oidc-bridge
+sidebar_label: oidc-bridge integration
+slug: /guides/oidc-bridge
+description: Integrating Toss login through the community oidc-bridge — the consumer-backend requirement, public-instance registration and the operator mTLS cert, self-hosting with the mock adapter, and the limits of the devtools mock.
+---
+
+# Toss login via oidc-bridge
+
+[oidc-bridge](https://github.com/apps-in-toss-community/oidc-bridge) is a **community adapter** that relays Toss login through a standard OIDC issuer. It exchanges the Toss `authorizationCode` your mini-app gets from `appLogin()` for an OIDC `id_token`, so you can wire Toss login into the ordinary IdP integration flows of Supabase, Firebase, Auth0, or Keycloak.
+
+This guide collects, in one place, the facts you need when connecting the bridge to a mini-app — in particular the precise boundaries around "zero-code", the consumer backend, the mTLS cert, and the mock adapter, which were previously scattered.
+
+:::info The Toss login flow itself is a separate guide
+The **base OAuth flow of Toss login** — `appLogin()` → authorizationCode → server-side token exchange — is covered in [Toss login flow](/guides/auth-flow). This page focuses on the case where the bridge sits in that "server-side token exchange" slot.
+:::
+
+## What "zero-code" really means
+
+The bridge README phrases it as "no separate backend code required (zero-code mode)." The subject of that sentence is the **bridge operator**, not the **mini-app developer**.
+
+- **Operator's view**: the bridge handles all the OIDC logic — discovery, JWKS, token exchange, mTLS calls — so the operator never writes that logic themselves. That is "zero-code".
+- **Mini-app developer's view**: you still need a thin **consumer backend**. The mini-app must **not call the bridge's token endpoint directly from client code**.
+
+The reason a mini-app must not call the bridge directly is that the bridge **authenticates the caller per registered app** — public clients via an Origin allow-list, confidential clients via a `client_secret`. That authentication has to happen server-side, and a confidential client's secret must never reach the browser.
+
+## The consumer-backend requirement
+
+The correct flow puts a developer-owned, server-side endpoint (the consumer backend) between the mini-app and the bridge. It can be a Supabase Edge Function, a Next.js API route, a Cloudflare Worker — anything.
+
+```
+mini-app → appLogin() → authorizationCode
+         → POST /your-backend (authorizationCode)
+             → backend calls bridge POST /t/<tenantId>/oidc/token  (public instance)
+             →                      bridge POST /oidc/token          (self-host)
+             ← bridge returns { access_token, id_token, ... }
+         ← backend returns { id_token }
+         → client calls signInWithIdToken(id_token)  ← Supabase or Firebase
+```
+
+The token endpoint path depends on the deployment shape:
+
+- The **public instance** (`oidc-bridge.aitc.dev`) is a tenant-scoped dispatcher, so `POST /t/<tenantId>/oidc/token`.
+- A **self-host** is mounted at the root, so `POST /oidc/token`.
+
+### The Supabase Edge Function pattern
+
+Below is a consumer-backend sketch summarizing the canonical implementation in [`sdk-example`](https://github.com/apps-in-toss-community/sdk-example)'s `supabase/functions/toss-login`. It relays the `authorizationCode` from the mini-app to the bridge and returns only the `id_token` to the client.
+
+```ts
+// supabase/functions/toss-login/index.ts (Deno)
+// Required env (set with `supabase secrets set`):
+//   OIDC_BRIDGE_BASE_URL       e.g. https://oidc-bridge.aitc.dev
+//   OIDC_BRIDGE_CLIENT_ID      the app's registered client_id at the bridge
+//   OIDC_BRIDGE_TENANT_ID      public instance only; leave unset for self-host (root mount)
+//   OIDC_BRIDGE_CLIENT_SECRET  (optional) confidential clients only
+
+Deno.serve(async (req) => {
+  const { authorizationCode, referrer } = await req.json();
+
+  const baseUrl = Deno.env.get('OIDC_BRIDGE_BASE_URL');
+  const clientId = Deno.env.get('OIDC_BRIDGE_CLIENT_ID');
+  const tenantId = Deno.env.get('OIDC_BRIDGE_TENANT_ID'); // public instance only
+  const clientSecret = Deno.env.get('OIDC_BRIDGE_CLIENT_SECRET');
+
+  // public instance → /t/<tenantId>/oidc/token, self-host → /oidc/token
+  const tokenUrl = tenantId
+    ? `${baseUrl}/t/${tenantId}/oidc/token`
+    : `${baseUrl}/oidc/token`;
+
+  const tokenRequest: Record<string, string> = {
+    grant_type: 'authorization_code',
+    code: authorizationCode,
+    client_id: clientId,
+    referrer: referrer ?? 'DEFAULT',
+  };
+  if (clientSecret) tokenRequest.client_secret = clientSecret;
+
+  const res = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(tokenRequest),
+  });
+  const tokens = await res.json();
+
+  if (!res.ok) {
+    // The bridge returns an OAuth 2.0 error envelope; pass it through.
+    return Response.json(
+      { error: tokens.error, error_description: tokens.error_description },
+      { status: res.status },
+    );
+  }
+  // Returning only the id_token to the client is enough.
+  return Response.json({ id_token: tokens.id_token, expires_in: tokens.expires_in });
+});
+```
+
+The client hands that `id_token` straight to the IdP — `supabase.auth.signInWithIdToken({ provider: 'oidc', token: id_token })` for Supabase, or `signInWithCredential` for Firebase. (The full client code and provider-registration steps live in the `/ait auth-setup` skill and sdk-example's `AuthPage`.)
+
+:::caution authorizationCode is short-lived and single-use
+The `authorizationCode` is a single-use code with a short expiry — don't store it in logs, URLs, or `localStorage`; hand it to the backend immediately. Retrying with the same code fails the exchange.
+:::
+
+## Using the public instance (registration + the operator mTLS cert)
+
+The community public instance `oidc-bridge.aitc.dev` is rate-limited and best-effort with no SLA. Security-sensitive workloads should [self-host](#self-host--mock-adapter-local-dev).
+
+To use the public instance you have to ask the operator to register your app — only the operator (the bridge admin) can issue a `client_id` and `tenantId`. Open an [oidc-bridge issue](https://github.com/apps-in-toss-community/oidc-bridge/issues/new) and include:
+
+- **Mini-app ID** (appIdToss, e.g. `31146`)
+- **Allowed origin** (e.g. `https://my-mini-app.example.com`)
+- **Public / confidential client**
+
+The operator issues a `client_id` together with a `tenantId`, and the token URL takes the form `/t/<tenantId>/oidc/token`. Put both values into your consumer backend's env (`OIDC_BRIDGE_CLIENT_ID`, `OIDC_BRIDGE_TENANT_ID`).
+
+:::caution Registration succeeding ≠ token exchange working (the operator mTLS cert)
+The Toss partner API accepts only mTLS, so for the bridge to call Toss for the token exchange it needs a **Toss partner mTLS cert per registered mini-app ID** (issued from the Toss console, a single cert for sandbox/production, ~390-day validity).
+
+Registration (filing the issue) can succeed, yet the `/oidc/token` exchange **fails upstream** until the operator holds a cert for that app. Set expectations: there may be a processing delay, and apps the operator cannot get a cert for won't work through the public instance. For those, self-hosting is the only path.
+:::
+
+## Self-host + mock adapter (local dev) {#self-host--mock-adapter-local-dev}
+
+Self-hosting means running the bridge on your own infrastructure. For a single app it sets up in under five minutes with sqlite + a file-backed master key. The full procedure (`bootstrap` + `doctor`) is canonical in the oidc-bridge repo's [`docs/SELF_HOSTING.md`](https://github.com/apps-in-toss-community/oidc-bridge/blob/main/docs/SELF_HOSTING.md).
+
+A self-host setup needs a Toss mTLS cert per app just like the public instance — the difference is that **you** hold the cert, not the operator.
+
+### Local dev without Toss: the mock adapter
+
+If you want to run the flow end-to-end locally without a Toss cert or a real Toss session, you can start a self-host bridge with the **mock adapter**.
+
+```bash
+BRIDGE_TOSS_ADAPTER=mock node dist/server.mjs
+```
+
+With `BRIDGE_TOSS_ADAPTER=mock` the bridge uses the mock adapter (`MockTossAdapter`) instead of making real Toss mTLS calls — `/oidc/token` returns a synthetic `id_token` without a Toss cert or a real session, so you can verify your consumer-backend and IdP-login wiring without Toss. This env var is a server-side setting controlled by the self-host operator.
+
+## The devtools-mock limitation (why it's not a Toss-free e2e path)
+
+The [`@ait-co/devtools`](https://www.npmjs.com/package/@ait-co/devtools) unplugin mock **only intercepts the client-side `appLogin()`** and returns a fabricated `authorizationCode` immediately. That's useful for developing the UI flow in a browser without the Toss app.
+
+But that fabricated code is **meaningless to the real Toss API**. If you send a devtools-mock `authorizationCode` to the public bridge, the bridge attempts the mTLS exchange against Toss and fails upstream. In other words:
+
+- devtools mock + the public bridge does **not** constitute a Toss-free end-to-end auth test. The mock fabricates only the client `appLogin()` layer; the bridge↔Toss exchange behind it still demands the real thing.
+- A genuinely local dev path is one of:
+  1. **A real mTLS cert + a real Toss session** — exchange a code actually issued by Toss using a real cert.
+  2. **A self-host bridge + the mock adapter** (`BRIDGE_TOSS_ADAPTER=mock`) — synthesize the Toss exchange server-side. Keep the client `appLogin()` on the devtools mock too, and both ends are mocked, so the flow closes without Toss.
+
+To put it plainly: the devtools mock and the bridge mock adapter fabricate **different layers** — the former the client SDK call, the latter the server↔Toss exchange. A complete Toss-free test only holds when both layers are mocked.
+
+## Troubleshooting
+
+The bridge returns errors as an `{ error, error_description }` envelope, following OAuth 2.0 / OIDC convention. Common cases:
+
+| Symptom | Likely cause |
+|---|---|
+| `upstream_error` (HTTP 502) | The bridge failed calling the Toss partner API. You sent a devtools-mock fabricated code to a real bridge, the operator does not yet hold an mTLS cert for that app, or the Toss session expired. |
+| `invalid_grant` (HTTP 401) | The `authorizationCode` expired or was already used (single-use). Retrying the same code always fails — call `appLogin()` afresh. |
+| `invalid_client` (HTTP 401) | The `client_id` isn't registered, a confidential client's `client_secret` is wrong, or a public client's request Origin isn't on the allow-list. |
+| `app_not_verified` (HTTP 403) | Registered, but the app isn't yet eligible to issue tokens. Check the operator's processing or the app's registration state. |
+| `server_misconfigured` (HTTP 500) | Your consumer backend's env (`OIDC_BRIDGE_BASE_URL`, `OIDC_BRIDGE_CLIENT_ID`) is still a placeholder or missing. Confirm you filled in the real issued values. |
+
+A self-host install can isolate the mTLS-handshake step with `doctor` (e.g. its `toss` probe) — see "Troubleshooting" in `docs/SELF_HOSTING.md`.
+
+## Related guides
+
+- [Toss login flow](/guides/auth-flow) — the base OAuth flow: `appLogin()` → authorizationCode → server-side token exchange.
+- [Anonymous-key game session](/guides/anonymous-key-game-session) — a lighter user-identification path than full login.
+
+## External references
+
+- [oidc-bridge repo](https://github.com/apps-in-toss-community/oidc-bridge) — adapter source, design spec.
+- [oidc-bridge self-hosting guide](https://github.com/apps-in-toss-community/oidc-bridge/blob/main/docs/SELF_HOSTING.md) — `bootstrap` + `doctor` setup.
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — the SDK that provides `appLogin()`.
+- [`@ait-co/devtools`](https://www.npmjs.com/package/@ait-co/devtools) — the devtools package that provides the `appLogin()` mock.
+
+---
+
+Community open-source project.
