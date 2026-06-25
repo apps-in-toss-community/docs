@@ -1,0 +1,174 @@
+---
+image: /og/api-camera-fetchAlbumItems.png
+id: fetchAlbumItems
+title: fetchAlbumItems
+sidebar_label: fetchAlbumItems
+description: Fetch photos and videos from the device album.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `fetchAlbumItems`
+
+Fetches photos and/or videos from the device album. Unlike `fetchAlbumPhotos`, you can specify which media types to include via the `types` option, and each returned item carries its type.
+
+## Signature
+
+```ts
+import { fetchAlbumItems } from '@apps-in-toss/web-framework';
+
+declare const fetchAlbumItems: PermissionFunctionWithDialog<
+  (options?: FetchAlbumItemsOptions) => Promise<AlbumItemResponse[]>
+> & {
+  isSupported: () => boolean;
+};
+
+interface FetchAlbumItemsOptions {
+  /** Media types to fetch. Default: ['PHOTO']. */
+  types?: ('PHOTO' | 'VIDEO')[];
+  /** Maximum number of items to fetch. Default: 10. */
+  maxCount?: number;
+  /** Maximum image width in pixels. Default: 1024. */
+  maxWidth?: number;
+  /** Return images as Base64 strings. Default: false. */
+  base64?: boolean;
+}
+
+interface AlbumItemResponse {
+  /** Unique item ID */
+  id: string;
+  /** Data URI of the item */
+  dataUri: string;
+  /** Media type */
+  type: 'PHOTO' | 'VIDEO';
+}
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `options.types` | `('PHOTO' \| 'VIDEO')[]` | — | Media types to include. Default is `['PHOTO']`. |
+| `options.maxCount` | `number` | — | Maximum number of items to return. Default is `10`. |
+| `options.maxWidth` | `number` | — | Maximum image width in pixels. Default is `1024`. |
+| `options.base64` | `boolean` | — | When `true`, `dataUri` is returned as a Base64 string. Default is `false`. |
+
+## Returns
+
+- `Promise<AlbumItemResponse[]>` — array of objects containing item ID, data URI, and media type.
+  - `type` indicates whether each item is a `'PHOTO'` or `'VIDEO'`.
+  - With `base64: false` (default), `dataUri` is a local device path or file URI.
+  - With `base64: true`, `dataUri` is a Base64 string. To display in an `<img>` tag, prepend `data:image/jpeg;base64,`.
+- Fails with a permission error if `denied`. See the "Permission" section.
+
+## Permission
+
+Requires the `photos` permission. The call fails when the status is **explicitly `denied`** — wrap in `try/catch`. `notDetermined` lets the call through, but prompting the dialog first is the safer flow. See [Guides — Permissions pattern](/guides/permissions-pattern) for the full flow.
+
+The callable exposes permission helpers:
+
+```ts
+const status = await fetchAlbumItems.getPermission();
+// 'allowed' | 'denied' | 'notDetermined'
+
+if (status !== 'allowed') {
+  await fetchAlbumItems.openPermissionDialog();
+}
+```
+
+Use `fetchAlbumItems.isSupported()` to check availability before calling.
+
+## Examples
+
+### Minimal
+
+```tsx
+import { fetchAlbumItems } from '@apps-in-toss/web-framework';
+
+async function loadItems() {
+  const items = await fetchAlbumItems({ types: ['PHOTO', 'VIDEO'], maxCount: 5 });
+  console.log(items.map((item) => `${item.type}: ${item.id}`));
+}
+```
+
+### Realistic — mixed photo and video picker
+
+```tsx
+import { fetchAlbumItems } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+interface AlbumItem {
+  id: string;
+  dataUri: string;
+  type: 'PHOTO' | 'VIDEO';
+}
+
+export function AlbumItemPicker() {
+  const [items, setItems] = useState<AlbumItem[]>([]);
+  const [message, setMessage] = useState('');
+  const [pending, setPending] = useState(false);
+
+  async function loadAlbum() {
+    setPending(true);
+    setMessage('');
+    try {
+      const status = await fetchAlbumItems.getPermission();
+      if (status === 'denied') {
+        setMessage('Please allow photo access in Settings.');
+        return;
+      }
+      if (status === 'notDetermined') {
+        await fetchAlbumItems.openPermissionDialog();
+      }
+
+      const result = await fetchAlbumItems({
+        types: ['PHOTO', 'VIDEO'],
+        maxCount: 9,
+        maxWidth: 360,
+      });
+      setItems(result);
+    } catch (error) {
+      setMessage('Could not load album. Please try again.');
+      console.error(error);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div>
+      <button type="button" onClick={loadAlbum} disabled={pending}>
+        {pending ? 'Loading...' : 'Load album'}
+      </button>
+      {message && <p role="status">{message}</p>}
+      <ul>
+        {items.map((item) => (
+          <li key={item.id}>
+            {item.type === 'PHOTO' ? '📷' : '🎬'} {item.id}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```
+
+## Try it live
+
+Run the `fetchAlbumItems` card on the Camera page in sdk-example.
+
+<TryItLink group="camera" method="fetchAlbumItems" />
+
+## Related APIs
+
+- [`fetchAlbumPhotos`](./fetchAlbumPhotos) — photo-only variant with a simpler interface.
+- [`openCamera`](./openCamera) — capture a photo with the device camera.
+
+## Related guides
+
+- [Guides — Camera and album UX patterns](/guides/camera-album-ux)
+- [Guides — Permissions pattern](/guides/permissions-pattern)
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/webview-bridge`](https://www.npmjs.com/package/@apps-in-toss/webview-bridge).

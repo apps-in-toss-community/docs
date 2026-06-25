@@ -156,13 +156,21 @@ const NAME_PATTERN = /^(?:[A-Za-z][A-Za-z0-9]*\.)?([a-z][A-Za-z0-9]*)$/;
  * its `.get` accessor is not part of the `TryItLink` deep-link contract.
  * `navigator` cards are standard Web API demos.
  *
+ * `getCurrentLocation` is the prefix of the `getCurrentLocation.getPermission`
+ * card in LocationPage.tsx, which demonstrates the `.getPermission()` permission
+ * helper on the `getCurrentLocation` callable. That card carries an explicit
+ * `docsLink('location', 'getCurrentLocation')` redirecting it to the existing
+ * `getCurrentLocation.mdx` page, so the heuristic leaf `getPermission` must not
+ * be reported as an undocumented method. The `docsLink` regex independently
+ * emits `getCurrentLocation` for the docs-presence check — no coverage is lost.
+ *
  * Add an entry here for any sdk-example single-dot prefix that represents a
  * Web API or non-method object rather than an SDK namespace (e.g. future
  * `location.*`, `history.*`, `document.*`, `screen.*` demo cards). Without
  * this list, those would otherwise leak into `missingInDocs` as info-level
  * noise and break `--strict` runs.
  */
-const PREFIX_SKIP_LIST = new Set(['SafeAreaInsets', 'navigator']);
+const PREFIX_SKIP_LIST = new Set(['SafeAreaInsets', 'navigator', 'getCurrentLocation']);
 
 function normalizeApiCardName(raw: string): string | null {
   const m = NAME_PATTERN.exec(raw);

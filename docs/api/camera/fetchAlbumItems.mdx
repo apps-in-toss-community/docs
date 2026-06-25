@@ -1,0 +1,174 @@
+---
+image: /og/api-camera-fetchAlbumItems.png
+id: fetchAlbumItems
+title: fetchAlbumItems
+sidebar_label: fetchAlbumItems
+description: 기기 앨범에서 사진·동영상 목록을 가져옵니다.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `fetchAlbumItems`
+
+기기 앨범에서 사진(PHOTO)과 동영상(VIDEO)을 함께 또는 선택적으로 가져옵니다. `fetchAlbumPhotos`와 달리 미디어 타입을 `types` 옵션으로 지정할 수 있으며, 반환 결과에도 각 항목의 타입이 포함됩니다.
+
+## 시그니처
+
+```ts
+import { fetchAlbumItems } from '@apps-in-toss/web-framework';
+
+declare const fetchAlbumItems: PermissionFunctionWithDialog<
+  (options?: FetchAlbumItemsOptions) => Promise<AlbumItemResponse[]>
+> & {
+  isSupported: () => boolean;
+};
+
+interface FetchAlbumItemsOptions {
+  /** 가져올 미디어 타입. 기본값은 ['PHOTO']. */
+  types?: ('PHOTO' | 'VIDEO')[];
+  /** 가져올 항목의 최대 개수. 기본값 10. */
+  maxCount?: number;
+  /** 이미지의 최대 폭(픽셀). 기본값 1024. */
+  maxWidth?: number;
+  /** true이면 Base64 문자열로 반환. 기본값 false. */
+  base64?: boolean;
+}
+
+interface AlbumItemResponse {
+  /** 항목의 고유 ID */
+  id: string;
+  /** 항목의 데이터 URI */
+  dataUri: string;
+  /** 미디어 타입 */
+  type: 'PHOTO' | 'VIDEO';
+}
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `options.types` | `('PHOTO' \| 'VIDEO')[]` | — | 가져올 미디어 타입. 기본값은 `['PHOTO']`이에요. |
+| `options.maxCount` | `number` | — | 가져올 항목의 최대 개수. 기본값은 `10`이에요. |
+| `options.maxWidth` | `number` | — | 이미지의 최대 폭(픽셀). 기본값은 `1024`이에요. |
+| `options.base64` | `boolean` | — | `true`이면 `dataUri`를 Base64 문자열로 반환합니다. 기본값은 `false`이에요. |
+
+## 반환값
+
+- `Promise<AlbumItemResponse[]>` — 항목 고유 ID, 데이터 URI, 미디어 타입을 담은 배열.
+  - `type`은 각 항목이 `'PHOTO'`인지 `'VIDEO'`인지를 나타냅니다.
+  - `base64: false` (기본) 시 `dataUri`는 기기 로컬 경로 또는 파일 URI입니다.
+  - `base64: true` 시 `dataUri`는 Base64 문자열이며, `<img>` 태그에 사용하려면 `data:image/jpeg;base64,` prefix를 붙여야 합니다.
+- 권한 `denied` 시 호출이 실패합니다. "권한" 섹션 참고.
+
+## 권한
+
+`photos` 권한이 필요합니다. 권한이 **명시적으로 `denied`** 상태이면 호출이 실패하므로 `try/catch`로 감싸세요. `notDetermined` 상태에서는 호출이 그대로 진행될 수 있지만, 사용자 경험상 먼저 다이얼로그로 승격시키는 것이 안전합니다. 상세 처리 패턴은 [Guides — 권한 처리 패턴](/guides/permissions-pattern)을 참고하세요.
+
+함수 객체에 권한 유틸이 붙어있습니다:
+
+```ts
+const status = await fetchAlbumItems.getPermission();
+// 'allowed' | 'denied' | 'notDetermined'
+
+if (status !== 'allowed') {
+  await fetchAlbumItems.openPermissionDialog();
+}
+```
+
+지원 여부는 `fetchAlbumItems.isSupported()`로 확인할 수 있습니다.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { fetchAlbumItems } from '@apps-in-toss/web-framework';
+
+async function loadItems() {
+  const items = await fetchAlbumItems({ types: ['PHOTO', 'VIDEO'], maxCount: 5 });
+  console.log(items.map((item) => `${item.type}: ${item.id}`));
+}
+```
+
+### 실전 예제 — 사진·동영상 혼합 선택 UI
+
+```tsx
+import { fetchAlbumItems } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+interface AlbumItem {
+  id: string;
+  dataUri: string;
+  type: 'PHOTO' | 'VIDEO';
+}
+
+export function AlbumItemPicker() {
+  const [items, setItems] = useState<AlbumItem[]>([]);
+  const [message, setMessage] = useState('');
+  const [pending, setPending] = useState(false);
+
+  async function loadAlbum() {
+    setPending(true);
+    setMessage('');
+    try {
+      const status = await fetchAlbumItems.getPermission();
+      if (status === 'denied') {
+        setMessage('설정에서 사진 접근 권한을 허용해 주세요.');
+        return;
+      }
+      if (status === 'notDetermined') {
+        await fetchAlbumItems.openPermissionDialog();
+      }
+
+      const result = await fetchAlbumItems({
+        types: ['PHOTO', 'VIDEO'],
+        maxCount: 9,
+        maxWidth: 360,
+      });
+      setItems(result);
+    } catch (error) {
+      setMessage('앨범을 불러오지 못했어요. 다시 시도해 주세요.');
+      console.error(error);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div>
+      <button type="button" onClick={loadAlbum} disabled={pending}>
+        {pending ? '불러오는 중...' : '앨범 불러오기'}
+      </button>
+      {message && <p role="status">{message}</p>}
+      <ul>
+        {items.map((item) => (
+          <li key={item.id}>
+            {item.type === 'PHOTO' ? '📷' : '🎬'} {item.id}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```
+
+## 직접 실행해 보기
+
+sdk-example의 Camera 페이지에서 `fetchAlbumItems` 카드를 실행해 결과를 확인할 수 있습니다.
+
+<TryItLink group="camera" method="fetchAlbumItems" />
+
+## 관련 API
+
+- [`fetchAlbumPhotos`](./fetchAlbumPhotos) — 사진만 가져오는 단순화된 API입니다.
+- [`openCamera`](./openCamera) — 기기 카메라로 사진을 촬영합니다.
+
+## 관련 가이드
+
+- [Guides — 카메라·앨범 UX 패턴](/guides/camera-album-ux)
+- [Guides — 권한 처리 패턴](/guides/permissions-pattern)
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/webview-bridge`](https://www.npmjs.com/package/@apps-in-toss/webview-bridge)에서 가져옵니다.

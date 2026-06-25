@@ -1,0 +1,111 @@
+---
+image: /og/api-navigation-openPDFViewer.png
+id: openPDFViewer
+title: openPDFViewer
+sidebar_label: openPDFViewer
+description: Open Base64-encoded PDF data in the native PDF viewer.
+---
+
+import TryItLink from '@site/src/components/TryItLink';
+
+# `openPDFViewer`
+
+Opens Base64-encoded PDF data in the device's native PDF viewer. Resolves with `'CLOSE'` when the user dismisses the viewer. Useful for displaying contracts, receipts, or reference documents inline within a mini-app.
+
+## Signature
+
+```ts
+import { openPDFViewer } from '@apps-in-toss/web-framework';
+
+declare const openPDFViewer: ((params: OpenPDFViewerParams) => Promise<'CLOSE'>) & {
+  isSupported: () => boolean;
+};
+
+interface OpenPDFViewerParams {
+  /** Base64-encoded PDF data */
+  data: string;
+  /** Filename displayed in the viewer (optional) */
+  filename?: string;
+}
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `params.data` | `string` | ✓ | Base64-encoded PDF data. |
+| `params.filename` | `string` | — | Filename displayed in the viewer UI. Falls back to a device default if omitted. |
+
+## Returns
+
+- `Promise<'CLOSE'>` — resolves with `'CLOSE'` when the user dismisses the PDF viewer.
+- In the devtools mock environment, resolves immediately with `'CLOSE'`.
+
+## Permission
+
+No permission required.
+
+## Examples
+
+### Minimal
+
+```tsx
+import { openPDFViewer } from '@apps-in-toss/web-framework';
+
+const result = await openPDFViewer({ data: base64PdfString });
+console.log(result); // 'CLOSE'
+```
+
+### Realistic — opening a server-fetched PDF
+
+```tsx
+import { openPDFViewer } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+export function ReceiptViewer({ receiptBase64 }: { receiptBase64: string }) {
+  const [message, setMessage] = useState('');
+  const [pending, setPending] = useState(false);
+
+  async function openReceipt() {
+    setPending(true);
+    setMessage('');
+    try {
+      await openPDFViewer({ data: receiptBase64, filename: 'receipt.pdf' });
+      setMessage('Viewer closed.');
+    } catch (error) {
+      setMessage('Could not open the PDF. Please try again.');
+      console.error(error);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div>
+      <button type="button" onClick={openReceipt} disabled={pending}>
+        {pending ? 'Opening...' : 'View receipt'}
+      </button>
+      {message && <p role="status">{message}</p>}
+    </div>
+  );
+}
+```
+
+## Try it live
+
+Run the `openPDFViewer` card on the Navigation page in sdk-example.
+
+<TryItLink group="navigation" method="openPDFViewer" />
+
+## Related APIs
+
+- [`openURL`](./openURL) — open an external URL.
+- [`share`](./share) — open the system share sheet with a message.
+
+## Related guides
+
+- [Guides — Mini-app navigation flow patterns](/guides/navigation-flow) — mini-app entry/exit, opening external URLs, and screen-context patterns.
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — SDK package. The actual exports are re-exported from [`@apps-in-toss/webview-bridge`](https://www.npmjs.com/package/@apps-in-toss/webview-bridge).

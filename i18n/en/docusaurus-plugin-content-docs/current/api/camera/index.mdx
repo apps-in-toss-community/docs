@@ -4,30 +4,32 @@ id: camera-overview
 title: camera
 sidebar_label: Overview
 slug: /api/camera
-description: SDK namespace for capturing photos with the camera and reading the device album.
+description: SDK namespace for capturing photos with the camera and reading the device album for photos and videos.
 ---
 
 import TryItLink from '@site/src/components/TryItLink';
 
 # `camera`
 
-Functions for capturing photos with the device camera or reading the photo album. Both require a permission, but they map to different `PermissionName` values — `openCamera` → `camera`, `fetchAlbumPhotos` → `photos`.
+Functions for capturing photos with the device camera or reading photos and videos from the device album. Permission-gated functions map to different `PermissionName` values — `openCamera` → `camera`, `fetchAlbumPhotos` and `fetchAlbumItems` → `photos`.
 
 ## Methods
 
 | Method | Return type | Purpose |
 | --- | --- | --- |
+| [`fetchAlbumItems`](/api/camera/fetchAlbumItems) | `Promise<AlbumItemResponse[]>` | Fetch photos and videos from the device album. |
 | [`fetchAlbumPhotos`](/api/camera/fetchAlbumPhotos) | `Promise<ImageResponse[]>` | Fetch a list of photos from the device album. |
 | [`openCamera`](/api/camera/openCamera) | `Promise<ImageResponse>` | Open the camera and return the captured image. |
 
 ## Permission
 
-Both functions are `PermissionFunctionWithDialog` callables and expose `getPermission()` / `openPermissionDialog()` directly on the function object.
+`PermissionFunctionWithDialog` callables expose `getPermission()` / `openPermissionDialog()` directly on the function object.
 
 | Method | PermissionName |
 | --- | --- |
 | `openCamera` | `camera` |
 | `fetchAlbumPhotos` | `photos` |
+| `fetchAlbumItems` | `photos` |
 
 - A `denied` status causes the call to fail — wrap in `try/catch`.
 - For `notDetermined`, prompt the user via `openPermissionDialog()` before calling.
@@ -42,7 +44,7 @@ See [Guides — Permissions pattern](/guides/permissions-pattern) for the full f
 
 ## Try it live
 
-Both methods are available on the Camera page in sdk-example.
+All three methods are available on the Camera page in sdk-example.
 
 <TryItLink group="camera" />
 

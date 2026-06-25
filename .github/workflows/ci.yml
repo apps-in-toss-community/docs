@@ -56,8 +56,10 @@ jobs:
   # Verifies that docs/api/<group>/<method>.mdx names line up 1:1 with the
   # ApiCard `name="..."` props in apps-in-toss-community/sdk-example. Kept as a
   # separate job so the name (`verify-crosslinks`) stays stable for branch
-  # protection required checks. Default mode (no `--strict`) treats GitHub raw
-  # fetch failures as warnings — sdk-example downtime should not block docs PRs.
+  # protection required checks. `--strict` mode treats sdk-example methods not
+  # yet in docs as errors and fetch failures as hard failures — both must be
+  # clean before merging. Gaps should be resolved by adding the missing page,
+  # not by relaxing the flag.
   verify-crosslinks:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -73,7 +75,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm verify:crosslinks
+      - run: pnpm verify:crosslinks --strict
 
   # Dry-run SDK coverage drift check. Non-blocking on PRs — the weekly
   # `sdk-drift` workflow is the enforcement layer (opens/updates a tracking
