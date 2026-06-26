@@ -203,6 +203,26 @@ const IGNORED_EXPORTS = new Set<string>([
   'createEventBridge',
 ]);
 
+/**
+ * `<group>/<method>` docs pages that are intentionally kept even though the
+ * pinned baseline SDK does not export the method — so they must NOT be flagged
+ * as orphaned drift.
+ *
+ * Why this exists: the docs baseline tracks the stable 2.x line, but the org
+ * currently pins web-framework to `2.10.0` (NOT the published `latest` `2.10.1`)
+ * because `2.10.1` ships an upstream `.d.ts` path regression that breaks `tsc`
+ * through the `web-framework-2x` alias (native-modules subpath resolves to raw
+ * `.ts`; see devtools#660 / sdk-example#214). `getDeclaredAgeRange` was added in
+ * `2.10.1` and is absent from `2.10.0`, so against a `2.10.0` baseline its docs
+ * page would read as an orphan. The API is real on `latest`, the page is
+ * correct, and deleting+restoring it across the `2.10.0`↔`2.10.1` swing is
+ * exactly the #120 whipsaw we are avoiding. Keep the page; suppress the orphan.
+ *
+ * Remove an entry here once the baseline is re-pinned to a version that exports
+ * the method (e.g. when the org moves back to `2.10.1`+ after the upstream fix).
+ */
+const EXPECTED_ORPHANS = new Set<string>(['user-data/getDeclaredAgeRange']);
+
 interface ExportInfo {
   name: string;
   kind: 'function' | 'const' | 'class' | 'namespace' | 'type';
@@ -518,12 +538,17 @@ function buildReport(live: ExportInfo[], baseline: Baseline | null): DriftReport
   }
 
   // Orphaned: docs methods that aren't covered by any live SDK export.
+  // `EXPECTED_ORPHANS` (e.g. a method that only exists in a newer SDK than the
+  // pinned baseline) are deliberately kept and not reported.
   const orphaned: DriftReport['orphaned'] = [];
   for (const [group, ns] of docs) {
     if (!knownGroupValues.has(group)) {
       // The docs group isn't in our group map at all — every method is
       // orphaned by definition. Report each.
-      for (const method of ns.methods) orphaned.push({ group, method });
+      for (const method of ns.methods) {
+        if (EXPECTED_ORPHANS.has(`${group}/${method}`)) continue;
+        orphaned.push({ group, method });
+      }
       continue;
     }
     const expectedMethods = new Set<string>();
@@ -533,7 +558,9 @@ function buildReport(live: ExportInfo[], baseline: Baseline | null): DriftReport
       for (const m of expectedDocsMethodsFor(exportName)) expectedMethods.add(m);
     }
     for (const method of ns.methods) {
-      if (!expectedMethods.has(method)) orphaned.push({ group, method });
+      if (expectedMethods.has(method)) continue;
+      if (EXPECTED_ORPHANS.has(`${group}/${method}`)) continue;
+      orphaned.push({ group, method });
     }
   }
 

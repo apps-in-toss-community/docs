@@ -1,6 +1,6 @@
 {
   "sdkPackage": "@apps-in-toss/web-framework",
-  "sdkVersion": "2.10.1",
+  "sdkVersion": "2.10.0",
   "exports": [
     {
       "name": "Analytics",
@@ -91,11 +91,6 @@
       "name": "getCurrentLocation",
       "kind": "const",
       "hash": "bd179938f29f1232"
-    },
-    {
-      "name": "getDeclaredAgeRange",
-      "kind": "const",
-      "hash": "30c31bf9c1403aa9"
     },
     {
       "name": "getDeviceId",
