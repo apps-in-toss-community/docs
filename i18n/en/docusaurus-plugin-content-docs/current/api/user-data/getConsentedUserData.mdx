@@ -1,0 +1,166 @@
+---
+image: /og/api-user-data-getConsentedUserData.png
+id: getConsentedUserData
+title: getConsentedUserData
+sidebar_label: getConsentedUserData
+description: Requests consent-based user data and returns the server-resolved values once consent completes.
+---
+
+# `getConsentedUserData`
+
+Requests consent-based user data (name, phone, address, …). When consent is required, it shows the terms web view; once consent completes, it returns the data resolved by the server. Which fields you can receive is determined by the consent document (`consentedUserDataKey`) you registered in the Apps in Toss console.
+
+If the Toss app version is below `5.264.0`, it returns `undefined` — always treat the result as nullable on the call site.
+
+## Signature
+
+```ts
+import { getConsentedUserData } from '@apps-in-toss/web-framework';
+
+type ConsentedUserDataKey =
+  | 'USER_NAME'
+  | 'USER_GENDER'
+  | 'USER_NATIONALITY'
+  | 'USER_BIRTHDAY'
+  | 'USER_PHONE'
+  | 'USER_ADDRESS'
+  | 'USER_EMAIL'
+  | 'USER_CONSUMPTION_HISTORY';
+
+declare function getConsentedUserData(options: {
+  consentedUserDataKey: string;
+  shouldRequestAgreementWhenUserDeclined?: boolean;
+}): Promise<Partial<Record<ConsentedUserDataKey, string>> | undefined>;
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `consentedUserDataKey` | `string` | ✓ | The key the server uses to find the consent document and the data bundle. Registered in the Apps in Toss console. Example: `cud_delivery`. |
+| `shouldRequestAgreementWhenUserDeclined` | `boolean` | — | Whether to show the terms web view again even in a `USER_DECLINED` state. Defaults to `false`. |
+
+## Return value
+
+- `Promise<Partial<Record<ConsentedUserDataKey, string>> | undefined>` — an object containing only the consented fields as keys. Only some keys may be filled depending on the requested bundle, so treat each value as optional.
+
+:::caution
+If the Toss app version is below `5.264.0`, it returns `undefined` without throwing. Always access the result via optional chaining, e.g. `data?.USER_NAME`.
+:::
+
+## Error codes
+
+Errors caught in `catch` distinguish the cause via a `code` field.
+
+| `code` | Meaning |
+| --- | --- |
+| `USER_DECLINED` | The user explicitly declined and there was no re-request option, or they declined in the terms web view. |
+| `UNAVAILABLE` | The server could not determine the user's consent state. |
+| `TERMS_NOT_SET` | No user-data consent document is configured for the mini-app. |
+| `INVALID_REQUEST` | `consentedUserDataKey` is empty, or the consent-document setup is invalid (e.g. not an HTTPS company domain). |
+| `CANCELED` | The terms web view was closed before sending a result. |
+| `CONSENTED_USER_DATA_AGREEMENT_FAILED` | An error occurred while processing the terms web view. |
+| `CONSENTED_USER_DATA_INVALID_DATA` | Consent succeeded but the re-fetched result was not valid data. |
+
+## Permissions
+
+Not bound to a `PermissionName` — access control runs through the consent-document (terms web view) flow, not a permission dialog. Consent documents are registered per `consentedUserDataKey` in the Apps in Toss console.
+
+## Examples
+
+### Minimal example
+
+```tsx
+import { getConsentedUserData } from '@apps-in-toss/web-framework';
+
+async function fetchDeliveryUserData() {
+  try {
+    const data = await getConsentedUserData({
+      consentedUserDataKey: 'cud_delivery',
+    });
+
+    if (data == null) {
+      // Toss app version too low — unsupported
+      return;
+    }
+
+    console.log('Name:', data.USER_NAME);
+    console.log('Phone:', data.USER_PHONE);
+  } catch (error) {
+    console.error('Failed to read consent data:', error);
+  }
+}
+```
+
+### Real-world example — re-request on decline + UI branching
+
+```tsx
+import { getConsentedUserData } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+type DeliveryInfo = { name?: string; phone?: string; address?: string };
+
+export function DeliveryConsent({ consentKey }: { consentKey: string }) {
+  const [info, setInfo] = useState<DeliveryInfo | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  async function request() {
+    setMessage(null);
+    try {
+      const data = await getConsentedUserData({
+        consentedUserDataKey: consentKey,
+        // Re-show the terms web view even in a USER_DECLINED state to prompt re-consent.
+        shouldRequestAgreementWhenUserDeclined: true,
+      });
+
+      if (data == null) {
+        setMessage('This feature is not available in the current Toss app version.');
+        return;
+      }
+
+      setInfo({
+        name: data.USER_NAME,
+        phone: data.USER_PHONE,
+        address: data.USER_ADDRESS,
+      });
+    } catch (error) {
+      const code = (error as { code?: string })?.code;
+      if (code === 'USER_DECLINED') {
+        setMessage('The user did not consent to share their data.');
+      } else if (code === 'TERMS_NOT_SET') {
+        setMessage('No consent document is configured. Register one in the console.');
+      } else {
+        setMessage('Could not load the data.');
+      }
+    }
+  }
+
+  return (
+    <main>
+      <button type="button" onClick={request}>
+        Load delivery info
+      </button>
+      {info && (
+        <ul>
+          <li>Name: {info.name ?? 'not provided'}</li>
+          <li>Phone: {info.phone ?? 'not provided'}</li>
+          <li>Address: {info.address ?? 'not provided'}</li>
+        </ul>
+      )}
+      {message && <p>{message}</p>}
+    </main>
+  );
+}
+```
+
+## Related APIs
+
+- [`getDeclaredAgeRange`](./getDeclaredAgeRange) — reads the age range the user has agreed to share.
+
+## Related guides
+
+- _(coming soon)_ Guides — "Requesting consent-based user data"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — the upstream SDK package. The actual exports are re-exported internally from [`@apps-in-toss/webview-bridge`](https://www.npmjs.com/package/@apps-in-toss/webview-bridge).

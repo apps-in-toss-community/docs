@@ -1,0 +1,33 @@
+---
+image: /og/api-user-data.png
+id: user-data-overview
+title: user-data
+sidebar_label: Overview
+slug: /api/user-data
+description: 사용자 동의 기반 데이터와 선언된 연령대를 조회하는 SDK 네임스페이스입니다.
+---
+
+# `user-data`
+
+사용자의 명시적 동의를 바탕으로 개인 데이터를 조회하는 메서드를 모은 네임스페이스입니다. 두 메서드 모두 사용자가 데이터 제공에 동의한 경우에만 값을 반환하며, 동의가 없거나 거부된 경우에는 에러 또는 상태 코드로 결과를 알립니다.
+
+## 메서드
+
+| 메서드 | 반환 타입 | 용도 |
+| --- | --- | --- |
+| [`getConsentedUserData`](/api/user-data/getConsentedUserData) | `Promise<ConsentedUserData \| undefined>` | 동의문 key로 묶인 사용자 데이터(이름·전화번호·주소 등)를 조회합니다. 필요 시 약관 웹뷰를 띄웁니다. |
+| [`getDeclaredAgeRange`](/api/user-data/getDeclaredAgeRange) | `Promise<DeclaredAgeRange>` | 사용자가 공유에 동의한 연령대(age gate 통과 여부)를 조회합니다. |
+
+## 공유 제약
+
+- **동의 게이트**: 두 메서드 모두 사용자 동의가 전제입니다. 동의가 없으면 데이터를 반환하지 않으며, 강제로 우회할 수 없습니다.
+- **버전 가용성**: 이 네임스페이스의 메서드는 `@apps-in-toss/web-framework` 2.x 라인에서 제공됩니다. 토스앱 버전에 따라 동작이 갈릴 수 있으니 각 메서드 페이지의 가용성 안내를 확인하세요.
+- **개인정보 취급**: 조회한 값은 사용자의 민감 정보입니다. 필요한 범위만 요청하고, 로그·외부 전송 시 개인정보 처리 방침을 준수하세요.
+
+## 권한
+
+별도의 `PermissionName`에 바인딩되지 않습니다 — 접근 제어는 권한 다이얼로그가 아니라 동의문(약관 웹뷰) 흐름으로 이뤄집니다.
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/webview-bridge`](https://www.npmjs.com/package/@apps-in-toss/webview-bridge)에서 가져옵니다.

@@ -42,10 +42,11 @@ interface Args {
 interface NamespaceReport {
   group: string;
   docsMethods: string[];
-  sdkMethods: string[] | null; // null when fetch failed
+  sdkMethods: string[] | null; // null when fetch failed (or fetch skipped)
   missingInSdk: string[];
   missingInDocs: string[];
   fetchError?: string;
+  noSdkExample?: boolean; // group is in GROUPS_WITHOUT_SDK_EXAMPLE — fetch skipped by design
 }
 
 const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -62,6 +63,15 @@ const SDK_EXAMPLE_PAGES_DIR = 'src/pages';
 const SDK_PAGE_FILENAME_OVERRIDES: Record<string, string> = {
   iap: 'IAPPage.tsx',
 };
+
+// Docs groups that intentionally have no sdk-example page yet. Without this set,
+// each would fetch a 404 and surface as a yellow "fetch failed" warning —
+// indistinguishable from a real GitHub outage, which erodes the signal. These
+// groups skip the fetch entirely and report a clean info line instead. Remove a
+// group here once sdk-example ships its `<File>Page.tsx`. `user-data`
+// (getConsentedUserData / getDeclaredAgeRange) is consent-gated SDK surface with
+// no interactive demo page; its docs deliberately omit the `TryItLink`.
+const GROUPS_WITHOUT_SDK_EXAMPLE = new Set(['user-data']);
 
 function defaultSdkPageFilename(group: string): string {
   return `${group.charAt(0).toUpperCase()}${group.slice(1)}Page.tsx`;
@@ -323,6 +333,21 @@ async function main(): Promise<number> {
     a.localeCompare(b),
   )) {
     const docsMethods = [...docsMethodSet].sort();
+
+    // Deliberately-no-demo groups skip the fetch: a 404 here is by design, not
+    // an outage. Report a clean info line instead of a yellow fetch warning.
+    if (GROUPS_WITHOUT_SDK_EXAMPLE.has(group)) {
+      reports.push({
+        group,
+        docsMethods,
+        sdkMethods: null,
+        missingInSdk: [],
+        missingInDocs: [],
+        noSdkExample: true,
+      });
+      continue;
+    }
+
     let sdkMethods: string[] | null = null;
     let fetchError: string | undefined;
     try {
@@ -351,8 +376,16 @@ async function main(): Promise<number> {
   let hasError = false;
   let hasInfo = false;
   for (const r of reports) {
-    const sdkLabel = r.sdkMethods ? `${r.sdkMethods.length} sdk` : c.yellow('sdk: fetch failed');
+    const sdkLabel = r.noSdkExample
+      ? c.dim('sdk: n/a (no demo page)')
+      : r.sdkMethods
+        ? `${r.sdkMethods.length} sdk`
+        : c.yellow('sdk: fetch failed');
     out(`${c.cyan(r.group.padEnd(14))} ${c.dim('|')} ${r.docsMethods.length} docs · ${sdkLabel}`);
+    if (r.noSdkExample) {
+      out(`  ${c.dim('·')} ${c.dim('no sdk-example page by design — cross-link check skipped')}`);
+      continue;
+    }
     if (r.fetchError) {
       out(`  ${c.yellow('!')} ${r.fetchError}`);
     }

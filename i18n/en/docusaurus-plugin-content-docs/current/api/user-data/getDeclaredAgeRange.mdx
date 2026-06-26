@@ -1,0 +1,152 @@
+---
+image: /og/api-user-data-getDeclaredAgeRange.png
+id: getDeclaredAgeRange
+title: getDeclaredAgeRange
+sidebar_label: getDeclaredAgeRange
+description: Reads the age range the user has agreed to share (age-gate eligibility).
+---
+
+# `getDeclaredAgeRange`
+
+Reads the age-range information the user has agreed to share. Pass the reference ages to check via `ageGates`, and it returns the eligibility for each gate along with a sharing `status`. Use it to decide whether to show age-restricted content.
+
+Check `getDeclaredAgeRange.isSupported()` to confirm availability in the current environment before calling.
+
+## Signature
+
+```ts
+import { getDeclaredAgeRange } from '@apps-in-toss/web-framework';
+
+interface DeclaredAgeRange {
+  status:
+    | 'SHARING'
+    | 'DECLINED_SHARING'
+    | 'UNSUPPORTED_OS'
+    | 'NOT_AVAILABLE'
+    | 'INVALID_REQUEST'
+    | 'FAILED';
+  lowerBound?: number;
+  upperBound?: number;
+  ageRangeDeclaration?: string;
+  activeParentalControls: string[];
+  isEligibleForAgeFeatures?: boolean;
+  errorCode?: string;
+}
+
+declare function getDeclaredAgeRange(params: {
+  ageGates: number[];
+}): Promise<DeclaredAgeRange>;
+
+declare namespace getDeclaredAgeRange {
+  function isSupported(): boolean;
+}
+```
+
+## Parameters
+
+| Name | Type | Required | Description |
+| --- | --- | :-: | --- |
+| `ageGates` | `number[]` | ✓ | The reference ages to check. For example, passing `[14, 19]` evaluates eligibility for those gates. |
+
+## Return value
+
+`Promise<DeclaredAgeRange>` — an object holding the sharing status and age-range information.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `status` | `string` | The sharing result status. See "Status codes" below. |
+| `lowerBound` | `number?` | Lower bound of the shared age range. |
+| `upperBound` | `number?` | Upper bound of the shared age range. |
+| `ageRangeDeclaration` | `string?` | The age-range declaration expressed by the user. |
+| `activeParentalControls` | `string[]` | List of active parental-control items. |
+| `isEligibleForAgeFeatures` | `boolean?` | Whether age-based features can be used. |
+| `errorCode` | `string?` | Cause code on failure. |
+
+## Status codes (`status`)
+
+| `status` | Meaning |
+| --- | --- |
+| `SHARING` | The user consented to share their age range. `lowerBound`/`upperBound` may be filled. |
+| `DECLINED_SHARING` | The user declined to share. |
+| `UNSUPPORTED_OS` | The current OS / Toss app version does not support this feature. |
+| `NOT_AVAILABLE` | Not currently retrievable. |
+| `INVALID_REQUEST` | `ageGates` is empty or the request is invalid. |
+| `FAILED` | An error occurred while processing. Check `errorCode`. |
+
+## Permissions
+
+Not bound to a `PermissionName` — whether the age range is shared is determined by the user's/guardian's consent settings.
+
+## Examples
+
+### Minimal example
+
+```tsx
+import { getDeclaredAgeRange } from '@apps-in-toss/web-framework';
+
+async function checkAdult() {
+  if (!getDeclaredAgeRange.isSupported()) {
+    return false;
+  }
+
+  const result = await getDeclaredAgeRange({ ageGates: [19] });
+  return result.status === 'SHARING' && (result.lowerBound ?? 0) >= 19;
+}
+```
+
+### Real-world example — age-restricted content gate
+
+```tsx
+import { getDeclaredAgeRange } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+type Gate = 'checking' | 'allowed' | 'blocked' | 'unsupported';
+
+export function AgeGatedContent({ minAge }: { minAge: number }) {
+  const [gate, setGate] = useState<Gate>('checking');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function evaluate() {
+      if (!getDeclaredAgeRange.isSupported()) {
+        if (!cancelled) setGate('unsupported');
+        return;
+      }
+
+      try {
+        const result = await getDeclaredAgeRange({ ageGates: [minAge] });
+        if (cancelled) return;
+
+        const eligible =
+          result.status === 'SHARING' && (result.lowerBound ?? 0) >= minAge;
+        setGate(eligible ? 'allowed' : 'blocked');
+      } catch {
+        if (!cancelled) setGate('blocked');
+      }
+    }
+
+    evaluate();
+    return () => {
+      cancelled = true;
+    };
+  }, [minAge]);
+
+  if (gate === 'checking') return <p>Checking age…</p>;
+  if (gate === 'unsupported') return <p>Age verification is unavailable on this device.</p>;
+  if (gate === 'blocked') return <p>This content is for ages {minAge} and up only.</p>;
+  return <p>Showing content.</p>;
+}
+```
+
+## Related APIs
+
+- [`getConsentedUserData`](./getConsentedUserData) — reads user data (name, phone, …) tied to a consent-document key.
+
+## Related guides
+
+- _(coming soon)_ Guides — "Requesting consent-based user data"
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — the upstream SDK package. The actual exports are re-exported internally from [`@apps-in-toss/webview-bridge`](https://www.npmjs.com/package/@apps-in-toss/webview-bridge).

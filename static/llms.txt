@@ -39,6 +39,8 @@ Community-maintained guide and API reference for the `@apps-in-toss/web-framewor
 - [permissions (en)](https://docs.aitc.dev/en/api/permissions): 디바이스 권한 상태 확인·요청·다이얼로그 표시를 담당하는 SDK 최상위 함수 모음입니다.
 - [storage](https://docs.aitc.dev/api/storage): 미니앱 전용 키-값 저장소를 다루는 SDK 네임스페이스입니다.
 - [storage (en)](https://docs.aitc.dev/en/api/storage): 미니앱 전용 키-값 저장소를 다루는 SDK 네임스페이스입니다.
+- [user-data](https://docs.aitc.dev/api/user-data): 사용자 동의 기반 데이터와 선언된 연령대를 조회하는 SDK 네임스페이스입니다.
+- [user-data (en)](https://docs.aitc.dev/en/api/user-data): 사용자 동의 기반 데이터와 선언된 연령대를 조회하는 SDK 네임스페이스입니다.
 
 ## Guides
 
@@ -217,3 +219,8 @@ Community-maintained guide and API reference for the `@apps-in-toss/web-framewor
 - [Storage.removeItem](https://docs.aitc.dev/api/storage/removeItem) — 단일 키를 삭제합니다.
 - [saveBase64Data](https://docs.aitc.dev/api/storage/saveBase64Data) — Base64 인코딩된 데이터를 파일로 저장합니다.
 - [Storage.setItem](https://docs.aitc.dev/api/storage/setItem) — 키에 문자열 값을 저장합니다.
+
+### user-data
+
+- [getConsentedUserData](https://docs.aitc.dev/api/user-data/getConsentedUserData) — 사용자 동의 기반 데이터를 요청하고, 동의가 완료되면 서버에서 조회한 값을 반환합니다.
+- [getDeclaredAgeRange](https://docs.aitc.dev/api/user-data/getDeclaredAgeRange) — 사용자가 공유에 동의한 연령대(age gate 통과 여부)를 조회합니다.
