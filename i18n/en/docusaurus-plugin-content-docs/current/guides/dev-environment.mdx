@@ -1,0 +1,107 @@
+---
+id: dev-environment
+title: Local Dev Environment — Browser Mock, Polyfill, Real-device Preview (dev)
+sidebar_label: Local Dev Environment
+slug: /guides/dev-environment
+description: The three setups of station 2 (dev) for building a mini-app without the Toss app — devtools unplugin for browser SDK-mock development, polyfill for writing standard Web APIs, and real-device PWA preview for the actual WebKit engine. Covers which rung of the fidelity ladder each setup fills and when to climb to the next.
+---
+
+# Local Dev Environment (dev)
+
+This guide covers the station 2 (dev) setups for building a mini-app **without the Toss app**. There are three core tools, each with a distinct purpose — no single one does everything. Instead they form a **ladder**: at each step of the dev loop you climb to an environment that is closer to the real thing.
+
+:::info Automate it with `/ait` skills
+The setups below can be done entirely inside your agent with the `/ait` skills from [agent-plugin](https://github.com/apps-in-toss-community/agent-plugin) — `/ait inject-devtools` (browser mock), `/ait inject-polyfill` (standard Web APIs), `/ait setup-phone-preview` (real-device preview). This guide explains what files those skills patch and why.
+:::
+
+## The three setups at a glance
+
+| Setup | `/ait` skill | What | Which environment |
+|---|---|---|---|
+| devtools mock | `/ait inject-devtools` | Inject the unplugin into your build tool → run the SDK as a mock in the browser + DevTools panel | Environment 1 (local browser) |
+| polyfill | `/ait inject-polyfill` | Install a shim that routes standard Web API calls to the SDK at runtime | Environment 1 (authoring option) |
+| real-device preview | `/ait setup-phone-preview` | Wire up quick-tunnel + launcher PWA → preview the dev app in real-phone Safari/WebKit | Environment 2 (real-device PWA) |
+
+The three setups are independent. devtools mock alone is enough to develop; polyfill is an option that changes your authoring style; real-device preview is one rung up that you climb when you need what the browser structurally cannot do (the real WebKit engine).
+
+## The fidelity ladder — why one environment isn't enough
+
+The mini-app dev environment isn't a single environment but several rungs on a **fidelity ladder** (how close to the real thing). Each inner rung structurally cannot do what an outer rung can, and the outer rung fills that gap — so instead of endlessly chasing a "more faithful mock," you focus each rung on what it does well and climb only when you need to.
+
+```
+Environment 1  Local browser (devtools mock + panel)
+               → state/contract parity + visual layout. Instant. Engine fidelity structurally impossible.
+Environment 2  Real-device PWA (launcher + quick-tunnel)
+               → real WebKit engine + real touch/viewport. One-time phone install. No Toss review needed.
+```
+
+- **Environment 1 (browser)**: the fastest loop. Because the SDK runs as a mock, you verify state transitions and contracts (what is called with which arguments) and check layout visually, with no Toss app or device. But it isn't the real Toss WebView engine, so engine-level differences (specific CSS, viewport, touch behavior) cannot be caught here — that's a structural limit, delegated to environment 2.
+- **Environment 2 (real-device PWA)**: open the dev app in real-phone Safari/WebKit to verify the actual engine, touch, and safe-area. It needs no Toss app review, so it fills the gap between environment 1 and release.
+
+Higher rungs (debugging inside the real Toss app WebView) are handled by the debug relay of the ship/operate stage — see [Bundle debug relay](/guides/debug-relay).
+
+## Setup 1 — Browser mock (`/ait inject-devtools`)
+
+`@ait-co/devtools` is an unplugin that runs the `@apps-in-toss/web-framework` SDK as a mock in the browser. An empty project already ships it via the `/ait new` scaffold, but you use `/ait inject-devtools` to add it to an **existing (brownfield) project** after the fact.
+
+What the skill does:
+
+1. Detects the build tool — Vite / Next.js / Rspack / Webpack.
+2. Installs `@ait-co/devtools` as a dev dependency with the right package manager.
+3. Patches the config file (`vite.config.ts`, etc.) to add the unplugin **idempotently** — it won't add a duplicate if one is already there.
+
+Once attached, running `pnpm dev` makes SDK calls respond from the mock, and the DevTools panel shows the call log (`sdkCallLog`) and surfaces no-op APIs. The mock is aligned to Toss app WebView behavior, so at the state/contract level your code follows the same path as the real thing.
+
+## Setup 2 — Standard Web APIs (`/ait inject-polyfill`)
+
+`@ait-co/polyfill` is a shim that lets you write the mini-app with **standard Web APIs**. For example, calling the clipboard via the standard `navigator.clipboard` shape instead of an SDK-specific function lets the shim route that call to the SDK at runtime.
+
+What `/ait inject-polyfill` does:
+
+1. Installs `@ait-co/polyfill`.
+2. Wires an auto-import line into the entry point (set with `--entry <path>`, auto-detected by default).
+3. Guides you on the standard-Web-API authoring pattern.
+
+This setup is **optional** — you can call SDK functions directly without polyfill. Its value is SDK-version neutrality: the shim does not statically import the SDK but probes the function at runtime, so as long as the function name is the same, you barely touch your code when the SDK major version moves up.
+
+## Setup 3 — Real-device preview (`/ait setup-phone-preview`)
+
+To verify the real WebKit engine that environment 1 (browser) structurally cannot, you climb to environment 2. `/ait setup-phone-preview` does the wiring to run the dev server on a real phone in one shot.
+
+What the skill patches (all idempotent):
+
+1. `vite.config.ts` — adds the quick-tunnel option to the devtools unplugin.
+2. `pnpm-workspace.yaml` — adds `cloudflared` to `onlyBuiltDependencies`.
+3. `package.json` — adds a `dev:phone` script.
+4. Runs `pnpm install` — caches the `cloudflared` binary before the first run.
+
+After wiring, running `pnpm dev:phone` exposes the local dev server at a public URL via a quick-tunnel, and the launcher PWA (`devtools.aitc.dev/launcher/`) lets you preview it as an installable PWA in real-phone Safari. Because it's the real-device WebKit engine and not the Toss app WebView, you can actually verify engine, touch, viewport, and safe-area.
+
+:::caution The tunnel is a public URL
+A quick-tunnel creates an unauthenticated public URL. Use it for dev preview only, and don't put sensitive data over it. The debug relay (environments 3 and 4) is closed with separate secret-based TOTP authentication — see [Relay auth TOTP](/guides/relay-auth-totp).
+:::
+
+## Which setup, when
+
+- **Just started / empty project** — the `/ait new` scaffold already includes devtools. No separate injection needed.
+- **Want to add the mock to an existing project** — `/ait inject-devtools`.
+- **Want to author with standard Web APIs** — `/ait inject-polyfill` (optional).
+- **Want to verify engine/touch/layout the browser can't catch, on a real phone** — `/ait setup-phone-preview`.
+- **Want to debug inside the real Toss app WebView** — that's the step beyond environments 1 and 2: the [debug relay](/guides/debug-relay), which cold-loads a release bundle onto a real device.
+
+## Related guides
+
+- [Bundle debug relay](/guides/debug-relay) — the QR/deep-link relay path for cold-loading a bundle into the real Toss app WebView, beyond environments 1 and 2.
+- [Relay auth TOTP](/guides/relay-auth-totp) — secret-based authentication for the debug relay.
+- [Build, register, and ship a mini-app bundle](/guides/ship-mini-app) — when dev is done and you move to release.
+- [Permissions pattern](/guides/permissions-pattern) — handling permission flows on both mock and real device.
+
+## External references
+
+- [`@ait-co/devtools`](https://www.npmjs.com/package/@ait-co/devtools) — SDK mock + unplugin + DevTools panel.
+- [`@ait-co/polyfill`](https://www.npmjs.com/package/@ait-co/polyfill) — standard Web API → SDK routing shim.
+- [agent-plugin](https://github.com/apps-in-toss-community/agent-plugin) — the `/ait inject-devtools`, `/ait inject-polyfill`, and `/ait setup-phone-preview` skills.
+
+---
+
+Community open-source project.

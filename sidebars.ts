@@ -22,6 +22,7 @@ const sidebars: SidebarsConfig = {
         'guides/auth-flow',
         'guides/camera-album-ux',
         'guides/debug-relay',
+        'guides/dev-environment',
         'guides/event-logging',
         'guides/event-subscription',
         'guides/iap-payment-flow',
