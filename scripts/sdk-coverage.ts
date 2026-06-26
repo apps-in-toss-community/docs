@@ -159,6 +159,13 @@ const GROUP_MAP: Record<string, string> = {
   tdsEvent: 'events',
   graniteEvent: 'events',
   onVisibilityChangedByTransparentServiceWeb: 'events',
+  // user-data — consent-gated user data + declared age range. Both are 2.x
+  // stable-line exports (not present in the 3.0-beta surface); they document
+  // the real consumer-facing API the published `latest` ships. There is no
+  // sdk-example demo page for this group yet, so the docs pages omit the
+  // "Try it live" deep-link rather than promise a route that 404s.
+  getConsentedUserData: 'user-data',
+  getDeclaredAgeRange: 'user-data',
   // notification
   requestNotificationAgreement: 'notification',
   // partner
@@ -561,6 +568,24 @@ function renderMarkdown(r: DriftReport): string {
   lines.push(`- **Live version**: \`${r.sdkVersionLive}\``);
   lines.push(`- **Generated**: ${r.generatedAt}`);
   lines.push('');
+
+  // Baseline≠live means the installed SDK is not the version the baseline was
+  // cut from. Every export hash differs, so "Signature changed" fills with
+  // phantom drift and the real signal drowns (this is exactly what #91/#120
+  // hit: a 2.x install against a 3.0-beta baseline). Flag it up front so a
+  // reader does not chase install noise as if it were genuine drift. CI installs
+  // with `--frozen-lockfile`, so in CI this only fires if the lockfile and the
+  // baseline have drifted apart — a real action item, not transient.
+  if (r.sdkVersionBaseline !== '(none)' && r.sdkVersionBaseline !== r.sdkVersionLive) {
+    lines.push(
+      `> ⚠️ Baseline (\`${r.sdkVersionBaseline}\`) ≠ installed SDK (\`${r.sdkVersionLive}\`). ` +
+        'Signature-change and drift rows below may be install noise, not real drift. ' +
+        'Run `pnpm install --frozen-lockfile` to match the lockfile, or ' +
+        '`pnpm coverage:baseline` if the new version is intentional.',
+    );
+    lines.push('');
+  }
+
   const total =
     r.undocumented.length + r.orphaned.length + r.signatureChanged.length + r.i18nMissing.length;
   if (total === 0) {

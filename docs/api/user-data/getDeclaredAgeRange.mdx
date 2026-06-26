@@ -1,0 +1,152 @@
+---
+image: /og/api-user-data-getDeclaredAgeRange.png
+id: getDeclaredAgeRange
+title: getDeclaredAgeRange
+sidebar_label: getDeclaredAgeRange
+description: 사용자가 공유에 동의한 연령대(age gate 통과 여부)를 조회합니다.
+---
+
+# `getDeclaredAgeRange`
+
+사용자가 공유에 동의한 연령대 정보를 조회합니다. `ageGates`로 확인할 기준 나이들을 넘기면, 각 기준에 대한 통과 여부와 함께 공유 상태(`status`)를 반환합니다. 연령 제한 콘텐츠 노출 여부를 결정할 때 사용합니다.
+
+`getDeclaredAgeRange.isSupported()`로 현재 환경에서 사용 가능한지 먼저 확인한 뒤 호출하세요.
+
+## 시그니처
+
+```ts
+import { getDeclaredAgeRange } from '@apps-in-toss/web-framework';
+
+interface DeclaredAgeRange {
+  status:
+    | 'SHARING'
+    | 'DECLINED_SHARING'
+    | 'UNSUPPORTED_OS'
+    | 'NOT_AVAILABLE'
+    | 'INVALID_REQUEST'
+    | 'FAILED';
+  lowerBound?: number;
+  upperBound?: number;
+  ageRangeDeclaration?: string;
+  activeParentalControls: string[];
+  isEligibleForAgeFeatures?: boolean;
+  errorCode?: string;
+}
+
+declare function getDeclaredAgeRange(params: {
+  ageGates: number[];
+}): Promise<DeclaredAgeRange>;
+
+declare namespace getDeclaredAgeRange {
+  function isSupported(): boolean;
+}
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `ageGates` | `number[]` | ✓ | 확인할 기준 나이들. 예: `[14, 19]`을 넘기면 해당 기준 통과 여부를 판정합니다. |
+
+## 반환값
+
+`Promise<DeclaredAgeRange>` — 공유 상태와 연령대 정보를 담은 객체.
+
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `status` | `string` | 공유 결과 상태. 아래 "상태 코드" 참조. |
+| `lowerBound` | `number?` | 공유된 연령대의 하한. |
+| `upperBound` | `number?` | 공유된 연령대의 상한. |
+| `ageRangeDeclaration` | `string?` | 사용자가 선언한 연령대 표현. |
+| `activeParentalControls` | `string[]` | 활성화된 자녀 보호 제어 항목 목록. |
+| `isEligibleForAgeFeatures` | `boolean?` | 연령 기반 기능 사용 가능 여부. |
+| `errorCode` | `string?` | 실패 시 원인 코드. |
+
+## 상태 코드 (`status`)
+
+| `status` | 의미 |
+| --- | --- |
+| `SHARING` | 사용자가 연령대 공유에 동의한 상태. `lowerBound`/`upperBound`가 채워질 수 있습니다. |
+| `DECLINED_SHARING` | 사용자가 공유를 거부했습니다. |
+| `UNSUPPORTED_OS` | 현재 OS/토스앱 버전이 이 기능을 지원하지 않습니다. |
+| `NOT_AVAILABLE` | 현재 조회할 수 없는 상태입니다. |
+| `INVALID_REQUEST` | `ageGates`가 비었거나 요청이 올바르지 않습니다. |
+| `FAILED` | 처리 중 오류가 발생했습니다. `errorCode`를 확인하세요. |
+
+## 권한
+
+별도의 `PermissionName`에 바인딩되지 않습니다 — 연령대 공유 여부는 사용자/보호자의 동의 설정으로 결정됩니다.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { getDeclaredAgeRange } from '@apps-in-toss/web-framework';
+
+async function checkAdult() {
+  if (!getDeclaredAgeRange.isSupported()) {
+    return false;
+  }
+
+  const result = await getDeclaredAgeRange({ ageGates: [19] });
+  return result.status === 'SHARING' && (result.lowerBound ?? 0) >= 19;
+}
+```
+
+### 실전 예제 — 연령 제한 콘텐츠 게이트
+
+```tsx
+import { getDeclaredAgeRange } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+type Gate = 'checking' | 'allowed' | 'blocked' | 'unsupported';
+
+export function AgeGatedContent({ minAge }: { minAge: number }) {
+  const [gate, setGate] = useState<Gate>('checking');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function evaluate() {
+      if (!getDeclaredAgeRange.isSupported()) {
+        if (!cancelled) setGate('unsupported');
+        return;
+      }
+
+      try {
+        const result = await getDeclaredAgeRange({ ageGates: [minAge] });
+        if (cancelled) return;
+
+        const eligible =
+          result.status === 'SHARING' && (result.lowerBound ?? 0) >= minAge;
+        setGate(eligible ? 'allowed' : 'blocked');
+      } catch {
+        if (!cancelled) setGate('blocked');
+      }
+    }
+
+    evaluate();
+    return () => {
+      cancelled = true;
+    };
+  }, [minAge]);
+
+  if (gate === 'checking') return <p>연령 확인 중…</p>;
+  if (gate === 'unsupported') return <p>이 기기에서는 연령 확인을 사용할 수 없어요.</p>;
+  if (gate === 'blocked') return <p>{minAge}세 이상만 이용할 수 있는 콘텐츠예요.</p>;
+  return <p>콘텐츠를 표시합니다.</p>;
+}
+```
+
+## 관련 API
+
+- [`getConsentedUserData`](./getConsentedUserData) — 동의문 key로 묶인 사용자 데이터(이름·전화번호 등)를 조회합니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Guides — "사용자 동의 데이터 요청 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/webview-bridge`](https://www.npmjs.com/package/@apps-in-toss/webview-bridge)에서 가져옵니다.

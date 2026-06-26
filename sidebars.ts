@@ -257,6 +257,16 @@ const sidebars: SidebarsConfig = {
             'api/storage/setItem',
           ],
         },
+        {
+          type: 'category',
+          label: 'user-data',
+          collapsed: false,
+          items: [
+            'api/user-data/user-data-overview',
+            'api/user-data/getConsentedUserData',
+            'api/user-data/getDeclaredAgeRange',
+          ],
+        },
       ],
     },
     {

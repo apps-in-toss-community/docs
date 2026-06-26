@@ -1,0 +1,33 @@
+---
+image: /og/api-user-data.png
+id: user-data-overview
+title: user-data
+sidebar_label: Overview
+slug: /api/user-data
+description: SDK namespace for reading consent-gated user data and the declared age range.
+---
+
+# `user-data`
+
+A namespace grouping methods that read personal data based on the user's explicit consent. Both methods only return values when the user has agreed to share them; without consent, the result is surfaced as an error or a status code.
+
+## Methods
+
+| Method | Return type | Purpose |
+| --- | --- | --- |
+| [`getConsentedUserData`](/api/user-data/getConsentedUserData) | `Promise<ConsentedUserData \| undefined>` | Reads user data (name, phone, address, …) tied to a consent-document key. Shows the terms web view when needed. |
+| [`getDeclaredAgeRange`](/api/user-data/getDeclaredAgeRange) | `Promise<DeclaredAgeRange>` | Reads the age range the user has agreed to share (age-gate eligibility). |
+
+## Shared constraints
+
+- **Consent gate**: both methods require user consent. With no consent, no data is returned, and there is no way to bypass it.
+- **Version availability**: the methods in this namespace ship in the `@apps-in-toss/web-framework` 2.x line. Behavior can differ by Toss app version — check each method page's availability note.
+- **Handling personal data**: the returned values are the user's sensitive information. Request only the scope you need, and comply with your privacy policy when logging or transmitting it.
+
+## Permissions
+
+Not bound to a `PermissionName` — access control runs through the consent-document (terms web view) flow, not a permission dialog.
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — the upstream SDK package. The actual exports are re-exported internally from [`@apps-in-toss/webview-bridge`](https://www.npmjs.com/package/@apps-in-toss/webview-bridge).

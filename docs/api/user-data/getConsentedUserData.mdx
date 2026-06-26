@@ -1,0 +1,166 @@
+---
+image: /og/api-user-data-getConsentedUserData.png
+id: getConsentedUserData
+title: getConsentedUserData
+sidebar_label: getConsentedUserData
+description: 사용자 동의 기반 데이터를 요청하고, 동의가 완료되면 서버에서 조회한 값을 반환합니다.
+---
+
+# `getConsentedUserData`
+
+사용자 동의 기반 데이터(이름·전화번호·주소 등)를 요청합니다. 동의가 필요한 경우 약관 웹뷰를 띄우고, 동의가 완료되면 서버에서 조회한 데이터를 반환합니다. 어떤 항목을 받을 수 있는지는 앱인토스 콘솔에 등록한 동의문(`consentedUserDataKey`)에 따라 정해집니다.
+
+토스앱 버전이 `5.264.0` 미만이면 `undefined`를 반환합니다 — 호출 측에서 항상 nullable로 다루세요.
+
+## 시그니처
+
+```ts
+import { getConsentedUserData } from '@apps-in-toss/web-framework';
+
+type ConsentedUserDataKey =
+  | 'USER_NAME'
+  | 'USER_GENDER'
+  | 'USER_NATIONALITY'
+  | 'USER_BIRTHDAY'
+  | 'USER_PHONE'
+  | 'USER_ADDRESS'
+  | 'USER_EMAIL'
+  | 'USER_CONSUMPTION_HISTORY';
+
+declare function getConsentedUserData(options: {
+  consentedUserDataKey: string;
+  shouldRequestAgreementWhenUserDeclined?: boolean;
+}): Promise<Partial<Record<ConsentedUserDataKey, string>> | undefined>;
+```
+
+## 파라미터
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | :-: | --- |
+| `consentedUserDataKey` | `string` | ✓ | 서버가 동의문과 데이터 묶음을 찾을 때 쓰는 key. 앱인토스 콘솔에서 등록합니다. 예: `cud_delivery`. |
+| `shouldRequestAgreementWhenUserDeclined` | `boolean` | — | `USER_DECLINED` 상태에서도 약관 웹뷰를 다시 띄울지 여부. 기본값 `false`. |
+
+## 반환값
+
+- `Promise<Partial<Record<ConsentedUserDataKey, string>> | undefined>` — 동의된 항목만 키로 포함하는 객체. 요청한 묶음에 따라 일부 키만 채워질 수 있으므로 각 값을 optional로 다룹니다.
+
+:::caution
+토스앱 버전이 `5.264.0` 미만이면 throw 없이 `undefined`를 반환합니다. 반환값을 `data?.USER_NAME`처럼 항상 옵셔널 체이닝으로 접근하세요.
+:::
+
+## 에러 코드
+
+`catch`로 잡히는 에러는 `code` 필드로 원인을 구분합니다.
+
+| `code` | 의미 |
+| --- | --- |
+| `USER_DECLINED` | 사용자가 명시적으로 거부했고 재요청 옵션이 없거나, 약관 웹뷰에서 동의를 거부한 경우. |
+| `UNAVAILABLE` | 서버가 사용자 동의 여부를 판단할 수 없는 경우. |
+| `TERMS_NOT_SET` | 미니앱에 사용자 데이터 제공 동의문이 설정되지 않은 경우. |
+| `INVALID_REQUEST` | `consentedUserDataKey`가 비어 있거나, 동의문 설정이 올바르지 않은 경우(HTTPS 회사 도메인 아님 등). |
+| `CANCELED` | 약관 웹뷰가 결과를 보내기 전에 닫힌 경우. |
+| `CONSENTED_USER_DATA_AGREEMENT_FAILED` | 약관 웹뷰 처리 중 오류가 발생한 경우. |
+| `CONSENTED_USER_DATA_INVALID_DATA` | 동의는 성공했으나 재조회 결과가 유효한 데이터가 아닌 경우. |
+
+## 권한
+
+별도의 `PermissionName`에 바인딩되지 않습니다 — 접근 제어는 권한 다이얼로그가 아니라 동의문(약관 웹뷰) 흐름으로 이뤄집니다. 동의문은 앱인토스 콘솔에서 `consentedUserDataKey`별로 등록합니다.
+
+## 예제
+
+### 최소 예제
+
+```tsx
+import { getConsentedUserData } from '@apps-in-toss/web-framework';
+
+async function fetchDeliveryUserData() {
+  try {
+    const data = await getConsentedUserData({
+      consentedUserDataKey: 'cud_delivery',
+    });
+
+    if (data == null) {
+      // 토스앱 버전이 낮아 미지원
+      return;
+    }
+
+    console.log('이름:', data.USER_NAME);
+    console.log('전화번호:', data.USER_PHONE);
+  } catch (error) {
+    console.error('동의 데이터 조회 실패:', error);
+  }
+}
+```
+
+### 실전 예제 — 동의 거부 시 재요청 + UI 분기
+
+```tsx
+import { getConsentedUserData } from '@apps-in-toss/web-framework';
+import { useState } from 'react';
+
+type DeliveryInfo = { name?: string; phone?: string; address?: string };
+
+export function DeliveryConsent({ consentKey }: { consentKey: string }) {
+  const [info, setInfo] = useState<DeliveryInfo | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  async function request() {
+    setMessage(null);
+    try {
+      const data = await getConsentedUserData({
+        consentedUserDataKey: consentKey,
+        // USER_DECLINED 상태여도 약관 웹뷰를 다시 띄워 재동의를 유도합니다.
+        shouldRequestAgreementWhenUserDeclined: true,
+      });
+
+      if (data == null) {
+        setMessage('현재 토스앱 버전에서는 이 기능을 사용할 수 없어요.');
+        return;
+      }
+
+      setInfo({
+        name: data.USER_NAME,
+        phone: data.USER_PHONE,
+        address: data.USER_ADDRESS,
+      });
+    } catch (error) {
+      const code = (error as { code?: string })?.code;
+      if (code === 'USER_DECLINED') {
+        setMessage('사용자가 정보 제공에 동의하지 않았어요.');
+      } else if (code === 'TERMS_NOT_SET') {
+        setMessage('동의문이 설정되지 않았어요. 콘솔에서 동의문을 등록하세요.');
+      } else {
+        setMessage('정보를 불러오지 못했어요.');
+      }
+    }
+  }
+
+  return (
+    <main>
+      <button type="button" onClick={request}>
+        배송 정보 불러오기
+      </button>
+      {info && (
+        <ul>
+          <li>이름: {info.name ?? '미제공'}</li>
+          <li>전화번호: {info.phone ?? '미제공'}</li>
+          <li>주소: {info.address ?? '미제공'}</li>
+        </ul>
+      )}
+      {message && <p>{message}</p>}
+    </main>
+  );
+}
+```
+
+## 관련 API
+
+- [`getDeclaredAgeRange`](./getDeclaredAgeRange) — 사용자가 공유에 동의한 연령대를 조회합니다.
+
+## 관련 가이드
+
+- _(작성 예정)_ Guides — "사용자 동의 데이터 요청 패턴"
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지. 실제 export는 내부적으로 [`@apps-in-toss/webview-bridge`](https://www.npmjs.com/package/@apps-in-toss/webview-bridge)에서 가져옵니다.
