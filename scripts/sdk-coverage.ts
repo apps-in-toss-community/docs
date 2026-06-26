@@ -104,6 +104,9 @@ const GROUP_MAP: Record<string, string> = {
   // sdk-example's CameraPage) even though the SDK re-exports it flat.
   openCamera: 'camera',
   fetchAlbumPhotos: 'camera',
+  fetchAlbumItems: 'camera',
+  // navigation
+  openPDFViewer: 'navigation',
   // environment
   env: 'environment',
   getLocale: 'environment',
@@ -185,9 +188,6 @@ const IGNORED_EXPORTS = new Set<string>([
   'OpenCameraPermissionError',
   'SetClipboardTextPermissionError',
   'StartUpdateLocationPermissionError',
-  // New 3.0 exports not yet documented — tracked in separate issues.
-  'fetchAlbumItems',
-  'openPDFViewer',
   // Bridge construction helpers re-exported from `@apps-in-toss/bridge-core`.
   // These are SDK-internal building blocks for defining new bridges, not
   // consumer-facing API. Not part of our docs surface.
