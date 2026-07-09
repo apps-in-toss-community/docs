@@ -1,0 +1,243 @@
+---
+image: /og/guides-sdk-3-migration.png
+id: sdk-3-migration
+title: web-framework 3.0 migration — runtime error handling
+sidebar_label: 3.0 migration — error handling
+slug: /guides/sdk-3-migration
+description: Four runtime behaviour changes confirmed by running the same test suite on real iOS devices against web-framework 2.x and 3.0.0-beta — flattened error envelopes, error-as-value turning into rejection, errors going silent, and the getSafeAreaInsets return-type change — with migration patterns for each.
+---
+
+# web-framework 3.0 migration — runtime error handling
+
+Judging by function signatures alone, `@apps-in-toss/web-framework` 3.0 looks almost identical to 2.x — but **the shape in which errors arrive** has changed. Running the same test suite on real iOS devices against 2.x and 3.0.0-beta side by side reveals four runtime behaviour changes that no type definition will tell you about. This guide walks through each one and shows how to migrate 2.x code so it doesn't silently stop working on 3.0. Since 3.0 is still in beta, details may shift before GA — read this as the currently observed contract and migrate defensively.
+
+## The changes at a glance
+
+| # | Change | Blast radius |
+|---|---|---|
+| 1 | Error envelope flattened — `code` and friends gone | Widest (auth, ads, haptic, navigation, notification, permissions) |
+| 2 | Error-as-value → proper rejection | `grantPromotionReward` family, `IAP.getSubscriptionInfo` |
+| 3 | Error → silence | `GoogleAdMob.loadAppsInTossAdMob` |
+| 4 | Legacy accessor return-type change | `getSafeAreaInsets` |
+
+## Change 1 — flattened error envelope
+
+In 2.x, native-bridge errors were structured objects carrying `{ name, code, userInfo, moduleName, __isError }`, with a situation-specific string in `code`:
+
+- `EXECUTION_ERROR` — [`loadFullScreenAd`](/api/ads/loadFullScreenAd), [`getIsTossLoginIntegratedService`](/api/auth/getIsTossLoginIntegratedService), [`generateHapticFeedback`](/api/haptic/generateHapticFeedback), [`getTossShareLink`](/api/navigation/getTossShareLink), among others
+- `APP_LOGIN` — [`appLogin`](/api/auth/appLogin)
+- `NO_PERMISSION` — [`getPermission`](/api/permissions/getPermission)
+- `'4000'` — [`requestNotificationAgreement`](/api/notification/requestNotificationAgreement)
+- `INVALID_REQUEST`, `PLACEMENT_ID_FETCH_FAILED` — the GoogleAdMob family
+
+In 3.0, the same situations produce a **bare `Error` with none of those fields**. That means a branch like the one below will never match on 3.0:
+
+```ts
+import { getPermission } from '@apps-in-toss/web-framework';
+
+try {
+  const status = await getPermission({ name: 'camera', access: 'read' });
+  // …
+} catch (e) {
+  // 2.x only — on 3.0, e.code is undefined
+  if ((e as { code?: string }).code === 'NO_PERMISSION') {
+    // Unreachable on 3.0
+  }
+}
+```
+
+The dangerous part is that this code **fails silently on 3.0**. The exception is still caught — the branch just never matches — so the regression shows up as something subtle, like a permission prompt that never appears.
+
+### Migration patterns
+
+**(a) Check preconditions before calling.** Instead of branching on an error code after the fact, check the state up front where possible. Permissions are the canonical case:
+
+```ts
+import { getPermission, openPermissionDialog } from '@apps-in-toss/web-framework';
+
+const status = await getPermission({ name: 'camera', access: 'read' });
+
+if (status !== 'allowed') {
+  // Guide the user to the permission dialog instead of waiting for an error.
+  await openPermissionDialog({ name: 'camera', access: 'read' });
+  return;
+}
+// Now it's safe to call the camera API.
+```
+
+**(b) Handle errors code-agnostically.** Where post-hoc handling used to depend on code strings, simplify it to "any error takes the same recovery path" — log it, show a generic message, and return the UI to its previous state.
+
+```ts
+import { appLogin } from '@apps-in-toss/web-framework';
+
+try {
+  const { authorizationCode } = await appLogin();
+  // Hand it to your server…
+} catch (error) {
+  // Treat as a generic failure without inspecting codes. Cancellation,
+  // network issues, and missing login integration all land here.
+  console.warn('login failed', error);
+  showRetryUi();
+}
+```
+
+**(c) While supporting both lines, read `code` optionally.** During the window where the same code must run on both 2.x and 3.0, access `code` through an optional read. On 2.x you get code-specific messaging; on 3.0 it degrades naturally to a generic one.
+
+```ts
+try {
+  // Say this is an app-local function wrapping a permission-gated SDK call.
+  await callCameraFeature();
+} catch (e) {
+  const code = (e as { code?: string }).code;
+  // 2.x: code arrives → specific guidance. 3.0: undefined → generic guidance.
+  const message =
+    code === 'NO_PERMISSION'
+      ? 'Please grant the permission to continue.'
+      : 'Something went wrong. Please try again shortly.';
+  showToast(message);
+}
+```
+
+## Change 2 — error-as-value → proper rejection
+
+In 2.x, [`grantPromotionReward`](/api/game/grantPromotionReward) and [`grantPromotionRewardForGame`](/api/game/grantPromotionRewardForGame) reported failure by **resolving** with an `{ errorCode, message }` object. In 3.0 the same failures **reject**. [`IAP.getSubscriptionInfo`](/api/iap/getSubscriptionInfo) shows the same flip.
+
+Directionally this is an improvement — errors arriving as exceptions rather than values is closer to standard convention. But 2.x code that inspects `errorCode` on the result object becomes **unreachable** on 3.0:
+
+```ts
+// 2.x style — the errorCode branch is never reached on 3.0.
+const result = await grantPromotionReward({
+  params: { promotionCode: 'PROMO_2026', amount: 1000 },
+});
+
+if (result && typeof result === 'object' && 'errorCode' in result) {
+  // On 3.0, failures reject, so control never gets here.
+  console.error('grant failed:', result.errorCode, result.message);
+}
+```
+
+Move the failure handling into a try/catch, keeping the resolve-side check during the transition:
+
+```ts
+import { grantPromotionReward } from '@apps-in-toss/web-framework';
+
+try {
+  const result = await grantPromotionReward({
+    params: { promotionCode: 'PROMO_2026', amount: 1000 },
+  });
+
+  // 2.x compatibility: failures may still arrive as values, so filter here too.
+  if (result && typeof result === 'object' && 'errorCode' in result) {
+    handleGrantFailure(result.errorCode, result.message);
+    return;
+  }
+  if (result && typeof result === 'object' && 'key' in result) {
+    console.log('grant succeeded:', result.key);
+  }
+} catch (error) {
+  // 3.0: failures land here. Per change 1, don't expect a code field.
+  handleGrantFailure(undefined, error instanceof Error ? error.message : undefined);
+}
+```
+
+With the resolve-side `errorCode` check **kept** and a try/catch wrapped around it, no failure slips through on either line. Once you target 3.0 exclusively, drop the resolve-side check.
+
+## Change 3 — error → silence
+
+In 2.x, [`GoogleAdMob.loadAppsInTossAdMob`](/api/ads/loadAppsInTossAdMob) called `onError` promptly when an ad couldn't be loaded (for example `PLACEMENT_ID_FETCH_FAILED`). In 3.0, the same situation **may produce no callback at all** — neither `onEvent` nor `onError` fires; the call just goes quiet.
+
+A loading UI built on the assumption "no error means success" stays in the loading state forever. Add a timeout guard and treat silence as failure:
+
+```tsx
+import { GoogleAdMob } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+const AD_LOAD_TIMEOUT_MS = 10_000;
+
+function useAdLoad(adGroupId: string) {
+  const [state, setState] = useState<'loading' | 'ready' | 'failed'>('loading');
+
+  useEffect(() => {
+    if (!GoogleAdMob.loadAppsInTossAdMob.isSupported()) {
+      setState('failed');
+      return;
+    }
+
+    // 3.0: when the ad can't load, no callback may arrive → fail on timeout.
+    const timer = setTimeout(() => {
+      setState((prev) => (prev === 'loading' ? 'failed' : prev));
+    }, AD_LOAD_TIMEOUT_MS);
+
+    const cleanup = GoogleAdMob.loadAppsInTossAdMob({
+      options: { adGroupId },
+      onEvent: (event) => {
+        if (event.type === 'loaded') {
+          clearTimeout(timer);
+          setState('ready');
+        }
+      },
+      onError: () => {
+        // 2.x lands here. If 3.0 does too, treat it as failure all the same.
+        clearTimeout(timer);
+        setState('failed');
+      },
+    });
+
+    return () => {
+      clearTimeout(timer);
+      cleanup();
+    };
+  }, [adGroupId]);
+
+  return state;
+}
+```
+
+The pattern is harmless on 2.x — if `onError` arrives first, the timeout is simply cleared.
+
+## Change 4 — the `getSafeAreaInsets` legacy accessor
+
+The deprecated [`getSafeAreaInsets`](/api/environment/getSafeAreaInsets) changed its very return value in the comparison run — 2.x returned a `{ top, right, bottom, left }` object, while 3.0 was observed returning a number. Code that destructures the result gets `undefined` properties on 3.0.
+
+```ts
+import { SafeAreaInsets, getSafeAreaInsets } from '@apps-in-toss/web-framework';
+
+const raw = getSafeAreaInsets();
+
+// Check the shape before destructuring.
+const insets =
+  typeof raw === 'object' && raw !== null
+    ? raw // shape observed on 2.x: { top, right, bottom, left }
+    : SafeAreaInsets.get(); // 3.0: number — use SafeAreaInsets.get() for per-edge values.
+```
+
+Fundamentally, though, this function is deprecated — rather than stacking shape guards, move to `SafeAreaInsets.get()` outright. The [`getSafeAreaInsets`](/api/environment/getSafeAreaInsets) page has a migration walkthrough.
+
+## Migration checklist
+
+- Did you find every error-code branch of the `e.code === '…'` kind (search for `code ===` and `errorCode`) and move it to a precondition check (change 1-a) or code-agnostic handling (change 1-b)?
+- Did you wrap the result-object `errorCode` checks for the `grantPromotionReward` family and `IAP.getSubscriptionInfo` in try/catch (change 2)?
+- Does your `GoogleAdMob.loadAppsInTossAdMob` loading UI have a timeout guard (change 3)?
+- Is any code still destructuring the return value of `getSafeAreaInsets` (change 4)?
+
+## Observed data
+
+The behaviour comparison in this guide comes from running the [sdk-example](https://github.com/apps-in-toss-community/sdk-example) SDK test suite to completion on real iOS devices, once on 2.x and once on 3.0.0-beta. The raw per-record diff lives in [the 2026-07-09 comment on sdk-example#284](https://github.com/apps-in-toss-community/sdk-example/issues/284).
+
+## Related APIs
+
+- [`getPermission`](/api/permissions/getPermission) — the pivot of the precondition-check pattern.
+- [`appLogin`](/api/auth/appLogin) — envelope-flattening target (`APP_LOGIN` → bare `Error`).
+- [`grantPromotionReward`](/api/game/grantPromotionReward) · [`grantPromotionRewardForGame`](/api/game/grantPromotionRewardForGame) — error-as-value → rejection.
+- [`IAP.getSubscriptionInfo`](/api/iap/getSubscriptionInfo) — error-as-value → rejection.
+- [`GoogleAdMob.loadAppsInTossAdMob`](/api/ads/loadAppsInTossAdMob) — error → silence.
+- [`getSafeAreaInsets`](/api/environment/getSafeAreaInsets) — legacy accessor return-type change.
+
+## Related guides
+
+- [Guides — Permissions pattern](/guides/permissions-pattern) — the permissions version of precondition checks (change 1-a) in detail.
+- [Guides — Ads integration](/guides/ads-integration) — the full ad lifecycle and cleanup story.
+
+## External references
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — the SDK package.
