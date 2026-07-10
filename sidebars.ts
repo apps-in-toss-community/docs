@@ -33,6 +33,7 @@ const sidebars: SidebarsConfig = {
         'guides/operate-mini-app',
         'guides/permissions-pattern',
         'guides/relay-auth-totp',
+        'guides/sdk-3-migration',
         'guides/ship-mini-app',
         'guides/tosspay-checkout-flow',
         'guides/viral-reward-flow',

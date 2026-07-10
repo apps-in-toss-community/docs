@@ -1,0 +1,242 @@
+---
+image: /og/guides-sdk-3-migration.png
+id: sdk-3-migration
+title: web-framework 3.0 마이그레이션 — 런타임 오류 처리
+sidebar_label: 3.0 마이그레이션 — 오류 처리
+slug: /guides/sdk-3-migration
+description: web-framework 2.x와 3.0.0-beta를 실기기 iOS에서 대조 실행해 확인한 런타임 행동 변화 4가지 — 오류 envelope 평탄화, 오류-as-값의 reject 전환, 오류의 침묵화, getSafeAreaInsets 반환 타입 변화 — 와 각각의 마이그레이션 패턴.
+---
+
+# web-framework 3.0 마이그레이션 — 런타임 오류 처리
+
+`@apps-in-toss/web-framework` 3.0은 함수 시그니처만 보면 2.x와 거의 같아 보이지만, **오류가 도착하는 모양**이 달라졌습니다. 같은 테스트 슈트를 실기기 iOS에서 2.x와 3.0.0-beta로 대조 실행해 보면, 타입 정의에는 드러나지 않는 런타임 행동 변화 4가지가 확인됩니다. 이 가이드는 그 4가지를 하나씩 짚고, 2.x 코드가 3.0에서 조용히 무력화되지 않도록 옮기는 패턴을 정리합니다. 3.0은 아직 beta라 GA 전까지 세부 행동이 바뀔 수 있으므로, 여기 내용은 "현재 관측된 계약"으로 읽고 방어적으로 옮기는 것을 권합니다.
+
+## 변화 한눈에 보기
+
+| # | 변화 | 영향 범위 |
+|---|---|---|
+| 1 | 오류 envelope 평탄화 — `code` 등 필드 소실 | 가장 광범위 (auth·ads·haptic·navigation·notification·permissions) |
+| 2 | 오류-as-값 → 정식 reject | `grantPromotionReward` 계열, `IAP.getSubscriptionInfo` |
+| 3 | 오류 → 침묵 | `GoogleAdMob.loadAppsInTossAdMob` |
+| 4 | legacy accessor 반환 타입 변화 | `getSafeAreaInsets` |
+
+## 변화 1 — 오류 envelope 평탄화
+
+2.x에서 네이티브 브리지 오류는 `{ name, code, userInfo, moduleName, __isError }` 필드를 가진 구조화된 객체였고, `code`에 상황별 문자열이 실렸습니다.
+
+- `EXECUTION_ERROR` — [`loadFullScreenAd`](/api/ads/loadFullScreenAd), [`getIsTossLoginIntegratedService`](/api/auth/getIsTossLoginIntegratedService), [`generateHapticFeedback`](/api/haptic/generateHapticFeedback), [`getTossShareLink`](/api/navigation/getTossShareLink) 등
+- `APP_LOGIN` — [`appLogin`](/api/auth/appLogin)
+- `NO_PERMISSION` — [`getPermission`](/api/permissions/getPermission)
+- `'4000'` — [`requestNotificationAgreement`](/api/notification/requestNotificationAgreement)
+- `INVALID_REQUEST`, `PLACEMENT_ID_FETCH_FAILED` — GoogleAdMob 계열
+
+3.0에서는 같은 상황에 **이 필드들이 전부 없는 맨 `Error`** 가 옵니다. 즉 아래 같은 분기는 3.0에서 절대 매치되지 않습니다.
+
+```ts
+import { getPermission } from '@apps-in-toss/web-framework';
+
+try {
+  const status = await getPermission({ name: 'camera', access: 'read' });
+  // …
+} catch (e) {
+  // 2.x에서만 동작 — 3.0에서 e.code는 undefined
+  if ((e as { code?: string }).code === 'NO_PERMISSION') {
+    // 이 블록은 3.0에서 도달 불가
+  }
+}
+```
+
+문제는 이 코드가 3.0에서 **에러를 내지 않고 조용히 지나간다**는 점입니다. 분기가 매치되지 않을 뿐 예외는 catch되므로, 권한 안내 UI가 안 뜨는 식의 미묘한 회귀로 나타납니다.
+
+### 마이그레이션 패턴
+
+**(a) 호출 전 사전 조건 확인.** 오류 코드로 사후 분기하는 대신, 가능한 경우 호출 전에 상태를 확인하고 분기합니다. 권한이 대표적입니다.
+
+```ts
+import { getPermission, openPermissionDialog } from '@apps-in-toss/web-framework';
+
+const status = await getPermission({ name: 'camera', access: 'read' });
+
+if (status !== 'allowed') {
+  // 오류를 기다리지 않고 먼저 안내 다이얼로그로 유도.
+  await openPermissionDialog({ name: 'camera', access: 'read' });
+  return;
+}
+// 이제 안전하게 카메라 API 호출.
+```
+
+**(b) 오류는 코드-불가지(code-agnostic)하게 처리.** 코드 문자열에 의존하던 사후 처리는 "어떤 오류든 같은 복구 경로"로 단순화합니다 — 로그를 남기고, 사용자에게 일반 안내를 보여주고, UI를 이전 상태로 되돌립니다.
+
+```ts
+import { appLogin } from '@apps-in-toss/web-framework';
+
+try {
+  const { authorizationCode } = await appLogin();
+  // 서버로 전달…
+} catch (error) {
+  // 코드 검사 없이 일반 실패로 처리. 취소·네트워크·연동 미설정 모두 같은 경로.
+  console.warn('login failed', error);
+  showRetryUi();
+}
+```
+
+**(c) 양 라인 지원 기간에는 옵셔널 접근으로 방어.** 2.x와 3.0을 같은 코드로 지원해야 하는 기간에는 `code`를 옵셔널로 읽습니다. 2.x에서는 코드별 메시지를, 3.0에서는 일반 메시지를 보여주는 식으로 자연스럽게 격하(degrade)됩니다.
+
+```ts
+try {
+  // 권한이 걸린 SDK 호출을 감싼 앱 내부 함수라고 하자.
+  await callCameraFeature();
+} catch (e) {
+  const code = (e as { code?: string }).code;
+  // 2.x: code가 실려 오면 세분화된 안내. 3.0: undefined → 일반 안내.
+  const message =
+    code === 'NO_PERMISSION'
+      ? '권한을 허용해 주세요.'
+      : '요청을 처리하지 못했어요. 잠시 후 다시 시도해 주세요.';
+  showToast(message);
+}
+```
+
+## 변화 2 — 오류-as-값 → 정식 reject
+
+[`grantPromotionReward`](/api/game/grantPromotionReward)와 [`grantPromotionRewardForGame`](/api/game/grantPromotionRewardForGame)은 2.x에서 실패를 `{ errorCode, message }` 객체의 **resolve**로 알렸습니다. 3.0에서는 같은 실패가 **reject**로 옵니다. [`IAP.getSubscriptionInfo`](/api/iap/getSubscriptionInfo)도 동일한 전환을 보입니다.
+
+방향 자체는 개선입니다 — 오류가 값이 아니라 예외로 오는 게 표준 관례에 가깝습니다. 하지만 결과 객체의 `errorCode`를 검사하던 2.x 코드는 3.0에서 **도달 불가**가 됩니다.
+
+```ts
+// 2.x 스타일 — 3.0에서 errorCode 분기에 도달하지 못한다.
+const result = await grantPromotionReward({
+  params: { promotionCode: 'PROMO_2026', amount: 1000 },
+});
+
+if (result && typeof result === 'object' && 'errorCode' in result) {
+  // 3.0에서는 실패가 reject로 오므로 이 블록에 올 수 없다.
+  console.error('지급 실패:', result.errorCode, result.message);
+}
+```
+
+성공 처리와 실패 처리를 try/catch로 나눠 옮깁니다.
+
+```ts
+import { grantPromotionReward } from '@apps-in-toss/web-framework';
+
+try {
+  const result = await grantPromotionReward({
+    params: { promotionCode: 'PROMO_2026', amount: 1000 },
+  });
+
+  // 2.x 호환: 실패가 값으로 올 수도 있는 기간에는 여기서도 한 번 거른다.
+  if (result && typeof result === 'object' && 'errorCode' in result) {
+    handleGrantFailure(result.errorCode, result.message);
+    return;
+  }
+  if (result && typeof result === 'object' && 'key' in result) {
+    console.log('지급 성공:', result.key);
+  }
+} catch (error) {
+  // 3.0: 실패는 여기로 온다. 변화 1에 따라 code 필드는 기대하지 않는다.
+  handleGrantFailure(undefined, error instanceof Error ? error.message : undefined);
+}
+```
+
+이렇게 resolve 경로의 `errorCode` 검사를 **유지한 채** try/catch를 두르면 2.x·3.0 어느 쪽에서도 실패가 새지 않습니다. 3.0 단독 지원으로 전환한 뒤에는 resolve 쪽 검사를 제거하면 됩니다.
+
+## 변화 3 — 오류 → 침묵
+
+[`GoogleAdMob.loadAppsInTossAdMob`](/api/ads/loadAppsInTossAdMob)은 2.x에서 광고를 로드할 수 없으면 즉시 `onError`가 호출됐습니다(예: `PLACEMENT_ID_FETCH_FAILED`). 3.0에서는 같은 상황에 **아무 콜백도 오지 않을 수 있습니다** — `onEvent`도 `onError`도 발화하지 않고 그대로 침묵합니다.
+
+"오류가 안 오면 성공"이라는 가정으로 짜인 로딩 UI는 이 경우 영원히 로딩 상태에 머뭅니다. 타임아웃 가드를 두어 침묵을 실패로 간주하세요.
+
+```tsx
+import { GoogleAdMob } from '@apps-in-toss/web-framework';
+import { useEffect, useState } from 'react';
+
+const AD_LOAD_TIMEOUT_MS = 10_000;
+
+function useAdLoad(adGroupId: string) {
+  const [state, setState] = useState<'loading' | 'ready' | 'failed'>('loading');
+
+  useEffect(() => {
+    if (!GoogleAdMob.loadAppsInTossAdMob.isSupported()) {
+      setState('failed');
+      return;
+    }
+
+    // 3.0: 로드 불가 시 콜백이 아예 안 올 수 있다 → 타임아웃으로 실패 처리.
+    const timer = setTimeout(() => {
+      setState((prev) => (prev === 'loading' ? 'failed' : prev));
+    }, AD_LOAD_TIMEOUT_MS);
+
+    const cleanup = GoogleAdMob.loadAppsInTossAdMob({
+      options: { adGroupId },
+      onEvent: (event) => {
+        if (event.type === 'loaded') {
+          clearTimeout(timer);
+          setState('ready');
+        }
+      },
+      onError: () => {
+        // 2.x는 여기로 온다. 3.0에서도 오면 그대로 실패 처리.
+        clearTimeout(timer);
+        setState('failed');
+      },
+    });
+
+    return () => {
+      clearTimeout(timer);
+      cleanup();
+    };
+  }, [adGroupId]);
+
+  return state;
+}
+```
+
+이 패턴은 2.x에서도 무해합니다 — `onError`가 먼저 오면 타임아웃은 정리될 뿐입니다.
+
+## 변화 4 — `getSafeAreaInsets` legacy accessor
+
+deprecated 함수인 [`getSafeAreaInsets`](/api/environment/getSafeAreaInsets)는 대조 시나리오에서 반환값 자체가 달라졌습니다 — 2.x에서는 `{ top, right, bottom, left }` object가, 3.0에서는 number가 관측됐습니다. 반환값을 구조분해하던 코드는 3.0에서 `undefined` 프로퍼티를 얻습니다.
+
+```ts
+import { SafeAreaInsets, getSafeAreaInsets } from '@apps-in-toss/web-framework';
+
+const raw = getSafeAreaInsets();
+
+// 구조분해 전에 형태를 확인한다.
+const insets =
+  typeof raw === 'object' && raw !== null
+    ? raw // 2.x에서 관측된 형태: { top, right, bottom, left }
+    : SafeAreaInsets.get(); // 3.0: number — 방향별 값은 SafeAreaInsets.get()으로.
+```
+
+근본적으로는 이 함수가 deprecated이므로, 형태 방어 코드를 쌓기보다 처음부터 `SafeAreaInsets.get()`으로 이전하는 편이 낫습니다 — 마이그레이션 예시는 [`getSafeAreaInsets`](/api/environment/getSafeAreaInsets) 페이지의 마이그레이션 가이드를 참고하세요.
+
+## 마이그레이션 체크리스트
+
+- `e.code === '…'` 형태의 오류 코드 분기를 전부 찾아(`code ===`, `errorCode` 검색) 사전 조건 확인(변화 1-a) 또는 코드-불가지 처리(변화 1-b)로 옮겼는가?
+- `grantPromotionReward` 계열·`IAP.getSubscriptionInfo`의 결과 객체 `errorCode` 검사에 try/catch를 둘렀는가(변화 2)?
+- `GoogleAdMob.loadAppsInTossAdMob` 로딩 UI에 타임아웃 가드가 있는가(변화 3)?
+- `getSafeAreaInsets` 반환값을 구조분해하는 코드가 남아 있지 않은가(변화 4)?
+
+## 관측 데이터
+
+이 가이드의 행동 대조는 [sdk-example](https://github.com/apps-in-toss-community/sdk-example)의 SDK 테스트 슈트를 실기기 iOS에서 2.x와 3.0.0-beta로 각각 완주시켜 얻은 것입니다. 캡처 레코드 단위의 원본 diff는 [sdk-example#284의 2026-07-09 코멘트](https://github.com/apps-in-toss-community/sdk-example/issues/284)에 정리돼 있습니다.
+
+## 관련 API
+
+- [`getPermission`](/api/permissions/getPermission) — 사전 조건 확인 패턴의 축.
+- [`appLogin`](/api/auth/appLogin) — envelope 평탄화 대상 (`APP_LOGIN` → 맨 `Error`).
+- [`grantPromotionReward`](/api/game/grantPromotionReward) · [`grantPromotionRewardForGame`](/api/game/grantPromotionRewardForGame) — 오류-as-값 → reject 전환.
+- [`IAP.getSubscriptionInfo`](/api/iap/getSubscriptionInfo) — 오류-as-값 → reject 전환.
+- [`GoogleAdMob.loadAppsInTossAdMob`](/api/ads/loadAppsInTossAdMob) — 오류 → 침묵 전환.
+- [`getSafeAreaInsets`](/api/environment/getSafeAreaInsets) — legacy accessor 반환 타입 변화.
+
+## 관련 가이드
+
+- [Guides — 권한 처리 패턴](/guides/permissions-pattern) — 사전 조건 확인(변화 1-a)의 권한 버전 상세.
+- [Guides — 광고 통합 패턴](/guides/ads-integration) — 광고 라이프사이클·클린업 전반.
+
+## 외부 참조
+
+- [`@apps-in-toss/web-framework`](https://www.npmjs.com/package/@apps-in-toss/web-framework) — 상위 SDK 패키지.
