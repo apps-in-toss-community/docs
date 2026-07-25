@@ -21,6 +21,35 @@ The `ads` namespace exposes three kinds of ad — inline banners (`TossAds`), Go
 
 [`TossAds.attach`](/api/ads/attach) is deprecated. New code should use `attachBanner` instead.
 
+## Preparing a placement (adGroupId): test IDs → issue → real serving
+
+The `AD_GROUP_ID` that recurs through this guide's examples is a placement group ID issued from the console. Here's the order to prepare it, from development through real service.
+
+### 1. Use test IDs during development
+
+:::caution Don't develop or test with production IDs
+Filling `AD_GROUP_ID` with a real, production placement ID during development or testing is a policy violation and can get your app penalized. Develop against the test IDs below, then swap in the real placement ID at service deploy time.
+:::
+
+| Ad type | Test ID |
+| --- | --- |
+| Full-screen (Google AdMob interstitial) | `ait-ad-test-interstitial-id` |
+| Rewarded | `ait-ad-test-rewarded-id` |
+| Banner | `ait-ad-test-banner-id` |
+| Native image | `ait-ad-test-native-image-id` |
+
+Check the [official develop guide](https://developers-apps-in-toss.toss.im/ads/develop.html) for the latest exact strings.
+
+### 2. Issue a placement — no Google AdMob account needed
+
+A placement to serve in production is created (issued) from the console (or CLI). AdMob mediation is auto-configured server-side based on your app's category, so you don't need to create your own Google AdMob account or issue/enter your own `adUnitId` — the console's mediation-settings step is a read-only confirmation screen.
+
+Creating the placement itself works regardless of business/settlement approval. Right after creation the status is `REGISTERING`; once AdMob's side finishes propagating (up to 2 hours), it flips to `ENABLED`.
+
+### 3. Real serving opens after business/settlement approval
+
+Even with a placement in `ENABLED` state, ads won't actually serve to real users until business registration and settlement information are approved — this shares the same approval gate that opens real IAP payments. Before approval you can create placements and verify your flow with test IDs; real traffic serving opens only after approval.
+
 ## Always guard with `isSupported()` first
 
 Every function in the `ads` namespace exposes an `.isSupported()` member. Calling them in an environment where the ad SDK isn't injected (for example, an external browser) throws. **Guard first**:
@@ -184,7 +213,7 @@ The rest of the flow (load → loaded → show → dismissed → cleanup) is ide
 
 ## Environment differences
 
-- **Real Toss app**: every ad call works as documented. Verify your `adGroupId` is active in the console.
+- **Real Toss app**: every ad call works as documented. Verify your `adGroupId` is `ENABLED` in the console — and, if you need real serving, that business/settlement approval has gone through too (see "Preparing a placement" above).
 - **External browser / devtools mock**: `isSupported()` returns `false` when the ad SDK isn't injected. The [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) mock treats ad calls as no-ops, so use it to verify screen flow and confirm real ads on-device.
 
 ## Related APIs
