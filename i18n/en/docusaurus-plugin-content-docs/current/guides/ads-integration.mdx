@@ -48,7 +48,11 @@ Creating the placement itself works regardless of business/settlement approval. 
 
 ### 3. Real serving opens after business/settlement approval
 
-Even with a placement in `ENABLED` state, ads won't actually serve to real users until business registration and settlement information are approved — this shares the same approval gate that opens real IAP payments. Before approval you can create placements and verify your flow with test IDs; real traffic serving opens only after approval.
+Even with a placement in `ENABLED` state, ads won't actually serve to real users until business registration and settlement information are approved — this shares the same approval gate that opens real IAP payments.
+
+:::info On-device verification before approval
+Creating a placement works even before approval (step 2 above). However, on a real device, testing a candidate bundle (`PREPARE` state, not yet review-passed) on an app whose business/settlement approval hasn't gone through yet, calling `GoogleAdMob.loadAppsInTossAdMob` with a test ID has been observed to fail with `PLACEMENT_ID_FETCH_FAILED` and no ad renders — the same app's own real placement ID failed identically. The integrated path (`loadFullScreenAd`) returned a different error, `EXECUTION_ERROR` (`"광고 요청 처리에 실패했습니다 [1011]"`), meaning the request did reach a server. Whether approval status or the candidate/`PREPARE` deployment state is the actual precondition for this failure is not yet established. Until you re-verify on an approved, review-passed deployment, don't expect on-device serving from a pre-approval candidate bundle.
+:::
 
 ## Always guard with `isSupported()` first
 
@@ -213,8 +217,8 @@ The rest of the flow (load → loaded → show → dismissed → cleanup) is ide
 
 ## Environment differences
 
-- **Real Toss app**: every ad call works as documented. Verify your `adGroupId` is `ENABLED` in the console — and, if you need real serving, that business/settlement approval has gone through too (see "Preparing a placement" above).
-- **External browser / devtools mock**: `isSupported()` returns `false` when the ad SDK isn't injected. The [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) mock treats ad calls as no-ops, so use it to verify screen flow and confirm real ads on-device.
+- **Real Toss app**: ad API calls behave per the SDK contract. Whether that leads to a real impression depends on the placement's status (`ENABLED`) and on business/settlement approval — before approval, the ad load itself can fail (see the observation under "3. Real serving opens after business/settlement approval" above).
+- **External browser / devtools mock**: `isSupported()` returns `false` when the ad SDK isn't injected. The [`@ait-co/devtools`](https://github.com/apps-in-toss-community/devtools) mock, unless you set a failure dial (`failureModes.loadAdMob`, etc.), fires a `loaded` event after a fixed delay regardless of `adGroupId`, simulating the success path — useful for verifying screen flow and cleanup logic, but a `loaded` event from the mock is not evidence that a real device will actually serve an ad. Confirm real serving on-device.
 
 ## Related APIs
 
