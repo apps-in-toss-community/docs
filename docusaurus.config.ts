@@ -118,6 +118,10 @@ const config: Config = {
               label: 'devtools',
               href: 'https://github.com/apps-in-toss-community/devtools',
             },
+            {
+              label: 'debugger',
+              href: 'https://github.com/apps-in-toss-community/debugger',
+            },
           ],
         },
         {

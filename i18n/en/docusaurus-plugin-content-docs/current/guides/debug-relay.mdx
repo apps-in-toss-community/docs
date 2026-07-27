@@ -63,4 +63,5 @@ The trycloudflare tunnel is unauthenticated by default, so a third party who obt
 
 ## External references
 
-- [`@ait-co/devtools`](https://www.npmjs.com/package/@ait-co/devtools) — devtools package (includes the Debugging MCP).
+- [`@ait-co/debugger`](https://www.npmjs.com/package/@ait-co/debugger) — the MCP debugging daemon + CDP relay (devDependency / `npx` only). Run it with `npx -p @ait-co/debugger debugger`.
+- [`@ait-co/debug-console`](https://www.npmjs.com/package/@ait-co/debug-console) — the on-device counterpart the relay attaches to (Chii target injection). Of the three packages, it's the **only one that can ship inside a production bundle**.
