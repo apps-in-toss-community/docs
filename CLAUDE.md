@@ -94,7 +94,7 @@ pnpm coverage:baseline  # SDK 커버리지 기준선 갱신
 
 ## 공통 스택
 
-- **Node 24 LTS**, **pnpm 10.33.0** (`packageManager` 고정), **TypeScript strict**.
+- **Node 24 LTS**, **pnpm 11.17.0** (`packageManager` 고정), **TypeScript strict**.
 - **Biome** (lint + formatter). ESLint/Prettier 사용 안 함. `any` 금지 (`suspicious.noExplicitAny: error`).
 - Biome 적용 범위: `docusaurus.config.ts`, `sidebars.ts`, 커스텀 React 소스. `.docusaurus/`, `build/`, `.vercel/` 무시. `*.md`/`*.mdx`는 Biome 제외 (MDX 파서/Docusaurus 컨벤션 따름).
 - **Pre-commit hook**: `.githooks/pre-commit`이 source-controlled. contributor가 수동 활성화:

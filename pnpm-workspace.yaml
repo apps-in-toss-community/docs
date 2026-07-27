@@ -1,8 +1,7 @@
-onlyBuiltDependencies:
-  - esbuild
-ignoredBuiltDependencies:
-  - "@sentry/cli"
-  - "@swc/core"
-  - core-js
-  - protobufjs
-  - sharp
+allowBuilds:
+  "@sentry/cli": false
+  "@swc/core": false
+  core-js: false
+  esbuild: true
+  protobufjs: false
+  sharp: false
