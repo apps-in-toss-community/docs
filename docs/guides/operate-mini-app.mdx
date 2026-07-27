@@ -11,7 +11,7 @@ description: 배포한 미니앱의 콘솔 상태를 커뮤니티 aitcc CLI로 �
 
 미니앱을 콘솔에 등록하고 번들을 배포한 뒤에는 "지금 콘솔에서 이 앱이 어떤 상태인가"를 알아야 합니다. 검수가 진행 중인지, 출시(공개)됐는지, 사용자에게 어떤 지표가 잡히는지를 보는 단계입니다. 이 가이드는 커뮤니티 [`@ait-co/console-cli`](https://github.com/apps-in-toss-community/console-cli)(`aitcc`)로 그 상태를 조회하는 두 명령과, 둘이 왜 다른 답을 줄 수 있는지를 정리합니다.
 
-이 단계는 `/ait status` 스킬이 묶어 주는 운영 station입니다 — 아래 명령들을 직접 외우지 않아도 `/ait status`가 인증·앱 목록·현재 프로젝트 상태를 한 번에 보여주고 다음 단계를 분기 제시합니다. 이 페이지는 그 스킬이 부르는 명령의 의미와 경계를 자세히 다룹니다.
+이 단계는 `/ait:status` 스킬이 묶어 주는 운영 station입니다 — 아래 명령들을 직접 외우지 않아도 `/ait:status`가 인증·앱 목록·현재 프로젝트 상태를 한 번에 보여주고 다음 단계를 분기 제시합니다. 이 페이지는 그 스킬이 부르는 명령의 의미와 경계를 자세히 다룹니다.
 
 :::info 두 CLI를 섞지 않습니다
 이 페이지의 모든 조회 명령은 콘솔 자동화 CLI인 **`aitcc`**(`@ait-co/console-cli`)입니다. 번들을 만드는 **`ait`**(`@apps-in-toss/cli`, `ait build`로 `.ait` 생성)와는 다른 도구입니다. 배포 흐름은 "`ait build`로 번들 생성 → `aitcc app deploy`로 업로드"이고, 운영 조회는 전부 `aitcc app …`입니다.
@@ -88,7 +88,7 @@ REVIEW → APPROVED / REJECTED       CREATED → REVIEWING → APPROVED → RELE
 
 운영 단계에서 "로그를 보고 싶다"는 요구가 자연스럽게 따라옵니다. 여기서 정확히 짚어야 할 사실이 하나 있습니다.
 
-**콘솔은 원시 런타임 로그(stdout/stderr, 예외 스택, 요청별 라인)를 노출하지 않습니다.** 콘솔이 서피스하는 것은 두 가지뿐입니다 — 커스텀 이벤트 카탈로그와 전환 지표. 둘 다 집계된 비즈니스 신호이지, 프로세스 런타임 로그가 아닙니다. 그래서 `aitcc logs` 같은 명령은 제공되지 않고, `/ait logs` 스킬도 이 사실을 명시한 뒤 대안으로 안내합니다.
+**콘솔은 원시 런타임 로그(stdout/stderr, 예외 스택, 요청별 라인)를 노출하지 않습니다.** 콘솔이 서피스하는 것은 두 가지뿐입니다 — 커스텀 이벤트 카탈로그와 전환 지표. 둘 다 집계된 비즈니스 신호이지, 프로세스 런타임 로그가 아닙니다. 그래서 `aitcc logs` 같은 명령은 제공되지 않고, `/ait:logs` 스킬도 이 사실을 명시한 뒤 대안으로 안내합니다.
 
 ### 커스텀 이벤트 카탈로그 — `aitcc app events`
 
@@ -120,14 +120,14 @@ aitcc app metrics --time-unit DAY|WEEK|MONTH --start YYYY-MM-DD --end YYYY-MM-DD
 
 | 관측된 상태 | 다음 단계 |
 |---|---|
-| `aitcc.yaml` 없음 (미등록) | `/ait register`로 콘솔 등록부터 시작 |
+| `aitcc.yaml` 없음 (미등록) | `/ait:register`로 콘솔 등록부터 시작 |
 | `reviewState: not-submitted` | `ait build`로 번들 생성 후 `aitcc app deploy --request-review --release-notes "<릴리즈 노트>" <번들.ait>`로 출시 검수 제출 |
 | `under-review` / `errorCode 4046` | 운영팀 처리 대기. 그 사이 실기기 확인은 디버그 relay(아래 가이드)로 |
 | `rejected` | `aitcc app status --json`의 `rejectedMessage`에서 사유 확인 → 수정 후 재제출 |
 | `approved` + `serviceStatus: PREPARE` | 출시 검수 통과 후 `aitcc app deploy --release --confirm <번들.ait>`로 출시 → `serviceStatus: OPENED` |
 | `serviceStatus: OPENED` | 실서비스 중. `aitcc app events` / `aitcc app metrics`로 운영 지표 조회 |
 
-`/ait status`는 이 분기를 관측 결과에 맞춰 자동으로 제시합니다 — 직접 명령을 실행하지 않고 다음 마디를 가리키기만 합니다.
+`/ait:status`는 이 분기를 관측 결과에 맞춰 자동으로 제시합니다 — 직접 명령을 실행하지 않고 다음 마디를 가리키기만 합니다.
 
 ## 관련 가이드
 

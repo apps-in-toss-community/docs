@@ -38,7 +38,7 @@ intoss-private://…?_deploymentId=<ID>&debug=1&relay=<wss-url>
 - `debug=1` — debug-mode flag checked by the gate layer.
 - `relay=<wss-url>` — the agent-side WebSocket relay server URL (e.g. a trycloudflare tunnel).
 
-The `/ait debug` command automates deep-link generation and QR display.
+The `/ait:debug` command automates deep-link generation and QR display.
 
 :::caution test-push is not used
 `test-push` (a separate notification channel) cannot carry the `debug=1&relay` query parameters, so the gate blocks it. The QR/deep-link route is the only supported entry.

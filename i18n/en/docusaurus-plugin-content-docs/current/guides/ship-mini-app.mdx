@@ -11,8 +11,8 @@ description: From empty bundle to launch — build a .ait bundle with ait build,
 
 This guide walks a single mini-app through the full station 5 (register+ship) path: **build the bundle → register on the console → upload → submit for release review**. The commands are split across two different CLIs, and review proceeds as two independent state machines. Blurring either of these makes it easy to get stuck on things like "registration clearly succeeded, so why won't the app open?" — so throughout this guide we state explicitly which CLI and which state machine is in play at every step.
 
-:::info Automate with the `/ait` skills
-Every step below can be completed inside the agent with the `/ait` skills from [agent-plugin](https://github.com/apps-in-toss-community/agent-plugin) — `/ait setup-bundle` → `/ait register` → `/ait deploy-key` → `/ait deploy`. This guide explains what commands those skills actually call under the hood, and why they call them that way.
+:::info Automate with the `/ait:` skills
+Every step below can be completed inside the agent with the `/ait:` skills from [agent-plugin](https://github.com/apps-in-toss-community/agent-plugin) — `/ait:setup-bundle` → `/ait:register` → `/ait:deploy-key` → `/ait:deploy`. This guide explains what commands those skills actually call under the hood, and why they call them that way.
 :::
 
 ## First: tell the two CLIs apart
@@ -44,11 +44,11 @@ aitcc app deploy --release --confirm
                                → releases the reviewed bundle to users        (console, 2nd run)
 ```
 
-Adding the bundle-build environment is handled by `/ait setup-bundle`, registration by `/ait register`, the Deploy Key by `/ait deploy-key`, and the upload by `/ait deploy`.
+Adding the bundle-build environment is handled by `/ait:setup-bundle`, registration by `/ait:register`, the Deploy Key by `/ait:deploy-key`, and the upload by `/ait:deploy`.
 
 ## Step 1 — Build the bundle (`ait build`)
 
-First, the project needs a bundle-build environment. `/ait setup-bundle` adds `@apps-in-toss/cli` as a devDependency, generates `granite.config.ts`, and installs a `bundle:ait` script in `package.json` (which runs `ait build` internally).
+First, the project needs a bundle-build environment. `/ait:setup-bundle` adds `@apps-in-toss/cli` as a devDependency, generates `granite.config.ts`, and installs a `bundle:ait` script in `package.json` (which runs `ait build` internally).
 
 The minimal shape of `granite.config.ts`:
 
@@ -86,7 +86,7 @@ The `.ait` bundle has a `deploymentId` embedded inside it — `ait deploy` extra
 
 Building the bundle is a local operation that needs no authentication, but **from console registration onward you need a logged-in `aitcc` session**. `aitcc login` opens a system Chrome window so you can log in to the console (`apps-in-toss.toss.im`), then stores the session cookies locally. (It's an interactive login, so the agent never calls it directly — you run it once yourself.)
 
-Registration automates the console's app-registration wizard from a single `aitcc.yaml` manifest. `/ait register` generates this manifest non-interactively (the console UI's `aitcc app init` is TTY-only, so an agent can't run it).
+Registration automates the console's app-registration wizard from a single `aitcc.yaml` manifest. `/ait:register` generates this manifest non-interactively (the console UI's `aitcc app init` is TTY-only, so an agent can't run it).
 
 Some constraints on the manifest's required fields:
 
@@ -98,7 +98,7 @@ Some constraints on the manifest's required fields:
 | `categoryIds` | One or more integers. Look up live with `aitcc app categories --selectable --json` |
 | `logo` / `horizontalThumbnail` / `verticalScreenshots` | Spec-compliant PNGs (600×600 / 1932×828 / 636×1048 each, at least 3 vertical) |
 
-Place image assets directly under `./assets/`. Producing spec-compliant PNGs is the job of the design station (`/ait design`).
+Place image assets directly under `./assets/`. Producing spec-compliant PNGs is the job of the design station (`/ait:design`).
 
 Before submitting, always validate the manifest and image specs first with `--dry-run`. A dry-run requires no terms acceptance.
 
@@ -175,7 +175,7 @@ app registration APPROVED  +  bundle CREATED → REVIEWING → APPROVED → RELE
 
 The bundle upload (`ait deploy`) authenticates not with a console session but with a **Deploy Key** — a workspace-scoped deploy credential. The console UI calls this an "API key", but you issue it with `aitcc keys create`.
 
-`/ait deploy-key` handles issuance and storage in one go.
+`/ait:deploy-key` handles issuance and storage in one go.
 
 ```bash
 aitcc keys create --name <label> --json
@@ -202,7 +202,7 @@ pnpm exec ait deploy --profile <profile-name> --scheme-only -m "v0.1.2 $(date +%
 After this step the bundle is on the console at `reviewStatus: CREATED`. It has not yet entered release review, and `serviceStatus` is still `PREPARE`.
 
 :::info In PREPARE, opening the scheme URL directly won't load
-While `serviceStatus` is `PREPARE` (before clearing release review), simply opening the `intoss-private://` URL in the Toss app will not load the bundle. To verify on a physical device before review, you need the QR/deep-link relay-injection path — see [bundle debug relay](/guides/debug-relay). (the `/ait debug` environment 3 path)
+While `serviceStatus` is `PREPARE` (before clearing release review), simply opening the `intoss-private://` URL in the Toss app will not load the bundle. To verify on a physical device before review, you need the QR/deep-link relay-injection path — see [bundle debug relay](/guides/debug-relay). (the `/ait:debug` environment 3 path)
 :::
 
 ## Step 5 — Submit for release review (`aitcc app deploy --request-review`)
@@ -216,7 +216,7 @@ aitcc app deploy <path-to.ait> --request-review --release-notes "<release notes>
 If you use `--request-review` but omit `--release-notes`, the CLI refuses with `exit 2` (`missing-release-notes`) — the two flags always go together.
 
 :::caution Release-review submission is irreversible
-`--request-review` moves the bundle `CREATED → REVIEWING` into the ops review queue. There is no way for the submitter to pull the bundle back out of the queue (no review withdrawal), so it is a deliberate action. This is why we keep the automated upload (`ait deploy`) and the review submission separate — the `/ait deploy` skill does not automate review submission.
+`--request-review` moves the bundle `CREATED → REVIEWING` into the ops review queue. There is no way for the submitter to pull the bundle back out of the queue (no review withdrawal), so it is a deliberate action. This is why we keep the automated upload (`ait deploy`) and the review submission separate — the `/ait:deploy` skill does not automate review submission.
 :::
 
 ## Step 6 — Actually release (`aitcc app deploy --release --confirm`)
@@ -259,7 +259,7 @@ The two commands for looking up app status differ in authority.
 - `aitcc app status --json` — a status derived client-side from `/with-draft` (`not-submitted`/`under-review`/`rejected`/`approved`/`approved-with-edits`). Fast, but a derived label.
 - `aitcc app service-status --json` — the **server-authoritative** status (`serviceStatus`) from the `/review-status` endpoint. When the two disagree, trust `service-status`.
 
-For bundle status, use `aitcc app bundles ls --json` (each bundle's `reviewStatus`). The `/ait status` skill walks you through the full branching of what comes next based on the state.
+For bundle status, use `aitcc app bundles ls --json` (each bundle's `reviewStatus`). The `/ait:status` skill walks you through the full branching of what comes next based on the state.
 
 ### There are no runtime logs
 
@@ -268,7 +268,7 @@ The Apps in Toss console has no endpoint for server runtime logs (stdout/stderr,
 - **A custom event catalog** — `aitcc app events ls --json`. An aggregation of events instrumented in the app via `app.logEvent()`, not raw runtime logs.
 - **Conversion metrics** — `aitcc app metrics --json`. Date-range aggregates of impressions, conversions, etc. An empty array is normal in the `PREPARE` (un-launched) state.
 
-To observe the real Toss WebView's runtime console, network, and exceptions, use the on-device CDP relay path (`/ait debug` environments 3·4). The `/ait logs`·`/ait status` skills guide the detailed operational lookups.
+To observe the real Toss WebView's runtime console, network, and exceptions, use the on-device CDP relay path (`/ait:debug` environments 3·4). The `/ait:logs`·`/ait:status` skills guide the detailed operational lookups.
 
 ## Related guides
 
@@ -284,7 +284,7 @@ To observe the real Toss WebView's runtime console, network, and exceptions, use
 - [console-cli mini-app registration API](https://github.com/apps-in-toss-community/console-cli/blob/main/docs/api/mini-apps.md) — the `approvalType` state machine, errorCode 4046, update mode.
 - [console-cli bundles · deployments API](https://github.com/apps-in-toss-community/console-cli/blob/main/docs/api/mini-app-bundles.md) — the `reviewStatus` state machine, the `app deploy` step flow.
 - [`@apps-in-toss/cli`](https://www.npmjs.com/package/@apps-in-toss/cli) — the `ait build`·`ait deploy` bundler.
-- [agent-plugin](https://github.com/apps-in-toss-community/agent-plugin) — the `/ait setup-bundle`·`/ait register`·`/ait deploy-key`·`/ait deploy` skills.
+- [agent-plugin](https://github.com/apps-in-toss-community/agent-plugin) — the `/ait:setup-bundle`·`/ait:register`·`/ait:deploy-key`·`/ait:deploy` skills.
 
 ---
 

@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
 });
 ```
 
-The client hands that `id_token` straight to the IdP — `supabase.auth.signInWithIdToken({ provider: 'oidc', token: id_token })` for Supabase, or `signInWithCredential` for Firebase. (The full client code and provider-registration steps live in the `/ait auth-setup` skill and sdk-example's `AuthPage`.)
+The client hands that `id_token` straight to the IdP — `supabase.auth.signInWithIdToken({ provider: 'oidc', token: id_token })` for Supabase, or `signInWithCredential` for Firebase. (The full client code and provider-registration steps live in the `/ait:auth-setup` skill and sdk-example's `AuthPage`.)
 
 :::caution authorizationCode is short-lived and single-use
 The `authorizationCode` is a single-use code with a short expiry — don't store it in logs, URLs, or `localStorage`; hand it to the backend immediately. Retrying with the same code fails the exchange.
