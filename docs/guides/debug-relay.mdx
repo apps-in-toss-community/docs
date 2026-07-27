@@ -63,4 +63,5 @@ trycloudflare 터널은 인증 없이 공개되므로, URL 유출 시 제3자가
 
 ## 외부 참조
 
-- [`@ait-co/devtools`](https://www.npmjs.com/package/@ait-co/devtools) — devtools 패키지 (Debugging MCP 포함).
+- [`@ait-co/debugger`](https://www.npmjs.com/package/@ait-co/debugger) — MCP 디버깅 데몬 + CDP relay(devDependency / `npx` 전용). `npx -p @ait-co/debugger debugger`로 실행합니다.
+- [`@ait-co/debug-console`](https://www.npmjs.com/package/@ait-co/debug-console) — 실기기 쪽에서 relay에 attach되는 대상(Chii 타겟 injection). 세 패키지 중 **프로덕션 번들에 들어갈 수 있는 유일한 패키지**입니다.

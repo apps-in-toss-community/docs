@@ -59,4 +59,5 @@ The `/ait debug` command automates TOTP code generation. If you need to generate
 
 ## External references
 
-- [`@ait-co/devtools`](https://www.npmjs.com/package/@ait-co/devtools) — Debugging MCP (relay client included).
+- [`@ait-co/debugger`](https://www.npmjs.com/package/@ait-co/debugger) — implements the authoritative gate (the relay-side Node process that validates the `process.env` secret).
+- [`@ait-co/debug-console`](https://www.npmjs.com/package/@ait-co/debug-console) — implements the secondary fail-fast in-app gate. Of the three packages, it's the **only one that can ship inside a production bundle**.

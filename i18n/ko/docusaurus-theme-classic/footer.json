@@ -34,5 +34,9 @@
   "copyright": {
     "message": "© apps-in-toss-community contributors. 커뮤니티 오픈소스 프로젝트입니다.",
     "description": "The footer copyright"
+  },
+  "link.item.label.debugger": {
+    "message": "debugger",
+    "description": "The label of footer link with label=debugger linking to https://github.com/apps-in-toss-community/debugger"
   }
 }
