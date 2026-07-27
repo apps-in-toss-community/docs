@@ -11,7 +11,7 @@ description: How to query the console state of a deployed mini-app with the comm
 
 Once you've registered a mini-app on the console and deployed a bundle, you need to know "what state is this app in on the console right now?" This is the step where you check whether review is in progress, whether the app has been released (made public), and what metrics are being captured for your users. This guide covers the two commands the community [`@ait-co/console-cli`](https://github.com/apps-in-toss-community/console-cli) (`aitcc`) gives you for querying that state, and why the two can return different answers.
 
-This step is the operate station that the `/ait status` skill ties together — you don't have to memorize the commands below, because `/ait status` shows your auth, app list, and current project state at once and branches you toward the next step. This page covers in detail what the commands that skill calls mean and where their boundaries lie.
+This step is the operate station that the `/ait:status` skill ties together — you don't have to memorize the commands below, because `/ait:status` shows your auth, app list, and current project state at once and branches you toward the next step. This page covers in detail what the commands that skill calls mean and where their boundaries lie.
 
 :::info Don't mix up the two CLIs
 Every query command on this page uses **`aitcc`** (`@ait-co/console-cli`), the console-automation CLI. It is a different tool from **`ait`** (`@apps-in-toss/cli`, which produces the `.ait` bundle via `ait build`). The deploy flow is "build the bundle with `ait build` → upload it with `aitcc app deploy`," and all operational queries are `aitcc app …`.
@@ -88,7 +88,7 @@ If you try to update app metadata and get `errorCode: 4046` (REVIEW lock), that 
 
 A "I want to see the logs" need naturally follows during operations. There's one fact to be precise about here.
 
-**The console does not expose raw runtime logs (stdout/stderr, exception stacks, per-request lines).** The console surfaces only two things — a custom event catalog and conversion metrics. Both are aggregated business signals, not process runtime logs. That's why there is no `aitcc logs` command, and the `/ait logs` skill states this fact and then guides you to alternatives.
+**The console does not expose raw runtime logs (stdout/stderr, exception stacks, per-request lines).** The console surfaces only two things — a custom event catalog and conversion metrics. Both are aggregated business signals, not process runtime logs. That's why there is no `aitcc logs` command, and the `/ait:logs` skill states this fact and then guides you to alternatives.
 
 ### Custom event catalog — `aitcc app events`
 
@@ -120,14 +120,14 @@ The next step branches by what you observe.
 
 | Observed state | Next step |
 |---|---|
-| no `aitcc.yaml` (not registered) | Start with console registration via `/ait register` |
+| no `aitcc.yaml` (not registered) | Start with console registration via `/ait:register` |
 | `reviewState: not-submitted` | Build the bundle with `ait build`, then submit for release review with `aitcc app deploy --request-review --release-notes "<release notes>" <bundle.ait>` |
 | `under-review` / `errorCode 4046` | Wait on the ops team. Meanwhile, check on a physical device via the debug relay (guide below) |
 | `rejected` | Find the reason in `rejectedMessage` from `aitcc app status --json` → fix and resubmit |
 | `approved` + `serviceStatus: PREPARE` | After release review passes, release with `aitcc app deploy --release --confirm <bundle.ait>` → `serviceStatus: OPENED` |
 | `serviceStatus: OPENED` | Live in production. Query operational metrics with `aitcc app events` / `aitcc app metrics` |
 
-`/ait status` presents this branching automatically based on what it observes — it only points to the next step rather than running commands for you.
+`/ait:status` presents this branching automatically based on what it observes — it only points to the next step rather than running commands for you.
 
 ## Related guides
 

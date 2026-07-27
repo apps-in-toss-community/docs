@@ -38,7 +38,7 @@ intoss-private://…?_deploymentId=<ID>&debug=1&relay=<wss-url>
 - `debug=1` — 디버그 모드 플래그. gate Layer가 이 파라미터를 확인합니다.
 - `relay=<wss-url>` — 에이전트 쪽 WebSocket relay 서버 URL (예: trycloudflare 터널).
 
-`/ait debug` 명령이 이 deep-link 생성과 QR 표시를 자동화합니다.
+`/ait:debug` 명령이 이 deep-link 생성과 QR 표시를 자동화합니다.
 
 :::caution test-push는 사용하지 않습니다
 `test-push`(별도 알림 채널)는 `debug=1&relay` 쿼리를 실어 보낼 수 없어 gate에서 차단됩니다. deep-link/QR이 유일한 진입 경로입니다.
